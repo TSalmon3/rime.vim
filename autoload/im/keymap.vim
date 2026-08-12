@@ -15,6 +15,7 @@ let s:keys = {
       \ 'pagedown': [0xff56, 0,            "\<pagedown>"],
       \ 'pageup'  : [0xff55, 0,            "\<pageup>"],
       \ 'return'  : [0xff0d, 0,            "\<cr>"],
+      \ 'escape'  : [0xff1b, 0,            "\<esc>"],
       \ 'space'   : [0x0020, 0,            "\<space>"],
       \ 'c-u'     : [0x75,   s:kCtrlMask,  "\<c-u>"],
       \ 'c-d'     : [0xffff, s:kShiftMask, "\<c-d>"],
@@ -65,7 +66,7 @@ function! im#keymap#setup() abort"{{{
 
   lnoremap <expr> <bs>       im#keymap#special('bs')
   lnoremap <expr> <s-bs>     im#keymap#special('s-bs')
-  lnoremap <expr> <c-u>      im#keymap#special('c-u')
+  lnoremap <expr> <c-u>      im#keymap#cancel()
   lnoremap <expr> <c-w>      im#keymap#special('s-bs')
   lnoremap <expr> <c-d>      im#keymap#special('c-d')
   lnoremap <expr> <left>     im#keymap#special('left')
@@ -116,6 +117,14 @@ function! im#keymap#toggle_scheme(name) abort"{{{
   let [code, mask, literal] = s:keys[a:name]
   if !im#state#composing()
     call s:begin_composition()
+  endif
+  return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
+function! im#keymap#cancel() abort"{{{
+  let [code, mask, literal] = s:keys["escape"]
+  if !im#state#composing()
+    return "\<c-u>"
   endif
   return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}

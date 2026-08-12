@@ -131,7 +131,6 @@ function! im#key(keycode, mask, ...) abort"{{{
       call s:commit_text(committed)
       doautocmd User RimeIMCommit
     else
-      " <c-u> or number key
       call im#underline#clean()
       call im#state#reset_input()
     endif
