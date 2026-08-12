@@ -100,6 +100,22 @@ function! s:redraw(ctx) abort"{{{
   call im#underline#render()
 endfunction"}}}
 
+function! s:commit_text(committed) abort"{{{
+  let state = im#state#get()
+  let lnum = line('.')
+  let line = getline(lnum)
+
+  let before = strpart(line, 0, state.boundary - 1)
+  let after = strpart(line, state.boundary - 1 + state.preedit_len)
+  call setline(lnum, before . a:committed . after)
+
+  call cursor(line('.'), state.boundary + strlen(a:committed))
+  call complete(col('.'), [])
+  call im#underline#clean()
+  call im#state#reset_input()
+  let state.last_commit = a:committed
+endfunction"}}}
+
 function! im#key(keycode, mask, ...) abort"{{{
   let state = im#state#get()
   let ctx = im#rime#key(a:keycode, a:mask)
@@ -112,35 +128,22 @@ function! im#key(keycode, mask, ...) abort"{{{
   if !ctx.accepted
     let committed = get(ctx, 'committed', '')
     if !empty(committed)
-      let lnum = line('.')
-      let line = getline(lnum)
-
-      let before = strpart(line, 0, state.boundary - 1)
-      let after = strpart(line, state.boundary - 1 + state.preedit_len)
-      call setline(lnum, before . committed . after)
-
-      call cursor(line('.'), state.boundary + strlen(committed))
-      call complete(col('.'), [])
+      call s:commit_text(committed)
+      doautocmd User RimeIMCommit
+    else
+      " <c-u> or number key
+      call im#underline#clean()
+      call im#state#reset_input()
     endif
-    call im#underline#clean()
-    call im#state#reset_input()
     call feedkeys(fallback, 'ni')
+    doautocmd User RimeIMFallBack
     return
   else
     " 组词结束上屏
     let committed = get(ctx, 'committed', '')
     if !empty(committed) || !ctx.composing
-      let lnum = line('.')
-      let line = getline(lnum)
-
-      let before = strpart(line, 0, state.boundary - 1)
-      let after = strpart(line, state.boundary - 1 + state.preedit_len)
-      call setline(lnum, before . committed . after)
-
-      call cursor(line('.'), state.boundary + strlen(committed))
-      call im#underline#clean()
-      call im#state#reset_input()
-      call complete(col('.'), [])
+      call s:commit_text(committed)
+      doautocmd User RimeIMCommit
       return
     endif
     " composing waiting input
