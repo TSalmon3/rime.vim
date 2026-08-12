@@ -100,65 +100,6 @@ function! s:redraw(ctx) abort"{{{
   call im#underline#render()
 endfunction"}}}
 
-function! im#type(char) abort"{{{
-  let state = im#state#get()
-
-  " if !im#state#composing()
-  "   call s:begin_composition()
-  " endif
-
-  let ctx = im#rime#key(char2nr(a:char), 0)
-
-  " librime reject 上屏
-  if !ctx.accepted
-    let committed = get(ctx, 'committed', '')
-    if !empty(committed)
-      let lnum = line('.')
-      let line = getline(lnum)
-
-      let before = strpart(line, 0, state.boundary - 1)
-      let after = strpart(line, state.boundary - 1 + state.preedit_len)
-      call setline(lnum, before . committed . after)
-
-      call cursor(line('.'), state.boundary + strlen(committed))
-      call im#underline#clean()
-      call complete(col('.'), [])
-    endif
-
-
-    let lnum = line('.')
-    let line = getline(lnum)
-    let c    = col('.')
-    call setline(lnum, strpart(line, 0, c - 1) . a:char . strpart(line, c - 1))
-    call cursor(lnum, c + 1)
-
-    call im#state#reset_input()
-    return
-
-  endif
-
-  " 组词结束上屏
-  let committed = get(ctx, 'committed', '')
-  if !empty(committed) || !ctx.composing
-    let lnum = line('.')
-    let line = getline(lnum)
-
-    let before = strpart(line, 0, state.boundary - 1)
-    let after = strpart(line, state.boundary - 1 + state.preedit_len)
-    call setline(lnum, before . committed . after)
-
-    call cursor(line('.'), state.boundary + strlen(committed))
-    call im#underline#clean()
-    call im#state#reset_input()
-    call complete(col('.'), [])
-    return
-    " composing waiting input
-    call s:redraw(ctx)
-  endif
-
-
-endfunction"}}}
-
 function! im#key(keycode, mask, ...) abort"{{{
   let state = im#state#get()
   let ctx = im#rime#key(a:keycode, a:mask)
