@@ -336,8 +336,9 @@ export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 | 按键 | 模式                                 | 功能           |
 | ---- | ------------------------------------ | -------------- |
 | `;;` | normal / insert / command / terminal | 切换输入法开关 |
-| `;a` | normal / insert                      | 切换中英文标点 |
-| `;f` | normal / insert                      | 切换简繁体     |
+| `;a` | normal / insert                      | 切换中/英模式  |
+| `;,` | normal / insert                      | 切换中英文标点 |
+| `;f` | normal / insert                      | 切换简/繁体    |
 | `;e` | normal / insert                      | 切换 emoji     |
 
 按键和组合键基本兼容系统级输入法
