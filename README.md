@@ -192,8 +192,10 @@ let g:im_underline_disable         = 0
 let g:im_no_default_mappings       = 0
 " 切换输入法开关
 let g:im_toggle_key                = ';;'
+" 切换中文/英文模式切换开关
+let g:im_toggle_ascii_mode_key     = ';a'
 " 切换中英文标点
-let g:im_toggle_ascii_punct_key    = ';a'
+let g:im_toggle_ascii_punct_key    = ';,'
 " 切换简繁体
 let g:im_toggle_traditional_key    = ';f'
 " 切换 emoji
