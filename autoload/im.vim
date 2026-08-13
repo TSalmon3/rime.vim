@@ -129,20 +129,20 @@ function! im#key(keycode, mask, ...) abort"{{{
     let committed = get(ctx, 'committed', '')
     if !empty(committed)
       call s:commit_text(committed)
-      doautocmd User RimeIMCommit
+      silent! doautocmd User RimeIMCommit
     else
       call im#underline#clean()
       call im#state#reset_input()
     endif
     call feedkeys(fallback, 'ni')
-    doautocmd User RimeIMFallBack
+    silent! doautocmd User RimeIMFallBack
     return
   else
     " 组词结束上屏
     let committed = get(ctx, 'committed', '')
     if !empty(committed) || !ctx.composing
       call s:commit_text(committed)
-      doautocmd User RimeIMCommit
+      silent! doautocmd User RimeIMCommit
       return
     endif
     " composing waiting input
@@ -194,10 +194,10 @@ function! im#apply_option_changes(ctx) abort"{{{
     redrawstatus
   endif
   if opt_changed
-    doautocmd User RimeOptionChanged
+    silent! doautocmd User RimeOptionChanged
   endif
   if sch_changed
-    doautocmd User RimeSchemaChanged
+    silent! doautocmd User RimeSchemaChanged
   endif
 endfunction"}}}
 
@@ -208,9 +208,13 @@ function! im#enable() abort"{{{
   call im#keymap#setup()
   let state.boundary = -1
   let state.enabled = 1
-  if mode() == "i" && &iminsert != 1
-    call feedkeys("\<c-^>", "n")
-  endif
+
+  " Bug: lnoremap 没有生效
+  function! s:Fix() abort
+    let &iminsert = 1
+  endfunction
+
+  call timer_start(0, {-> s:Fix()})
 endfunction"}}}
 
 function! im#disable() abort"{{{
@@ -234,7 +238,7 @@ function! im#start() abort"{{{
     return
   endif
 
-  doautocmd User RimeIMEnable
+  silent! doautocmd User RimeIMEnable
   call im#state#init()
   call s:setup_im_autocmd()
   call s:vimrc_save()
@@ -257,7 +261,7 @@ function! im#stop() abort"{{{
   call im#disable()
   call s:vimrc_restore()
   let state.started = 0
-  doautocmd User RimeIMDisable
+  silent! doautocmd User RimeIMDisable
   echo '[IM] off'
   redrawstatus
   return

@@ -86,7 +86,7 @@ function! im#keymap#setup() abort"{{{
   lnoremap <expr> <c-f>      im#keymap#special('pagedown')
   lnoremap <expr> <c-b>      im#keymap#special('pageup')
 
-  doautocmd User RimeKeymapSetup
+  silent! doautocmd User RimeKeymapSetup
 endfunction"}}}
 
 function! im#keymap#clear() abort"{{{
@@ -94,7 +94,7 @@ function! im#keymap#clear() abort"{{{
         \ s:mapped_keys.symbols + s:mapped_keys.specials
     silent! execute 'lunmap ' . key
   endfor
-  doautocmd User RimeKeymapClear
+  silent! doautocmd User RimeKeymapClear
 endfunction"}}}
 
 function! s:begin_composition() abort"{{{
