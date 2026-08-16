@@ -58,8 +58,6 @@
 - [致谢](#致谢)
 - [License](#license)
 
-
-
 ## 简介
 
 Rime（中州韵）输入法在 Vim / Neovim 中的集成方案，基于 [rime-ice](https://github.com/iDvelve/rime-ice) 词库，同时支持 Vim（>= 8.2.1978）与 Neovim。
@@ -138,7 +136,7 @@ cd /path/to/rime.vim/cpp
 clang++ -std=c++17 -I./3rd -I/path/to/librime/include -L/path/to/librime/lib -lstdc++ -lrime -o build/rime-query rime-query.cc
 ```
 
- 或者使用 emake （必要时修改 `main.mak` 中的 librime include / lib 路径）：
+或者使用 emake （必要时修改 `main.mak` 中的 librime include / lib 路径）：
 
 ```bash
 cd /path/to/rime.vim/cpp
@@ -190,6 +188,8 @@ let g:im_pumheight                 = 9
 let g:im_underline_disable         = 0
 " 设为 1 不创建默认按键映射
 let g:im_no_default_mappings       = 0
+" 设为 1 在 R/gR 替换模式下启用 Rime（默认关闭）
+let g:im_replace_mode              = 0
 " 切换输入法开关
 let g:im_toggle_key                = ';;'
 " 切换中文/英文模式切换开关
@@ -591,6 +591,27 @@ augroup END
 ### 在 Replace Mode 中使用
 
 以下功能还处于实验性阶段。
+
+![demo2](https://github.com/user-attachments/assets/c58090ad-b5a0-4297-9abc-7db54c26234e)
+
+开启后，Rime 可以在替换模式（`R` / `gR`）中工作：上屏内容从光标处开始**覆盖**而非插入，并支持像原生 Replace 一样还原。
+
+```vim
+" 设为 1：在 R/gR 替换模式下启用 Rime
+let g:im_replace_mode = 1
+```
+
+`g:im_replace_mode` 默认为 `0`：替换模式下的按键不会被 Rime 拦截，完全回退到 Vim 原生行为，不弹候选窗。
+
+设为 `1` 后，进入 `R` / `gR` 即开始替换会话，上屏内容以原生 Replace 的方式还原：
+
+| 按键    | 功能                             |
+| ------- | -------------------------------- |
+| `<bs>`  | 还原上一步覆盖的字符             |
+| `<c-w>` | 还原上一个空白分隔的词覆盖的字符 |
+| `<c-u>` | 还原本会话内覆盖的全部字符       |
+
+移动光标会放弃该会话的还原能力（对齐原生 Replace），之后从新位置继续覆盖。
 
 - 重映射 `r`，支持半角和全角切换。
 
