@@ -65,7 +65,7 @@ Rime（中州韵）输入法在 Vim / Neovim 中的集成方案，基于 [rime-i
 **用法**：进入插入模式后直接键入拼音，候选词浮窗出现；数字键或 `Up` / `Down` 选择候选，`Enter` / `Space` 上屏，`Esc` 取消本次组合。
 
 ![demo](https://github.com/user-attachments/assets/20978d66-c198-426f-97f1-0ba7322cf656)
-![demo2](https://github.com/user-attachments/assets/93d255dd-a9e4-4612-905a-bea1bf0a5501)
+![demo2](https://github.com/user-attachments/assets/8a824b12-e408-491b-8002-cdf7ba1dcd89)
 
 主要特性：
 
@@ -592,7 +592,7 @@ augroup END
 
 以下功能还处于实验性阶段。
 
-![demo2](https://github.com/user-attachments/assets/c58090ad-b5a0-4297-9abc-7db54c26234e)
+![demo4](https://github.com/user-attachments/assets/9e37815f-8097-4500-b60d-337ef4c438b2)
 
 开启后，Rime 可以在替换模式（`R` / `gR`）中工作：上屏内容从光标处开始**覆盖**而非插入，并支持像原生 Replace 一样还原。
 
