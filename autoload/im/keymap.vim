@@ -64,10 +64,11 @@ function! im#keymap#setup() abort"{{{
     execute 'lnoremap <expr> ' . key . ' im#keymap#char(' . string(key) . ')'
   endfor
 
-  lnoremap <expr> <bs>       im#keymap#special('bs')
-  lnoremap <expr> <s-bs>     im#keymap#special('s-bs')
-  lnoremap <expr> <c-u>      im#keymap#cancel()
-  lnoremap <expr> <c-w>      im#keymap#special('s-bs')
+  lnoremap <expr> <bs>       im#keymap#backspace('bs')
+  lnoremap <expr> <s-bs>     im#keymap#backspace('s-bs')
+  lnoremap <expr> <c-u>      im#keymap#ctrl_u()
+  " lnoremap <expr> <c-w>      im#keymap#special('s-bs')
+  lnoremap <expr> <c-w>      im#keymap#ctrl_w()
   lnoremap <expr> <c-d>      im#keymap#special('c-d')
   lnoremap <expr> <left>     im#keymap#special('left')
   lnoremap <expr> <right>    im#keymap#special('right')
@@ -99,6 +100,9 @@ endfunction"}}}
 
 function! s:begin_composition() abort"{{{
   let state = im#state#get()
+  if im#replace#active() && im#replace#dirty()
+    call im#replace#sync()
+  endif
   let state.boundary    = col('.')
   let state.preedit_len = 0
   let state.cursor_pos  = 0
@@ -106,7 +110,14 @@ function! s:begin_composition() abort"{{{
   let state.sel_end     = 0
 endfunction"}}}
 
+function! s:replace_passive() abort"{{{
+  return !get(g:, 'im_replace_mode', 0) && mode(1) =~# '^R'
+endfunction"}}}
+
 function! im#keymap#char(char) abort"{{{
+  if s:replace_passive()
+    return a:char
+  endif
   if !im#state#composing()
     call s:begin_composition()
   endif
@@ -129,9 +140,49 @@ function! im#keymap#cancel() abort"{{{
   return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
+function! im#keymap#ctrl_w() abort"{{{
+  let [code, mask, literal] = s:keys["s-bs"]
+  if !im#state#composing()
+    if im#replace#active()
+          \ && im#replace#at_frontier()
+          \ && im#replace#restorable()
+      return "\<Cmd>call im#replace#ctrl_w()\<CR>"
+    endif
+    return "\<c-w>"
+  endif
+  return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
+function! im#keymap#ctrl_u() abort"{{{
+  let [code, mask, literal] = s:keys["escape"]
+  if !im#state#composing()
+    if im#replace#active()
+          \ && im#replace#at_frontier()
+          \ && im#replace#restorable()
+      return "\<Cmd>call im#replace#ctrl_u()\<CR>"
+    endif
+    return "\<c-u>"
+  endif
+  return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
 function! im#keymap#special(name) abort"{{{
   let [code, mask, literal] = s:keys[a:name]
   if !im#state#composing()
+    return literal
+  endif
+  return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
+function! im#keymap#backspace(name) abort"{{{
+  let [code, mask, literal] = s:keys[a:name]
+  if !im#state#composing()
+    if (a:name ==# 'bs' || a:name ==# 's-bs')
+          \ && im#replace#active()
+          \ && im#replace#at_frontier()
+          \ && im#replace#restorable()
+      return "\<Cmd>call im#replace#bs()\<CR>"
+    endif
     return literal
   endif
   return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"

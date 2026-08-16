@@ -24,6 +24,11 @@ let s:state = {
       \ 'ns_id'           : 0,
       \ 'mark_id'         : 0,
       \ 'match_id'        : 0,
+      \ 'repl_active'     : 0,
+      \ 'base_line'       : '',
+      \ 'base_cidx'       : 0,
+      \ 'repl_text'       : '',
+      \ 'repl_len'        : 0,
       \ }
 
 function! im#state#get() abort
@@ -52,6 +57,11 @@ function! im#state#init() abort
   let s:state.last_commit     = ''
   let s:state.mark_id        = 0
   let s:state.match_id       = 0
+  let s:state.repl_active      = 0
+  let s:state.base_line      = ''
+  let s:state.base_cidx      = 0
+  let s:state.repl_text      = ''
+  let s:state.repl_len       = 0
 
   if has('nvim') && s:state.ns_id == 0
     let s:state.ns_id = nvim_create_namespace("im_nvim")
@@ -76,4 +86,12 @@ function! im#state#reset_input() abort
   let s:state.last_preedit    = ''
   let s:state.last_hl         = 0
   call im#rime#reset()
+endfunction
+
+function! im#state#reset_replace() abort
+  let s:state.repl_active = 0
+  let s:state.base_line = ''
+  let s:state.base_cidx = 0
+  let s:state.repl_text = ''
+  let s:state.repl_len  = 0
 endfunction

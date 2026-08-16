@@ -29,7 +29,9 @@ function! s:setup_im_autocmd() abort"{{{
   augroup im_augroup
     autocmd!
     autocmd InsertEnter * call im#on_insert_enter()
+    autocmd InsertChange * call im#on_insert_change()
     autocmd InsertLeave * call im#on_insert_leave()
+    autocmd CursorMovedI * call im#replace#on_cursor_moved()
   augroup END
 endfunction"}}}
 
@@ -102,14 +104,18 @@ endfunction"}}}
 
 function! s:commit_text(committed) abort"{{{
   let state = im#state#get()
-  let lnum = line('.')
-  let line = getline(lnum)
+  if im#replace#active()
+    call im#replace#commit(a:committed)
+  else
+    let lnum = line('.')
+    let line = getline(lnum)
 
-  let before = strpart(line, 0, state.boundary - 1)
-  let after = strpart(line, state.boundary - 1 + state.preedit_len)
-  call setline(lnum, before . a:committed . after)
+    let before = strpart(line, 0, state.boundary - 1)
+    let after = strpart(line, state.boundary - 1 + state.preedit_len)
+    call setline(lnum, before . a:committed . after)
 
-  call cursor(line('.'), state.boundary + strlen(a:committed))
+    call cursor(line('.'), state.boundary + strlen(a:committed))
+  endif
   call complete(col('.'), [])
   call im#underline#clean()
   call im#state#reset_input()
@@ -152,12 +158,20 @@ function! im#key(keycode, mask, ...) abort"{{{
 endfunction"}}}
 
 function! im#cancel() abort"{{{
+  let state = im#state#get()
   if !im#state#composing()
+    call im#state#reset_replace()
     return
   endif
+
+  " if get(v:, 'insertmode', '') ==# 'r' || get(v:, 'insertmode', '') ==# 'v'
+  "   call complete(col('.'), [])
+  " endif
+
   call im#underline#clean()
   call im#rime#reset()
   call im#state#reset_input()
+  call im#state#reset_replace()
 endfunction"}}}
 
 function! im#apply_option_changes(ctx) abort"{{{
@@ -243,8 +257,12 @@ function! im#start() abort"{{{
   call s:setup_im_autocmd()
   call s:vimrc_save()
   call s:vimrc_setup()
+
   if mode() == "i"
     call im#enable()
+  elseif mode() =~# '^R'
+    call im#enable()
+    call im#replace#enter()
   endif
 
   echo '[IM] on'
@@ -333,6 +351,18 @@ function! im#on_insert_enter() abort"{{{
   let state = im#state#get()
   if state.started && !state.enabled
     call im#enable()
+  endif
+
+  if get(v:, 'insertmode', '') ==# 'r' || get(v:, 'insertmode', '') ==# 'v'
+    call im#replace#enter()
+  endif
+endfunction"}}}
+
+function! im#on_insert_change() abort"{{{
+  if get(v:, 'insertmode', '') ==# 'r' || get(v:, 'insertmode', '') ==# 'v'
+    call im#replace#enter()
+  else
+    call im#replace#leave()
   endif
 endfunction"}}}
 
