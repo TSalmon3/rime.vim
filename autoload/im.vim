@@ -125,7 +125,6 @@ endfunction"}}}
 function! im#key(keycode, mask, ...) abort"{{{
   let state = im#state#get()
   let ctx = im#rime#key(a:keycode, a:mask)
-
   let fallback = a:0 ? a:1 : im#keymap#fallback(a:keycode, a:mask)
 
   call im#apply_option_changes(ctx)
@@ -133,22 +132,38 @@ function! im#key(keycode, mask, ...) abort"{{{
   " librime reject 上屏
   if !ctx.accepted
     let committed = get(ctx, 'committed', '')
+    let pair = im#pair#extra(fallback)
     if !empty(committed)
       call s:commit_text(committed)
       silent! doautocmd User RimeIMCommit
     else
       call im#underline#clean()
       call im#state#reset_input()
+      " 半角闭符：光标右侧已有闭符则跳出，不插入。
+      if im#pair#jump(fallback)
+        call feedkeys("\<Del>" . fallback, 'ni')
+        return
+      endif
     endif
-    call feedkeys(fallback, 'ni')
-    silent! doautocmd User RimeIMFallBack
+    call feedkeys(fallback . pair, 'ni')
     return
   else
     " 组词结束上屏
     let committed = get(ctx, 'committed', '')
     if !empty(committed) || !ctx.composing
+      " 全角闭符：光标右侧已有闭符则跳出，不commit。
+      let last = empty(committed) ? '' : strcharpart(committed, strchars(committed) - 1, 1)
+      if im#pair#jump(last)
+        call complete(col('.'), [])
+        call im#underline#clean()
+        call im#state#reset_input()
+        call feedkeys("\<Del>" . last, 'ni')
+        return
+      endif
+      let pair = im#pair#extra(committed)
       call s:commit_text(committed)
       silent! doautocmd User RimeIMCommit
+      call feedkeys(pair, 'ni')
       return
     endif
     " composing waiting input

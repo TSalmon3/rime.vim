@@ -57,6 +57,12 @@ function! im#replace#commit(committed) abort"{{{
   call cursor(line('.'), im#replace#frontier())
 endfunction"}}}
 
+function! im#replace#can_restore() abort"{{{
+  return im#replace#active()
+        \ && im#replace#at_frontier()
+        \ && im#replace#restorable()
+endfunction"}}}
+
 function! im#replace#bs() abort"{{{
   " 上屏后 BS：弹掉 repl_text 末尾一个字符，并还原该字符吃掉的
   " 基础字符（R/gR 均按字符数）。

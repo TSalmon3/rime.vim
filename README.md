@@ -54,6 +54,8 @@
 - [高级主题](#高级主题)
   - [rime-ice 配置示例](#rime-ice-配置示例)
   - [让中文编辑更加丝滑](#让中文编辑更加丝滑)
+  - [Replace Mode 替换模式](#replace-mode-替换模式)
+  - [Auto Pair 自动补全](#auto-pair-自动补全)
   - [其他搭配插件](#其他搭配插件)
 - [致谢](#致谢)
 - [License](#license)
@@ -588,7 +590,7 @@ augroup END
 
 ![demo3](https://github.com/user-attachments/assets/093e5089-0b8c-4528-854f-5d4aee85328d)
 
-### 在 Replace Mode 中使用
+### Replace Mode 替换模式
 
 以下功能还处于实验性阶段。
 
@@ -619,6 +621,75 @@ let g:im_replace_mode = 1
 nnoremap r <Cmd>call im#keymap#r()<CR>
 ```
 
+### Auto Pair 自动补全
+
+> [!Tip]
+> 替换模式下自动成对关闭
+
+
+| 功能     | 按键         | 效果                       | 说明                                             |
+| -------- | ------------ | -------------------------- | ------------------------------------------------ |
+| 成对补全 | `(` `「` `"` | (\|)　「\|」　"\|"         | 输入开符自动补闭符并回移光标                     |
+| 闭符跳出 | `)` `」` `"` | ()\|　「」\|　""\|         | 光标右侧已有相同闭符/引号则直接跳出，不重复插入  |
+| 空对删除 | `<BS>`       | (\|) → 删除 → \|           | 在空对（开符紧邻闭符）内一次删除成对             |
+| 只删开符 | `<s-bs>`     | (\|) → 删除 → \|)          | 在空对（开符紧邻闭符）内只删开符，保留闭符       |
+| 手动跳过 | `<c-tab>`    | (\|) → 越过一个 → ()\|     | 跳过右侧一个闭符/引号（`im#pair#jump_any`）      |
+| 手动连跳 | `<c-g>`      | (\|))) → 越过全部 → ()))\| | 跳过右侧连续一串闭符/引号（`im#pair#jump_many`） |
+
+- 默认配对：`()` `[]` `{}` `<>` 与全角 `（）` `【】` `「」` `『』` `《》`，引号 `"` `'`
+- 半角标点直接上屏、全角标点经 Rime 上屏，两种情况都能正确处理成对
+- 配置优先级：`b:im_pair_rules` > `g:im_pair_rules` > 默认值
+- 可手动映射跳过右侧闭符/引号的键：
+
+```vim
+" 自动成对开关（默认 0）
+let g:im_pair_enabled = 0
+" 配对规则列表，每条含 open/close 与 kind（'delim' 开闭不同符、'quote' 开=闭同符）
+let g:im_pair_rules = [
+      \ {'open': '(',  'close': ')',  'kind': 'delim'},
+      \ {'open': '[',  'close': ']',  'kind': 'delim'},
+      \ {'open': '{',  'close': '}',  'kind': 'delim'},
+      \ {'open': '<',  'close': '>',  'kind': 'delim'},
+      \ {'open': '（', 'close': '）', 'kind': 'delim'},
+      \ {'open': '【', 'close': '】', 'kind': 'delim'},
+      \ {'open': '「', 'close': '」', 'kind': 'delim'},
+      \ {'open': '『', 'close': '』', 'kind': 'delim'},
+      \ {'open': '《', 'close': '》', 'kind': 'delim'},
+      \ {'open': '"',  'close': '"',  'kind': 'quote'},
+      \ {'open': "'",  'close': "'",  'kind': 'quote'},
+      \ ]
+
+```
+
+或者修改默认按键映射
+
+```vim
+function RimeKeymapRemap()
+  lnoremap <expr> <c-g> im#pair#jump_any()   " 跳过右侧一个闭符/引号
+  lnoremap <expr> <c-tab> im#pair#jump_many()  " 跳过右侧连续一串闭符/引号
+
+  lnoremap <silent><expr> <bs> im#state#composing() ? "\<cmd>call im#key( 0xff08, 0)\<CR>" :
+        \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
+        \ im#pair#should_bs_pair() ? im#pair#bs() : "\<bs>"
+
+  lnoremap <silent><expr> <s-bs> im#state#composing() ? "\<cmd>call im#key( 0xff08, 1)\<CR>" :
+        \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
+        \ im#pair#should_bs_pair() ? "\<bs>" : "\<s-bs>"
+
+endfunction
+
+function RimeKeymapClear()
+  silent! lunmap <c-g>
+  silent! lunmap <c-tab>
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimeKeymapClear call RimeKeymapClear()
+augroup END
+```
+
 ### 其他搭配插件
 
 - [jieba.vim](https://github.com/kkew3/jieba.vim) — jieba 的 Vim/Nvim 按词跳转插件
@@ -630,6 +701,7 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 - [ZFVimIM](https://github.com/ZSaberLv0/ZFVimIM) — vim 输入法 / Vim Input Method by pure vim script, support: user word, dynamic word priority, cloud db files
 - [rime-ls](https://github.com/wlh320/rime-ls) — A language server that provides input method functionality using librime，通过 LSP 代码补全使用 Rime 输入法
 - [rime.nvim](https://github.com/rimeinn/rime.nvim) — ㄓ rime for neovim
+- [delimitMate](https://github.com/Raimondi/delimitMate) - Vim plugin, provides insert mode auto-completion for quotes, parens, brackets, etc.
 
 ## License
 

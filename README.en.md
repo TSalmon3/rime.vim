@@ -5,6 +5,40 @@ A Chinese input method (Rime / ㄓ) solution for Vim and Neovim, based on the
 
 ---
 
+<details>
+<summary>Before you start</summary>
+
+<br>
+Answers to common questions.
+
+- Will this conflict with the system Rime input method?
+
+  ```answer
+  Yes, it will conflict. It is recommended to create a new directory for your
+  pinyin scheme, i.e. your "user data directory", and preferably not the same
+  directory as the system input method.
+  ```
+
+- Why does word-frequency stop working?
+
+  ```answer
+  Each Vim / Neovim instance starts its own independent rime-query backend
+  process, yet all instances share the same user dictionary directory
+  (`g:im_user_data_dir`). The user dictionary (*.userdb directories) is a
+  LevelDB single-writer store: only one process can hold the write lock at a
+  time. When another instance starts first and takes the dictionary, later
+  instances cannot acquire the lock; librime silently moves the old dictionary
+  directory aside and creates an empty one, which shows up as "word frequency
+  lost and candidate ordering back to defaults".
+
+  Keep only one editor session at a time; or configure a separate
+  `g:im_user_data_dir` for each editor so the dictionaries don't overwrite
+  each other.
+  ```
+</details>
+
+---
+
 ## Table of Contents
 
 - [Introduction](#introduction)
@@ -24,6 +58,8 @@ A Chinese input method (Rime / ㄓ) solution for Vim and Neovim, based on the
 - [Advanced Topics](#advanced-topics)
   - [rime-ice configuration examples](#rime-ice-configuration-examples)
   - [Making Chinese editing smoother](#making-chinese-editing-smoother)
+  - [Replace Mode](#replace-mode)
+  - [Auto Pair](#auto-pair)
   - [Complementary plugins](#complementary-plugins)
 - [Acknowledgments](#acknowledgments)
 - [License](#license)
@@ -41,7 +77,7 @@ appears. Use the number keys or `Up` / `Down` to select a candidate,
 `Enter` / `Space` to commit, and `Esc` to cancel the current composition.
 
 ![demo](https://github.com/user-attachments/assets/20978d66-c198-426f-97f1-0ba7322cf656)
-![demo2](https://github.com/user-attachments/assets/93d255dd-a9e4-4612-905a-bea1bf0a5501)
+![demo2](https://github.com/user-attachments/assets/820db16b-b76b-4b15-a5f4-a8a6a58306bd)
 
 Key features:
 
@@ -174,10 +210,14 @@ let g:im_pumheight                 = 9
 let g:im_underline_disable         = 0
 " Set to 1 to skip creating default key mappings
 let g:im_no_default_mappings       = 0
+" Set to 1 to enable Rime in R/gR replace mode (default off)
+let g:im_replace_mode              = 0
 " Toggle input method on/off
 let g:im_toggle_key                = ';;'
+" Toggle Chinese/English mode
+let g:im_toggle_ascii_mode_key     = ';a'
 " Toggle Chinese/English punctuation
-let g:im_toggle_ascii_punct_key    = ';a'
+let g:im_toggle_ascii_punct_key    = ';,'
 " Toggle simplified/traditional
 let g:im_toggle_traditional_key    = ';f'
 " Toggle emoji
@@ -329,12 +369,13 @@ and platforms; on multiple devices it is recommended to set the same
 Default key mappings (disable by setting `g:im_no_default_mappings=1`, and
 customize via the corresponding `g:im_*_key`):
 
-| Key | Mode                                | Function              |
-| --- | ----------------------------------- | --------------------- |
-| `;;`| normal / insert / command / terminal | Toggle input method    |
-| `;a`| normal / insert                      | Toggle punctuation     |
-| `;f`| normal / insert                     | Toggle traditional     |
-| `;e`| normal / insert                      | Toggle emoji           |
+| Key | Mode                                | Function                         |
+| --- | ----------------------------------- | -------------------------------- |
+| `;;` | normal / insert / command / terminal | Toggle input method              |
+| `;a` | normal / insert                      | Toggle Chinese/English mode      |
+| `;,` | normal / insert                      | Toggle Chinese/English punctuation |
+| `;f` | normal / insert                      | Toggle simplified/traditional    |
+| `;e` | normal / insert                      | Toggle emoji                     |
 
 Keys and key combinations are basically compatible with system-level input
 methods:
@@ -595,14 +636,108 @@ augroup END
 ```
 ![demo3](https://github.com/user-attachments/assets/093e5089-0b8c-4528-854f-5d4aee85328d)
 
-### Use in Replace mode
+### Replace Mode
 
 The following feature is experimental.
+
+![demo4](https://github.com/user-attachments/assets/f2fba3e1-d7dc-4b1c-bd5a-779b4e725a45)
+
+When enabled, Rime works in Replace mode (`R` / `gR`): committed text
+**overwrites** from the cursor instead of inserting, and supports restoring just
+like native Replace.
+
+```vim
+" Set to 1: enable Rime in R/gR replace mode
+let g:im_replace_mode = 1
+```
+
+`g:im_replace_mode` defaults to `0`: keys in Replace mode are not intercepted by
+Rime, falling back entirely to native Vim behavior without a candidate popup.
+
+When set to `1`, entering `R` / `gR` starts a replace session, and committed text
+is restored the native Replace way:
+
+| Key    | Function                                             |
+| ------ | ---------------------------------------------------- |
+| `<bs>` | Restore the characters overwritten by the previous step |
+| `<c-w>`| Restore the characters overwritten by the previous whitespace-delimited word |
+| `<c-u>`| Restore all characters overwritten in this session   |
+
+Moving the cursor abandons the restore capability of this session (aligned with
+native Replace); overwriting then continues from the new position.
 
 - Remap `r` to support half-width / full-width switching.
 
 ```vim
 nnoremap r <Cmd>call im#keymap#r()<CR>
+```
+
+### Auto Pair
+
+> [!Tip]
+> Auto closing is disabled in Replace mode
+
+| Function       | Key           | Effect                     | Description                                          |
+| -------------- | ------------- | -------------------------- | ---------------------------------------------------- |
+| Auto close     | `(` `「` `"`  | (\|)　「\|」　"\|"          | Entering an open delimiter inserts the close and moves the cursor back |
+| Jump close     | `)` `」` `"`  | ()\|　「」\|　""\|          | When the same close delimiter/quote is already right of the cursor, jump over it instead of inserting |
+| Delete pair    | `<BS>`        | (\|) → delete → \|         | In an empty pair (open immediately followed by close), delete the whole pair at once |
+| Delete open only | `<s-bs>`    | (\|) → delete → \|)        | In an empty pair, delete only the open delimiter, keeping the close |
+| Manual jump    | `<c-tab>`     | (\|) → jump one → ()\|     | Skip one close delimiter/quote to the right (`im#pair#jump_any`) |
+| Manual multi-jump | `<c-g>`   | (\|))) → jump all → ()))\| | Skip a run of close delimiters/quotes to the right (`im#pair#jump_many`) |
+
+- Default pairs: `()` `[]` `{}` `<>` and full-width `（）` `【】` `「」` `『』` `《》`, plus quotes `"` `'`
+- Half-width punctuation goes straight to the screen; full-width punctuation goes through Rime. Pairing is handled correctly in both cases
+- Configuration priority: `b:im_pair_rules` > `g:im_pair_rules` > default
+- You can manually map keys to skip close delimiters/quotes to the right:
+
+```vim
+" Auto pair toggle (default 0)
+let g:im_pair_enabled = 0
+" Pair rules list; each entry has open/close and kind ('delim' open != close, 'quote' open = close)
+let g:im_pair_rules = [
+      \ {'open': '(',  'close': ')',  'kind': 'delim'},
+      \ {'open': '[',  'close': ']',  'kind': 'delim'},
+      \ {'open': '{',  'close': '}',  'kind': 'delim'},
+      \ {'open': '<',  'close': '>',  'kind': 'delim'},
+      \ {'open': '（', 'close': '）', 'kind': 'delim'},
+      \ {'open': '【', 'close': '】', 'kind': 'delim'},
+      \ {'open': '「', 'close': '」', 'kind': 'delim'},
+      \ {'open': '『', 'close': '』', 'kind': 'delim'},
+      \ {'open': '《', 'close': '》', 'kind': 'delim'},
+      \ {'open': '"',  'close': '"',  'kind': 'quote'},
+      \ {'open': "'",  'close': "'",  'kind': 'quote'},
+      \ ]
+
+```
+
+Or modify the default key mappings:
+
+```vim
+function RimeKeymapRemap()
+  lnoremap <expr> <c-g> im#pair#jump_any()   " skip one close delimiter/quote to the right
+  lnoremap <expr> <c-tab> im#pair#jump_many()  " skip a run of close delimiters/quotes to the right
+
+  lnoremap <silent><expr> <bs> im#state#composing() ? "\<cmd>call im#key( 0xff08, 0)\<CR>" :
+        \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
+        \ im#pair#should_bs_pair() ? im#pair#bs() : "\<bs>"
+
+  lnoremap <silent><expr> <s-bs> im#state#composing() ? "\<cmd>call im#key( 0xff08, 1)\<CR>" :
+        \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
+        \ im#pair#should_bs_pair() ? "\<bs>" : "\<s-bs>"
+
+endfunction
+
+function RimeKeymapClear()
+  silent! lunmap <c-g>
+  silent! lunmap <c-tab>
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimeKeymapClear call RimeKeymapClear()
+augroup END
 ```
 
 ### Complementary plugins
@@ -618,6 +753,7 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 - [ZFVimIM](https://github.com/ZSaberLv0/ZFVimIM) - Vim input method by pure vim script (user words, dynamic word priority, cloud db files)
 - [rime-ls](https://github.com/wlh320/rime-ls) - a language server that provides input method functionality using librime, so you can use Rime via LSP completion
 - [rime.nvim](https://github.com/rimeinn/rime.nvim) - Rime for Neovim
+- [delimitMate](https://github.com/Raimondi/delimitMate) - Vim plugin, provides insert mode auto-completion for quotes, parens, brackets, etc.
 
 ## License
 

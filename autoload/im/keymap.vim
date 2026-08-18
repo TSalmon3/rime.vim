@@ -64,10 +64,9 @@ function! im#keymap#setup() abort"{{{
     execute 'lnoremap <expr> ' . key . ' im#keymap#char(' . string(key) . ')'
   endfor
 
-  lnoremap <expr> <bs>       im#keymap#backspace('bs')
-  lnoremap <expr> <s-bs>     im#keymap#backspace('s-bs')
+  lnoremap <expr> <bs>       im#keymap#bs()
+  lnoremap <expr> <s-bs>     im#keymap#shift_bs()
   lnoremap <expr> <c-u>      im#keymap#ctrl_u()
-  " lnoremap <expr> <c-w>      im#keymap#special('s-bs')
   lnoremap <expr> <c-w>      im#keymap#ctrl_w()
   lnoremap <expr> <c-d>      im#keymap#special('c-d')
   lnoremap <expr> <left>     im#keymap#special('left')
@@ -143,9 +142,7 @@ endfunction"}}}
 function! im#keymap#ctrl_w() abort"{{{
   let [code, mask, literal] = s:keys["s-bs"]
   if !im#state#composing()
-    if im#replace#active()
-          \ && im#replace#at_frontier()
-          \ && im#replace#restorable()
+    if im#replace#can_restore()
       return "\<Cmd>call im#replace#ctrl_w()\<CR>"
     endif
     return "\<c-w>"
@@ -156,9 +153,7 @@ endfunction"}}}
 function! im#keymap#ctrl_u() abort"{{{
   let [code, mask, literal] = s:keys["escape"]
   if !im#state#composing()
-    if im#replace#active()
-          \ && im#replace#at_frontier()
-          \ && im#replace#restorable()
+    if im#replace#can_restore()
       return "\<Cmd>call im#replace#ctrl_u()\<CR>"
     endif
     return "\<c-u>"
@@ -174,16 +169,30 @@ function! im#keymap#special(name) abort"{{{
   return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
-function! im#keymap#backspace(name) abort"{{{
-  let [code, mask, literal] = s:keys[a:name]
+function! im#keymap#bs() abort"{{{
+  let [code, mask, literal] = s:keys["bs"]
   if !im#state#composing()
-    if (a:name ==# 'bs' || a:name ==# 's-bs')
-          \ && im#replace#active()
-          \ && im#replace#at_frontier()
-          \ && im#replace#restorable()
+    if im#replace#can_restore()
       return "\<Cmd>call im#replace#bs()\<CR>"
     endif
-    return literal
+    if im#pair#should_bs_pair()
+      return im#pair#bs()
+    endif
+    return "\<bs>"
+  endif
+  return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
+function! im#keymap#shift_bs() abort"{{{
+  let [code, mask, literal] = s:keys["s-bs"]
+  if !im#state#composing()
+    if im#replace#can_restore()
+      return "\<Cmd>call im#replace#bs()\<CR>"
+    endif
+    if im#pair#should_bs_pair()
+      return "\<bs>"
+    endif
+    return "\<s-bs>"
   endif
   return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
