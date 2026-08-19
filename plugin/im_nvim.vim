@@ -33,6 +33,8 @@ if !get(g:, 'im_no_default_mappings', 0)
   execute 'nnoremap <silent> ' . s:toggle_emoji_key . ' <cmd>call im#rime#toggle_emoji()<cr>'
   execute 'inoremap <silent> ' . s:toggle_traditional_key . ' <cmd>call im#rime#toggle_traditional()<cr>'
   execute 'nnoremap <silent> ' . s:toggle_traditional_key . ' <cmd>call im#rime#toggle_traditional()<cr>'
+  execute 'inoremap <silent> ' . s:toggle_pair_key . ' <cmd>call im#pair#toggle()<cr>'
+  execute 'nnoremap <silent> ' . s:toggle_pair_key . ' <cmd>call im#pair#toggle()<cr>'
 endif
 
 let g:im_underline_disable = get(g:, 'im_underline_disable', 0)

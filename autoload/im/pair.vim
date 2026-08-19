@@ -8,12 +8,23 @@ let s:default_rules = [
       \ {'open': '「', 'close': '」', 'kind': 'delim'},
       \ {'open': '『', 'close': '』', 'kind': 'delim'},
       \ {'open': '《', 'close': '》', 'kind': 'delim'},
+      \ {'open': "‘",  'close': "’",  'kind': 'delim'},
+      \ {'open': "“",  'close': "”",  'kind': 'delim'},
       \ {'open': '"',  'close': '"',  'kind': 'quote'},
       \ {'open': "'",  'close': "'",  'kind': 'quote'},
       \ ]
 
-let s:inited = 0
+let s:enabled = 0
 let s:cached_bufnr = -1
+let s:open_map  = {}
+let s:close_map = {}
+let s:quote_map = {}
+
+augroup im_pair_cache
+  autocmd!
+  autocmd BufEnter,BufWinEnter,BufNewFile,BufRead,FileType * let s:cached_bufnr = -1
+augroup END
+
 
 function! s:role(ch) abort"{{{
   if has_key(s:open_map, a:ch)
@@ -62,14 +73,7 @@ function! s:resolve() abort"{{{
   endfor
 endfunction"}}}
 
-function! s:ensure() abort"{{{
-  if !s:inited
-    augroup im_pair_cache
-      autocmd!
-      autocmd BufEnter,BufWinEnter,BufNewFile,BufRead,FileType * let s:cached_bufnr = -1
-    augroup END
-    let s:inited = 1
-  endif
+function! s:sync() abort"{{{
   if s:cached_bufnr != bufnr()
     call s:resolve()
     let s:cached_bufnr = bufnr()
@@ -81,7 +85,7 @@ function! im#pair#refresh() abort"{{{
 endfunction"}}}
 
 function! im#pair#jump(ch) abort"{{{
-  call s:ensure()
+  call s:sync()
   if !s:enabled || im#replace#active()
     return 0
   endif
@@ -98,7 +102,7 @@ function! im#pair#jump(ch) abort"{{{
 endfunction"}}}
 
 function! im#pair#extra(text) abort"{{{
-  call s:ensure()
+  call s:sync()
   if !s:enabled || im#replace#active()
     return ''
   endif
@@ -121,7 +125,7 @@ function! im#pair#extra(text) abort"{{{
 endfunction"}}}
 
 function! im#pair#should_bs_pair() abort"{{{
-  call s:ensure()
+  call s:sync()
   if !s:enabled || im#replace#active() || col('.') <= 1
     return 0
   endif
@@ -149,7 +153,7 @@ function! im#pair#bs() abort"{{{
 endfunction"}}}
 
 function! im#pair#should_jump() abort"{{{
-  call s:ensure()
+  call s:sync()
   if !s:enabled || im#replace#active() || im#state#composing()
     return 0
   endif
@@ -166,7 +170,7 @@ function! im#pair#jump_any() abort"{{{
 endfunction"}}}
 
 function! im#pair#jump_many() abort"{{{
-  call s:ensure()
+  call s:sync()
   if !s:enabled || im#replace#active() || im#state#composing()
     return ''
   endif
@@ -184,3 +188,17 @@ function! im#pair#jump_many() abort"{{{
   return n > 0 ? repeat("\<Right>", n) : ''
 endfunction"}}}
 
+function! im#pair#toggle() abort"{{{
+  let state = im#state#get()
+  if !state.started
+    return
+  endif
+  if !get(g:, 'im_pair_enabled', 0)
+    let g:im_pair_enabled = 1
+  else
+    let g:im_pair_enabled = 0
+  endif
+  call im#pair#refresh()
+  call s:sync()
+  echom '[IM] auto-pair ' . (s:enabled ? 'on' : 'off')
+endfunction"}}}

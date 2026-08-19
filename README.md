@@ -55,7 +55,7 @@
   - [rime-ice 配置示例](#rime-ice-配置示例)
   - [让中文编辑更加丝滑](#让中文编辑更加丝滑)
   - [Replace Mode 替换模式](#replace-mode-替换模式)
-  - [Auto Pair 自动补全](#auto-pair-自动补全)
+  - [Auto Pair 自动成对](#auto-pair-自动成对)
   - [其他搭配插件](#其他搭配插件)
 - [致谢](#致谢)
 - [License](#license)
@@ -195,9 +195,9 @@ let g:im_replace_mode              = 0
 " 切换输入法开关
 let g:im_toggle_key                = ';;'
 " 切换中文/英文模式切换开关
-let g:im_toggle_ascii_mode_key     = ';a'
+let g:im_toggle_ascii_mode_key     = '<c-;>'
 " 切换中英文标点
-let g:im_toggle_ascii_punct_key    = ';,'
+let g:im_toggle_ascii_punct_key    = ';a'
 " 切换简繁体
 let g:im_toggle_traditional_key    = ';f'
 " 切换 emoji
@@ -590,6 +590,27 @@ augroup END
 
 ![demo3](https://github.com/user-attachments/assets/093e5089-0b8c-4528-854f-5d4aee85328d)
 
+如果你安装了 [jieba.vim](https://github.com/kkew3/jieba.vim)，你可以对 `<c-w>` 进行增强。
+
+```vim
+function RimeKeymapRemap()
+  lnoremap <silent><expr> <c-w> im#state#composing() ? "\<cmd>call im#key( 0xff08, 0)\<CR>" :
+        \ im#replace#can_restore() ? "\<cmd>call im#replace#ctrl_w()\<cr>" :
+        \ "<Plug>(Jieba_C_w)"
+endfunction
+
+function RimeKeymapClear()
+
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimeKeymapClear call RimeKeymapClear()
+augroup END
+
+```
+
 ### Replace Mode 替换模式
 
 以下功能还处于实验性阶段。
@@ -621,7 +642,7 @@ let g:im_replace_mode = 1
 nnoremap r <Cmd>call im#keymap#r()<CR>
 ```
 
-### Auto Pair 自动补全
+### Auto Pair 自动成对
 
 > [!Tip]
 > 替换模式下自动成对关闭
@@ -636,7 +657,7 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 | 手动跳过 | `<c-tab>`    | (\|) → 越过一个 → ()\|     | 跳过右侧一个闭符/引号（`im#pair#jump_any`）      |
 | 手动连跳 | `<c-g>`      | (\|))) → 越过全部 → ()))\| | 跳过右侧连续一串闭符/引号（`im#pair#jump_many`） |
 
-- 默认配对：`()` `[]` `{}` `<>` 与全角 `（）` `【】` `「」` `『』` `《》`，引号 `"` `'`
+- 默认配对：`()` `[]` `{}` `<>` `"` `'` 与全角 `（）` `【】` `「」` `『』` `《》` `‘’` `“”`
 - 半角标点直接上屏、全角标点经 Rime 上屏，两种情况都能正确处理成对
 - 配置优先级：`b:im_pair_rules` > `g:im_pair_rules` > 默认值
 - 可手动映射跳过右侧闭符/引号的键：
@@ -644,6 +665,8 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 ```vim
 " 自动成对开关（默认 0）
 let g:im_pair_enabled = 0
+ " 切换自动成对
+let g:im_toggle_pair_key = ';p'
 " 配对规则列表，每条含 open/close 与 kind（'delim' 开闭不同符、'quote' 开=闭同符）
 let g:im_pair_rules = [
       \ {'open': '(',  'close': ')',  'kind': 'delim'},
@@ -655,6 +678,8 @@ let g:im_pair_rules = [
       \ {'open': '「', 'close': '」', 'kind': 'delim'},
       \ {'open': '『', 'close': '』', 'kind': 'delim'},
       \ {'open': '《', 'close': '》', 'kind': 'delim'},
+      \ {'open': "‘",  'close': "’",  'kind': 'delim'},
+      \ {'open': "“",  'close': "”",  'kind': 'delim'},
       \ {'open': '"',  'close': '"',  'kind': 'quote'},
       \ {'open': "'",  'close': "'",  'kind': 'quote'},
       \ ]
