@@ -232,29 +232,23 @@ endfunction"}}}
 
 function! im#enable() abort"{{{
   let state = im#state#get()
-  let &iminsert=1
-  let &imsearch=0
-  call im#keymap#setup()
+  if !state.started
+    return
+  endif
   let state.boundary = -1
   let state.enabled = 1
-
-  " Bug: lnoremap 没有生效
-  function! s:Fix() abort
-    let &iminsert = 1
-  endfunction
-
-  call timer_start(0, {-> s:Fix()})
+  call im#keymap#setup()
+  set iminsert=1
+  set imsearch=0
 endfunction"}}}
 
 function! im#disable() abort"{{{
   let state = im#state#get()
   call im#cancel()
-  " let &keymap = s:save_keymap
-  " let &iminsert = s:save_iminsert
-  " let &imsearch = s:save_imsearch
-  call im#keymap#clear()
-  let state.boundary = -1
   let state.enabled = 0
+  set iminsert=0
+  set imsearch=0
+  let state.boundary = -1
 endfunction"}}}
 
 function! im#start() abort"{{{
@@ -308,6 +302,14 @@ function! im#toggle() abort"{{{
     call im#start()
   endif
   return
+endfunction"}}}
+
+function! im#toggle_insert() abort"{{{
+  let state = im#state#get()
+  let before = state.started
+  call im#toggle()
+  let state = im#state#get()
+  return before != state.started ? nr2char(30) : ''
 endfunction"}}}
 
 function! im#deploy() abort"{{{
