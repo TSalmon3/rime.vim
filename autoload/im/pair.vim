@@ -19,6 +19,10 @@ let s:cached_bufnr = -1
 let s:open_map  = {}
 let s:close_map = {}
 let s:quote_map = {}
+let s:hl_blacklist  = []
+let s:ft_blacklist  = []
+let s:ts_check      = 0
+let s:ts_config     = {}
 
 augroup im_pair_cache
   autocmd!
@@ -54,9 +58,17 @@ function! s:opt(name, default) abort"{{{
   return a:default
 endfunction"}}}
 
+function! s:opt_g(name, default) abort"{{{
+  let gname = 'im_pair_' . a:name
+  if has_key(g:, gname)
+    return g:[gname]
+  endif
+  return a:default
+endfunction"}}}
+
 function! s:resolve() abort"{{{
-  let s:enabled = s:opt('enabled', 0)
-  let rules = s:opt('rules', s:default_rules)
+  let s:enabled       = s:opt_g('enabled', 0)
+  let rules           = s:opt('rules', s:default_rules)
   let s:open_map  = {}
   let s:close_map = {}
   let s:quote_map = {}
@@ -71,6 +83,10 @@ function! s:resolve() abort"{{{
       let s:close_map[r.close] = 1
     endif
   endfor
+  let s:hl_blacklist  = s:opt_g('blacklist_highlight', [])
+  let s:ft_blacklist  = s:opt_g('blacklist_filetypes', ['vim'])
+  let s:ts_check      = s:opt_g('ts_check', 0)
+  let s:ts_config     = s:opt_g('ts_config', {})
 endfunction"}}}
 
 function! s:sync() abort"{{{
@@ -78,6 +94,64 @@ function! s:sync() abort"{{{
     call s:resolve()
     let s:cached_bufnr = bufnr()
   endif
+endfunction"}}}
+
+function! s:hl_blocked() abort"{{{
+  if empty(s:hl_blacklist)
+    return 0
+  endif
+  if empty(&syntax)
+    return 0
+  endif
+  let lnum = line('.')
+  let scol = col('.')
+  " 行尾特殊处理
+  let llen = len(getline(lnum))
+  if scol > llen && llen > 0
+    let scol = llen
+  endif
+  let ids = synstack(lnum, scol)
+  for id in ids
+    let name = synIDattr(synIDtrans(id), 'name')
+    if empty(name)
+      continue
+    endif
+    for pat in s:hl_blacklist
+      if empty(pat)
+        continue
+      endif
+      if match(name, '\c' . pat) >= 0
+        return 1
+      endif
+    endfor
+  endfor
+  return 0
+endfunction"}}}
+
+function! s:ts_blocked() abort"{{{
+  if !has('nvim') || !s:ts_check
+    return 0
+  endif
+  let pats = get(s:ts_config, &filetype, get(s:ts_config, '*', []))
+  if empty(pats)
+    return 0
+  endif
+  return luaeval("require('im.pair').ts_blocked(_A)", pats)
+endfunction"}}}
+
+function! s:ft_blocked() abort"{{{
+  return index(s:ft_blacklist, &filetype) >= 0
+endfunction"}}}
+
+function! s:vim_comment_line(ch) abort"{{{
+  return a:ch ==# '"' && index(split(&filetype, '\.'), 'vim') >= 0
+        \ && match(getline('.'), '^\s*$') >= 0
+endfunction"}}}
+
+function! s:blocked(...) abort"{{{
+  let ch = a:0 ? a:1 : ''
+  return s:ft_blocked() || s:ts_blocked() || s:hl_blocked()
+        \ || s:vim_comment_line(ch)
 endfunction"}}}
 
 function! im#pair#refresh() abort"{{{
@@ -91,6 +165,9 @@ function! im#pair#jump(ch) abort"{{{
   endif
   let role = s:role(a:ch)
   if empty(role) || role.kind ==# 'open'
+    return 0
+  endif
+  if s:blocked()
     return 0
   endif
   let next = s:char_at_cursor()
@@ -114,6 +191,9 @@ function! im#pair#extra(text) abort"{{{
   if empty(role)
     return ''
   endif
+  if s:blocked(ch)
+    return ''
+  endif
   let next = s:char_at_cursor()
   if role.kind ==# 'open'
     return role.close . "\<Left>"
@@ -127,6 +207,9 @@ endfunction"}}}
 function! im#pair#should_bs_pair() abort"{{{
   call s:sync()
   if !s:enabled || im#replace#active() || col('.') <= 1
+    return 0
+  endif
+  if s:blocked()
     return 0
   endif
   let line   = getline('.')
@@ -157,6 +240,9 @@ function! im#pair#should_jump() abort"{{{
   if !s:enabled || im#replace#active() || im#state#composing()
     return 0
   endif
+  if s:blocked()
+    return 0
+  endif
   let next = s:char_at_cursor()
   if empty(next)
     return 0
@@ -172,6 +258,9 @@ endfunction"}}}
 function! im#pair#jump_many() abort"{{{
   call s:sync()
   if !s:enabled || im#replace#active() || im#state#composing()
+    return ''
+  endif
+  if s:blocked()
     return ''
   endif
   let line = getline('.')
@@ -201,4 +290,8 @@ function! im#pair#toggle() abort"{{{
   call im#pair#refresh()
   call s:sync()
   echom '[IM] auto-pair ' . (s:enabled ? 'on' : 'off')
+endfunction"}}}
+
+function! im#pair#default_rules() abort"{{{
+  return deepcopy(s:default_rules)
 endfunction"}}}

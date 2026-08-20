@@ -647,7 +647,6 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 > [!Tip]
 > 替换模式下自动成对关闭
 
-
 | 功能     | 按键         | 效果                       | 说明                                             |
 | -------- | ------------ | -------------------------- | ------------------------------------------------ |
 | 成对补全 | `(` `「` `"` | (\|)　「\|」　"\|"         | 输入开符自动补闭符并回移光标                     |
@@ -657,15 +656,15 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 | 手动跳过 | `<c-tab>`    | (\|) → 越过一个 → ()\|     | 跳过右侧一个闭符/引号（`im#pair#jump_any`）      |
 | 手动连跳 | `<c-g>`      | (\|))) → 越过全部 → ()))\| | 跳过右侧连续一串闭符/引号（`im#pair#jump_many`） |
 
-- 默认配对：`()` `[]` `{}` `<>` `"` `'` 与全角 `（）` `【】` `「」` `『』` `《》` `‘’` `“”`
+- 默认配对：`()` `[]` `{}` `<>` `"` `'` 与全角 `（）` `【】` `「」` `『』` `《》` `“”` `‘’`
 - 半角标点直接上屏、全角标点经 Rime 上屏，两种情况都能正确处理成对
-- 配置优先级：`b:im_pair_rules` > `g:im_pair_rules` > 默认值
-- 可手动映射跳过右侧闭符/引号的键：
+- 配置优先级：`b:im_pair_rules` > `g:im_pair_rules` > 默认值（仅 `im_pair_rules` 支持 `b:`，其余选项为全局 `g:`）
+- 高亮黑名单：光标位于名单内的高亮组（如注释、字符串）时自动成对关闭，离开后恢复。**默认关闭**，未设置或为空列表时不生效：
 
 ```vim
 " 自动成对开关（默认 0）
 let g:im_pair_enabled = 0
- " 切换自动成对
+" 切换自动成对
 let g:im_toggle_pair_key = ';p'
 " 配对规则列表，每条含 open/close 与 kind（'delim' 开闭不同符、'quote' 开=闭同符）
 let g:im_pair_rules = [
@@ -684,6 +683,24 @@ let g:im_pair_rules = [
       \ {'open': "'",  'close': "'",  'kind': 'quote'},
       \ ]
 
+" 或者
+let g:im_pair_rules = im#pair#default_rules()
+
+" 按 highlight 关闭自动成对，高亮组名为正则列表（大小写不敏感），命中即关闭自动成对（默认 []，即关闭）
+let g:im_pair_blacklist_highlight = ['comment', 'doc', 'string']
+" 按 filetype 关闭自动成对
+let g:im_pair_blacklist_filetypes = ['vim']
+
+" 以下配置仅在 neovim 中生效（需要 Treesitter 支持），默认 vim 中高亮使用的是正则匹配。
+" 优先级为 `g:im_pair_blacklist_filetypes` > `g:im_pair_ts_config` > `g:im_pair_blacklist_highlight`
+let g:im_pair_ts_check  = 0
+
+" '*' 为全局通配，具体 filetype 会覆盖全局（显式定义为 [] 表示该 filetype 关闭检查）
+let g:im_pair_ts_config = {
+      \ '*':      ['comment', 'string'],
+      \ 'lua':    ['comment', 'string'],
+      \ 'python': ['comment', 'string'],
+      \ }
 ```
 
 或者修改默认按键映射
