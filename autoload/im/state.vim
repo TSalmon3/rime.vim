@@ -85,7 +85,12 @@ function! im#state#reset_input() abort
   let s:state.last_candidates = []
   let s:state.last_preedit    = ''
   let s:state.last_hl         = 0
-  call im#rime#reset()
+  let ctx = im#rime#reset()
+  " 组合结束可能触发 inline_ascii 自动回切（后端代引擎发 option 通知），
+  " 同步状态栏，避免显示停留在"英"。
+  if !empty(get(ctx, 'changed_options', []))
+    call im#apply_option_changes(ctx)
+  endif
 endfunction
 
 function! im#state#reset_replace() abort

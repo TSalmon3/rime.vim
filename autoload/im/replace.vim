@@ -105,6 +105,14 @@ function! im#replace#ctrl_u() abort"{{{
   call cursor(line('.'), im#replace#frontier())
 endfunction"}}}
 
+function! im#replace#discard() abort"{{{
+  " 丢弃当前 preedit：按模型重建整行，还原被 preedit 覆盖的基础字符，
+  " 光标回到 frontier；已上屏的 repl_text 保持不变。供 Esc（im#cancel）
+  " 在替换模式下调用——与插入模式不同，这里不上屏原始编码。
+  call s:recompose()
+  call cursor(line('.'), im#replace#frontier())
+endfunction"}}}
+
 function! im#replace#on_cursor_moved() abort"{{{
   " 光标离开 frontier 后放弃该会话的复原能力（对齐原生 R 模式）。
   " 组词期间插件会主动移动光标，跳过。

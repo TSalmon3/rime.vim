@@ -116,7 +116,11 @@ function! s:commit_text(committed) abort"{{{
 
     call cursor(line('.'), state.boundary + strlen(a:committed))
   endif
-  call complete(col('.'), [])
+
+  if mode() =~# '^[iR]'
+    call complete(col('.'), [])
+  endif
+
   call im#underline#clean()
   call im#state#reset_input()
   let state.last_commit = a:committed
@@ -135,7 +139,6 @@ function! im#key(keycode, mask, ...) abort"{{{
     let pair = im#pair#extra(fallback)
     if !empty(committed)
       call s:commit_text(committed)
-      silent! doautocmd User RimeIMCommit
     else
       call im#underline#clean()
       call im#state#reset_input()
@@ -162,7 +165,6 @@ function! im#key(keycode, mask, ...) abort"{{{
       endif
       let pair = im#pair#extra(committed)
       call s:commit_text(committed)
-      silent! doautocmd User RimeIMCommit
       call feedkeys(pair, 'ni')
       return
     endif
@@ -179,14 +181,55 @@ function! im#cancel() abort"{{{
     return
   endif
 
-  " if get(v:, 'insertmode', '') ==# 'r' || get(v:, 'insertmode', '') ==# 'v'
-  "   call complete(col('.'), [])
-  " endif
-
-  call im#underline#clean()
-  call im#rime#reset()
-  call im#state#reset_input()
+  if im#replace#active()
+    " R/gR：丢弃 preedit 并还原被覆盖的原文（覆盖渲染，上屏会吃掉原文）
+    call im#underline#clean()
+    call im#replace#discard()
+    call im#state#reset_input()
+  else
+    " 插入模式：上屏原始编码，不保留渲染中的 preedit，也不切中英模式
+    let ctx = im#rime#get_input()
+    if !empty(get(ctx, 'input', ''))
+      call s:commit_text(ctx.input)
+    else
+      call im#underline#clean()
+      call im#state#reset_input()
+    endif
+  endif
   call im#state#reset_replace()
+endfunction"}}}
+
+function! im#ascii_switch(style) abort"{{{
+  let state = im#state#get()
+  let was_composing = im#state#composing()
+  let ctx = im#rime#switch_ascii_mode(a:style)
+  call im#apply_option_changes(ctx)
+
+  let committed = get(ctx, 'committed', '')
+  if !empty(committed)
+    call s:commit_text(committed)
+    if ctx.composing
+      " 多段组合：已确认前缀上屏后，剩余部分从光标处继续组合
+      let state.boundary = col('.')
+      let state.preedit_len = 0
+      call s:redraw(ctx)
+    endif
+  elseif ctx.composing
+    if was_composing
+      call s:redraw(ctx)
+    endif
+  elseif was_composing
+    " clear 路径：把 buffer 中的 preedit 文本一并移除，等价引擎 ctx->Clear()
+    let lnum = line('.')
+    let line = getline(lnum)
+    let before = strpart(line, 0, state.boundary - 1)
+    let after  = strpart(line, state.boundary - 1 + state.preedit_len)
+    call setline(lnum, before . after)
+    call cursor(lnum, state.boundary)
+    call im#underline#clean()
+    call im#state#reset_input()
+  endif
+  redrawstatus
 endfunction"}}}
 
 function! im#apply_option_changes(ctx) abort"{{{
@@ -232,9 +275,6 @@ endfunction"}}}
 
 function! im#enable() abort"{{{
   let state = im#state#get()
-  if !state.started
-    return
-  endif
   let state.boundary = -1
   let state.enabled = 1
   call im#keymap#setup()
@@ -306,10 +346,12 @@ endfunction"}}}
 
 function! im#toggle_insert() abort"{{{
   let state = im#state#get()
-  let before = state.started
-  call im#toggle()
-  let state = im#state#get()
-  return before != state.started ? nr2char(30) : ''
+  if !state.started
+    call im#toggle()
+    return state.started ? nr2char(30) : ''
+  endif
+  call timer_start(0, {-> im#toggle()})
+  return nr2char(30)
 endfunction"}}}
 
 function! im#deploy() abort"{{{
@@ -320,7 +362,6 @@ function! im#deploy() abort"{{{
     echohl None
     return
   endif
-  call im#cancel()
   let status = im#rime#deploy()
   if status ==# 'success'
     echo '[IM] deploy success'
@@ -346,7 +387,6 @@ function! im#sync() abort"{{{
     echohl None
     return
   endif
-  call im#cancel()
   let status = im#rime#sync()
   if status ==# 'success'
     echo '[IM] sync + deploy success'
@@ -386,7 +426,7 @@ endfunction"}}}
 function! im#on_insert_leave() abort"{{{
   let state = im#state#get()
   if state.started && state.enabled
-    call im#disable()
+    call timer_start(0, {-> im#disable()})
   endif
 endfunction"}}}
 

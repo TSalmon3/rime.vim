@@ -58,6 +58,7 @@ Answers to common questions.
 - [Advanced Topics](#advanced-topics)
   - [rime-ice configuration examples](#rime-ice-configuration-examples)
   - [Making Chinese editing smoother](#making-chinese-editing-smoother)
+  - [Customizing Chinese/English switching and the scheme menu](#customizing-chineseenglish-switching-and-the-scheme-menu)
   - [Replace Mode](#replace-mode)
   - [Auto Pair](#auto-pair)
   - [Complementary plugins](#complementary-plugins)
@@ -215,9 +216,18 @@ let g:im_replace_mode              = 0
 " Toggle input method on/off
 let g:im_toggle_key                = ';;'
 " Toggle Chinese/English mode
-let g:im_toggle_ascii_mode_key     = ';a'
+" The in-composition behavior can be chosen via an optional mapping argument
+" (equivalent to Squirrel's switch_key, independent of your rime config):
+" 'commit_code' commit raw code / 'commit_text' commit highlighted candidate /
+" 'clear' discard composition / 'inline_ascii' temporary ascii that
+" auto-reverts when the composition ends /
+" 'set_ascii_mode' force English / 'unset_ascii_mode' force Chinese. Example:
+"   inoremap <expr> <c-;> im#keymap#toggle_ascii_mode('inline_ascii')
+" Without an argument it simulates Shift via the engine; behavior then
+" follows your rime switch_key config.
+let g:im_toggle_ascii_mode_key     = '<c-;>'
 " Toggle Chinese/English punctuation
-let g:im_toggle_ascii_punct_key    = ';,'
+let g:im_toggle_ascii_punct_key    = ';a'
 " Toggle simplified/traditional
 let g:im_toggle_traditional_key    = ';f'
 " Toggle emoji
@@ -276,23 +286,6 @@ function! PassToTerm(text)
 endfunction
 command! -nargs=* PassToTerm :call PassToTerm(<q-args>)
 tnoremap ;; <c-\><c-n><cmd>call im#start()<cr>q:a:PassToTerm<space>
-
-
-" Open the scheme selection menu
-function RimeKeymapRemap()
-  lnoremap <expr> ;` im#keymap#toggle_scheme('c-`')
-endfunction
-
-function RimeKeymapClear()
-  lunmap ;`
-endfunction
-
-augroup RimeGroup
-  autocmd!
-  autocmd User RimeKeymapSetup call RimeKeymapRemap()
-  autocmd User RimeKeymapClear call RimeKeymapClear()
-augroup END
-
 ```
 
 Notes:
@@ -369,13 +362,13 @@ and platforms; on multiple devices it is recommended to set the same
 Default key mappings (disable by setting `g:im_no_default_mappings=1`, and
 customize via the corresponding `g:im_*_key`):
 
-| Key | Mode                                | Function                         |
-| --- | ----------------------------------- | -------------------------------- |
-| `;;` | normal / insert / command / terminal | Toggle input method              |
-| `;a` | normal / insert                      | Toggle Chinese/English mode      |
-| `;,` | normal / insert                      | Toggle Chinese/English punctuation |
-| `;f` | normal / insert                      | Toggle simplified/traditional    |
-| `;e` | normal / insert                      | Toggle emoji                     |
+| Key       | Mode                                 | Function                           |
+| --------- | ------------------------------------ | ---------------------------------- |
+| `;;`      | normal / insert / command / terminal | Toggle input method                |
+| `<c-;>`   | normal / insert                      | Toggle Chinese/English mode        |
+| `;a`      | normal / insert                      | Toggle Chinese/English punctuation |
+| `;f`      | normal / insert                      | Toggle simplified/traditional      |
+| `;e`      | normal / insert                      | Toggle emoji                       |
 
 Keys and key combinations are basically compatible with system-level input
 methods:
@@ -635,6 +628,71 @@ augroup RimeGroup
 augroup END
 ```
 ![demo3](https://github.com/user-attachments/assets/093e5089-0b8c-4528-854f-5d4aee85328d)
+
+### Customizing Chinese/English switching and the scheme menu
+
+#### Scheme menu
+
+`im#keymap#toggle_scheme()` sends `Ctrl+\`` to Rime, opening the built-in
+scheme selection menu, matching the behavior of system input methods:
+
+- The menu comes from `schema_list` in your user data directory's
+  `default.custom.yaml`, plus the switcher toggles (simplified/traditional,
+  half/full-width punctuation, emoji, etc.)
+- The statusline refreshes immediately after switching
+
+#### Chinese/English switching
+
+Without an argument, `im#keymap#toggle_ascii_mode()` simulates a left Shift
+press + release, matching system input methods; while composing, the handling
+follows your rime `ascii_composer/switch_key` configuration.
+
+With an argument you can choose how an in-composition switch is handled:
+
+| Parameter            | In-composition switch behavior                                            |
+| -------------------- | ------------------------------------------------------------------------- |
+| `'commit_code'`      | Commit the raw pinyin letters as-is, then switch                          |
+| `'commit_text'`      | Commit the highlighted candidate if any; otherwise commit the raw code    |
+| `'clear'`            | Discard the current composition, then switch                              |
+| `'inline_ascii'`     | Temporary English mode: type English directly and auto-revert to Chinese when the composition ends |
+| `'set_ascii_mode'`   | Force English; discards the current composition when composing            |
+| `'unset_ascii_mode'` | Force back to Chinese; no-op when already in English mode                 |
+
+> [!Note]
+> These arguments only affect switching while composing; when idle they simply
+> toggle between Chinese and English.
+
+Example:
+
+```vim
+function RimeKeymapRemap()
+  lnoremap <silent><expr> ;` im#keymap#toggle_scheme()
+  lnoremap <nowait><expr> <c-;> im#keymap#toggle_ascii_mode()
+  lnoremap <nowait><expr> ;1 im#keymap#toggle_ascii_mode('commit_code')
+  lnoremap <nowait><expr> ;2 im#keymap#toggle_ascii_mode('commit_text')
+  lnoremap <nowait><expr> ;3 im#keymap#toggle_ascii_mode('clear')
+  lnoremap <nowait><expr> ;4 im#keymap#toggle_ascii_mode('inline_ascii')
+  lnoremap <nowait><expr> ;5 im#keymap#toggle_ascii_mode('set_ascii_mode')
+  lnoremap <nowait><expr> ;6 im#keymap#toggle_ascii_mode('unset_ascii_mode')
+endfunction
+
+function RimeKeymapClear()
+  silent! lunmap ;`
+  silent! lunmap <c-;>
+  silent! lunmap ;1
+  silent! lunmap ;2
+  silent! lunmap ;3
+  silent! lunmap ;4
+  silent! lunmap ;5
+  silent! lunmap ;6
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimeKeymapClear call RimeKeymapClear()
+augroup END
+```
 
 ### Replace Mode
 

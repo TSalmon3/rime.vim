@@ -54,6 +54,7 @@
 - [高级主题](#高级主题)
   - [rime-ice 配置示例](#rime-ice-配置示例)
   - [让中文编辑更加丝滑](#让中文编辑更加丝滑)
+  - [定制『中英切换』和『方案选单』](#定制『中英切换』和『方案选单』)
   - [Replace Mode 替换模式](#replace-mode-替换模式)
   - [Auto Pair 自动成对](#auto-pair-自动成对)
   - [其他搭配插件](#其他搭配插件)
@@ -256,23 +257,6 @@ function! PassToTerm(text)
 endfunction
 command! -nargs=* PassToTerm :call PassToTerm(<q-args>)
 tnoremap ;; <c-\><c-n><cmd>call im#start()<cr>q:a:PassToTerm<space>
-
-
-" 打开方案选单
-function RimeKeymapRemap()
-  lnoremap <expr> ;` im#keymap#toggle_scheme('c-`')
-endfunction
-
-function RimeKeymapClear()
-  lunmap ;`
-endfunction
-
-augroup RimeGroup
-  autocmd!
-  autocmd User RimeKeymapSetup call RimeKeymapRemap()
-  autocmd User RimeKeymapClear call RimeKeymapClear()
-augroup END
-
 ```
 
 其中：
@@ -335,13 +319,13 @@ export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 
 默认按键映射（可设 `g:im_no_default_mappings=1` 关闭，用对应的 `g:im_*_key` 修改）：
 
-| 按键 | 模式                                 | 功能           |
-| ---- | ------------------------------------ | -------------- |
-| `;;` | normal / insert / command / terminal | 切换输入法开关 |
-| `;a` | normal / insert                      | 切换中/英模式  |
-| `;,` | normal / insert                      | 切换中英文标点 |
-| `;f` | normal / insert                      | 切换简/繁体    |
-| `;e` | normal / insert                      | 切换 emoji     |
+| 按键      | 模式                                 | 功能           |
+| --------- | ------------------------------------ | -------------- |
+| `;;`      | normal / insert / command / terminal | 切换输入法开关 |
+| `<c-;>`   | normal / insert                      | 切换中/英模式  |
+| `;a`      | normal / insert                      | 切换中英文标点 |
+| `;f`      | normal / insert                      | 切换简/繁体    |
+| `;e`      | normal / insert                      | 切换 emoji     |
 
 按键和组合键基本兼容系统级输入法
 
@@ -609,6 +593,65 @@ augroup RimeGroup
   autocmd User RimeKeymapClear call RimeKeymapClear()
 augroup END
 
+```
+
+### 定制『中英切换』和『方案选单』
+
+#### 方案选单
+
+`im#keymap#toggle_scheme()` 向 Rime 发送 `Ctrl+\``，打开内置的「方案选单」，与系统输入法行为一致：
+
+- 选单内容来自用户数据目录里 `default.custom.yaml` 的 `schema_list`，以及 switcher 中的开关项（简繁、中英标点、emoji 等）
+- 切换后状态栏立即刷新
+
+#### 中英切换
+
+`im#keymap#toggle_ascii_mode()` 不带参数时模拟一次左 Shift 按下 + 释放，与系统输入法一致，组词时的处理方式由 rime 配置的 `ascii_composer/switch_key` 决定。
+
+带参数时可指定「正在组词时切换」的处理风格：
+
+| 参数                 | 组词时切换的行为                                         |
+| -------------------- | -------------------------------------------------------- |
+| `'commit_code'`      | 拼音字母原样上屏，再切换                                 |
+| `'commit_text'`      | 有候选时上屏当前高亮候选词；无候选时原样上屏编码，再切换 |
+| `'clear'`            | 丢弃当前组词内容，再切换                                 |
+| `'inline_ascii'`     | 进入临时英文态：直接输出英文，本次上屏结束后自动切回中文 |
+| `'set_ascii_mode'`   | 强制切到英文；正在组词时丢弃当前组词内容                 |
+| `'unset_ascii_mode'` | 强制切回中文；已是英文态时为空操作                       |
+
+> [!Note]
+> 这些参数只影响「正在组词时」的切换；空闲时按下都只是单纯在中/英之间切换。
+
+示例：
+
+```vim
+function RimeKeymapRemap()
+  lnoremap <silent><expr> ;` im#keymap#toggle_scheme()
+  lnoremap <nowait><expr> <c-;> im#keymap#toggle_ascii_mode()
+  lnoremap <nowait><expr> ;1 im#keymap#toggle_ascii_mode('commit_code')
+  lnoremap <nowait><expr> ;2 im#keymap#toggle_ascii_mode('commit_text')
+  lnoremap <nowait><expr> ;3 im#keymap#toggle_ascii_mode('clear')
+  lnoremap <nowait><expr> ;4 im#keymap#toggle_ascii_mode('inline_ascii')
+  lnoremap <nowait><expr> ;5 im#keymap#toggle_ascii_mode('set_ascii_mode')
+  lnoremap <nowait><expr> ;6 im#keymap#toggle_ascii_mode('unset_ascii_mode')
+endfunction
+
+function RimeKeymapClear()
+  silent! lunmap ;`
+  silent! lunmap <c-;>
+  silent! lunmap ;1
+  silent! lunmap ;2
+  silent! lunmap ;3
+  silent! lunmap ;4
+  silent! lunmap ;5
+  silent! lunmap ;6
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimeKeymapClear call RimeKeymapClear()
+augroup END
 ```
 
 ### Replace Mode 替换模式

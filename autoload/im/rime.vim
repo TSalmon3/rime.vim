@@ -232,6 +232,7 @@ function! s:parse_context(resp) abort"{{{
 
   return {
         \ 'preedit'    : get(a:resp, 'preedit', ''),
+        \ 'input'      : get(a:resp, 'input', ''),
         \ 'cursor_pos' : get(a:resp, 'cursor_pos', 0),
         \ 'sel_start'  : get(a:resp, 'sel_start', 0),
         \ 'sel_end'    : get(a:resp, 'sel_end', 0),
@@ -251,6 +252,7 @@ endfunction"}}}
 function! s:empty_context() abort"{{{
   return {
         \ 'preedit'    : '',
+        \ 'input'      : '',
         \ 'cursor_pos' : 0,
         \ 'sel_start'  : 0,
         \ 'sel_end'    : 0,
@@ -283,8 +285,36 @@ function! im#rime#select(index) abort"{{{
   return s:parse_context(resp)
 endfunction"}}}
 
+function! im#rime#get_input() abort"{{{
+  let resp = im#rime#call({'type': 'get_input'}, 800)
+  if resp is v:null
+    return s:empty_context()
+  endif
+  return s:parse_context(resp)
+endfunction"}}}
+
+function! im#rime#commit_composition() abort"{{{
+  let resp = im#rime#call({'type': 'commit_composition'}, 800)
+  if resp is v:null
+    return s:empty_context()
+  endif
+  return s:parse_context(resp)
+endfunction"}}}
+
 function! im#rime#reset() abort"{{{
-  call im#rime#call({'type': 'reset'}, 100)
+  let resp = im#rime#call({'type': 'reset'}, 100)
+  if resp is v:null
+    return s:empty_context()
+  endif
+  return s:parse_context(resp)
+endfunction"}}}
+
+function! im#rime#switch_ascii_mode(style) abort"{{{
+  let resp = im#rime#call({'type': 'switch_ascii_mode', 'style': a:style}, 800)
+  if resp is v:null
+    return s:empty_context()
+  endif
+  return s:parse_context(resp)
 endfunction"}}}
 
 function! im#rime#toggle_option(name) abort"{{{

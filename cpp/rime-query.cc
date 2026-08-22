@@ -7,6 +7,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <iostream>
 #include <filesystem>
 
@@ -74,6 +75,11 @@ static std::vector<std::pair<std::string, bool>> g_changed_options;
 static bool g_schema_changed = false;
 static std::string g_schema_id;
 static std::string g_schema_name;
+
+// inline_ascii 临时英文态是否生效。引擎只有经真实 Shift 事件进入 inline 时
+// 才会挂 OnContextUpdate 自动回切；switch_ascii_mode 直接 set_option 挂不上，
+// 由本进程在组合结束时代劳。
+static bool g_inline_ascii_active = false;
 
 static void on_notification(void *, RimeSessionId, const char *message_type,
                             const char *message_value) {// {{{
@@ -216,6 +222,15 @@ static void fill_context(json &resp) {// {{{
     api->free_context(&ctx);
 }// }}}
 
+static void finish_inline_ascii(json &resp) {// {{{
+    if (!g_inline_ascii_active || resp.value("composing", true))
+        return;
+    g_inline_ascii_active = false;
+    RimeApi *api = rime_get_api();
+    RimeSessionId sid = get_session();
+    if (sid) api->set_option(sid, "ascii_mode", False);
+}// }}}
+
 static json handle_request(const json &req) {// {{{
     json resp;
     resp["id"] = req.value("id", 0);
@@ -246,6 +261,7 @@ static json handle_request(const json &req) {// {{{
       resp["accepted"]  = (bool)accepted;
       resp["committed"] = fetch_commit();
       fill_context(resp);
+      finish_inline_ascii(resp);
       fill_notifications(resp);
       return resp;
     }
@@ -259,14 +275,109 @@ static json handle_request(const json &req) {// {{{
         resp["ok"]        = true;
         resp["committed"] = fetch_commit();
         fill_context(resp);
+        finish_inline_ascii(resp);
+        fill_notifications(resp);
+        return resp;
+    }
+
+    // --- get_input ---
+    if (type == "get_input") {
+        RimeSessionId sid = get_session();
+        const char *input = sid ? api->get_input(sid) : nullptr;
+
+        resp["ok"]    = true;
+        resp["input"] = input ? input : "";
+        fill_context(resp);
+        return resp;
+    }
+
+    // --- commit_composition ---
+    if (type == "commit_composition") {
+        clear_key_notifications();
+        RimeSessionId sid = get_session();
+        if (sid) api->commit_composition(sid);
+
+        resp["ok"]        = true;
+        resp["committed"] = fetch_commit();
+        fill_context(resp);
+        finish_inline_ascii(resp);
+        fill_notifications(resp);
+        return resp;
+    }
+
+    // --- switch_ascii_mode ---
+    if (type == "switch_ascii_mode") {
+        std::string style = req.value("style", "");
+        const std::vector<std::string> valid_styles = {
+            "commit_code", "commit_text", "clear", "inline_ascii",
+            "set_ascii_mode", "unset_ascii_mode"};
+        if (std::find(valid_styles.begin(), valid_styles.end(), style) == valid_styles.end()) {
+            resp["ok"]    = false;
+            resp["error"] = "invalid style: " + style;
+            return resp;
+        }
+
+        clear_key_notifications();
+        RimeSessionId sid = get_session();
+
+        Bool old_mode = sid ? api->get_option(sid, "ascii_mode") : False;
+        Bool new_mode = style == "set_ascii_mode"   ? True
+                      : style == "unset_ascii_mode" ? False
+                      : (old_mode ? False : True);
+
+        bool composing = false;
+        int  highlighted = 0, num_candidates = 0;
+        RIME_STRUCT(RimeContext, ctx);
+        if (sid && api->get_context(sid, &ctx)) {
+            composing = ctx.composition.preedit && *ctx.composition.preedit;
+            highlighted   = ctx.menu.highlighted_candidate_index;
+            num_candidates = ctx.menu.num_candidates;
+            api->free_context(&ctx);
+        }
+
+        std::string committed;
+        if (new_mode != old_mode) {
+            if (composing) {
+                if (style == "commit_code" ||
+                    (style == "commit_text" && num_candidates == 0)) {
+                    const char *input = api->get_input(sid);
+                    if (input) committed = input;
+                    api->clear_composition(sid);
+                } else if (style == "commit_text") {
+                    api->select_candidate_on_current_page(sid, (size_t)highlighted);
+                    committed = fetch_commit();
+                } else if (style == "clear" || style == "set_ascii_mode" ||
+                           style == "unset_ascii_mode") {
+                    api->clear_composition(sid);
+                } else if (style == "inline_ascii") {
+                    g_inline_ascii_active = new_mode;
+                }
+            }
+            api->set_option(sid, "ascii_mode", new_mode);
+            // 显式切回中文时，inline 临时态随之终止，避免 finish_inline_ascii
+            // 重复发一次同样的 option 通知。
+            if (!new_mode)
+                g_inline_ascii_active = false;
+        }
+
+        resp["ok"]           = true;
+        resp["style"]        = style;
+        resp["committed"]    = committed;
+        resp["inline_ascii"] = g_inline_ascii_active;
+        fill_context(resp);
+        finish_inline_ascii(resp);
         fill_notifications(resp);
         return resp;
     }
 
     if (type == "reset") {
+        clear_key_notifications();
         RimeSessionId sid = get_session();
         if (sid) api->clear_composition(sid);
         resp["ok"] = true;
+        fill_context(resp);
+        finish_inline_ascii(resp);
+        fill_notifications(resp);
         return resp;
     }
 
@@ -277,6 +388,7 @@ static json handle_request(const json &req) {// {{{
             api->destroy_session(g_session);
             g_session = 0;
         }
+        g_inline_ascii_active = false;
         g_deploy_status.clear();
         Bool started = api->start_maintenance(true);
         if (!started) {
@@ -333,6 +445,9 @@ static json handle_request(const json &req) {// {{{
         Bool new_value = current ? False : True;
         api->set_option(sid, option.c_str(), new_value);
 
+        if (option == "ascii_mode" && !new_value)
+            g_inline_ascii_active = false;
+
         resp["ok"]     = true;
         resp["option"] = option;
         resp["value"]  = (bool)new_value;
@@ -355,6 +470,9 @@ static json handle_request(const json &req) {// {{{
         }
         Bool value = req.value("value", false) ? True : False;
         api->set_option(sid, option.c_str(), value);
+
+        if (option == "ascii_mode" && !value)
+            g_inline_ascii_active = false;
 
         resp["ok"]     = true;
         resp["option"] = option;

@@ -1,28 +1,31 @@
-let s:kShiftMask = 1
-let s:kCtrlMask = 4
+let s:kShiftMask = 0x01
+let s:kCtrlMask = 0x04
+let s:kReleaseMask = 0x40000000  " librime kReleaseMask = 1 << 30
 
 let s:keys = {
-      \ 'bs'      : [0xff08, 0,            "\<bs>"],
-      \ 's-bs'    : [0xff08, s:kShiftMask, "\<bs>"],
-      \ 'left'    : [0xff51, 0,            "\<left>"],
-      \ 'right'   : [0xff53, 0,            "\<right>"],
-      \ 'up'      : [0xff52, 0,            "\<up>"],
-      \ 'down'    : [0xff54, 0,            "\<down>"],
-      \ 'home'    : [0xff50, 0,            "\<home>"],
-      \ 'end'     : [0xff57, 0,            "\<end>"],
-      \ 'tab'     : [0xff09, 0,            "\<tab>"],
-      \ 's-tab'   : [0xff09, s:kShiftMask, "\<s-tab>"],
-      \ 'pagedown': [0xff56, 0,            "\<pagedown>"],
-      \ 'pageup'  : [0xff55, 0,            "\<pageup>"],
-      \ 'return'  : [0xff0d, 0,            "\<cr>"],
-      \ 'escape'  : [0xff1b, 0,            "\<esc>"],
-      \ 'space'   : [0x0020, 0,            "\<space>"],
-      \ 'c-u'     : [0x75,   s:kCtrlMask,  "\<c-u>"],
-      \ 'c-d'     : [0xffff, s:kShiftMask, "\<c-d>"],
-      \ 'c-f'     : [0x66,   s:kCtrlMask,  "\<c-f>"],
-      \ 'c-b'     : [0x62,   s:kCtrlMask,  "\<c-b>"],
-      \ 'c-`'     : [0x60,   s:kCtrlMask,  "\<c-`>"],
-      \ 'f4'      : [0xffc1, 0,            "\<f4>"],
+      \ 'bs'             : [0xff08, 0,              "\<bs>"],
+      \ 's-bs'           : [0xff08, s:kShiftMask,   "\<bs>"],
+      \ 'left'           : [0xff51, 0,              "\<left>"],
+      \ 'right'          : [0xff53, 0,              "\<right>"],
+      \ 'up'             : [0xff52, 0,              "\<up>"],
+      \ 'down'           : [0xff54, 0,              "\<down>"],
+      \ 'home'           : [0xff50, 0,              "\<home>"],
+      \ 'end'            : [0xff57, 0,              "\<end>"],
+      \ 'tab'            : [0xff09, 0,              "\<tab>"],
+      \ 's-tab'          : [0xff09, s:kShiftMask,   "\<s-tab>"],
+      \ 'pagedown'       : [0xff56, 0,              "\<pagedown>"],
+      \ 'pageup'         : [0xff55, 0,              "\<pageup>"],
+      \ 'return'         : [0xff0d, 0,              "\<cr>"],
+      \ 'escape'         : [0xff1b, 0,              "\<esc>"],
+      \ 'space'          : [0x0020, 0,              "\<space>"],
+      \ 'c-u'            : [0x75,   s:kCtrlMask,    "\<c-u>"],
+      \ 'c-d'            : [0xffff, s:kShiftMask,   "\<c-d>"],
+      \ 'c-f'            : [0x66,   s:kCtrlMask,    "\<c-f>"],
+      \ 'c-b'            : [0x62,   s:kCtrlMask,    "\<c-b>"],
+      \ 'c-`'            : [0x60,   s:kCtrlMask,    "\<c-`>"],
+      \ 'f4'             : [0xffc1, 0,              "\<f4>"],
+      \ 'l-shift'        : [0xffe1, 0,              ""],
+      \ 'l-shift-release': [0xffe1, s:kReleaseMask, ""],
       \ }
 
 " key -> 回放字符串 反查表，由 s:keys 生成，
@@ -94,6 +97,7 @@ function! im#keymap#clear() abort"{{{
         \ s:mapped_keys.symbols + s:mapped_keys.specials
     silent! execute 'lunmap ' . key
   endfor
+
   silent! doautocmd User RimeKeymapClear
 endfunction"}}}
 
@@ -123,8 +127,8 @@ function! im#keymap#char(char) abort"{{{
   return "\<Cmd>call im#key(" . char2nr(a:char) . ", 0)\<CR>"
 endfunction"}}}
 
-function! im#keymap#toggle_scheme(name) abort"{{{
-  let [code, mask, literal] = s:keys[a:name]
+function! im#keymap#toggle_scheme() abort"{{{
+  let [code, mask, literal] = s:keys['c-`']
   if !im#state#composing()
     call s:begin_composition()
   endif
@@ -137,6 +141,21 @@ function! im#keymap#cancel() abort"{{{
     return "\<c-u>"
   endif
   return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
+function! im#keymap#toggle_ascii_mode(...) abort"{{{
+  let style = a:0 ? a:1 : ''
+  if !empty(style)
+    return "\<Cmd>call im#ascii_switch('" . style . "')\<CR>"
+  endif
+  let [p_code, p_mask, _] = s:keys['l-shift']
+  let [r_code, r_mask, _] = s:keys['l-shift-release']
+  call im#rime#key(p_code, p_mask)
+  return "\<Cmd>call im#key(" . r_code . ", " . r_mask . ", '')\<CR>"
+endfunction"}}}
+
+function! im#keymap#ascii_switch(style) abort"{{{
+  return "\<Cmd>call im#ascii_switch('" . a:style . "')\<CR>"
 endfunction"}}}
 
 function! im#keymap#ctrl_w() abort"{{{
@@ -218,7 +237,10 @@ function! im#keymap#r() abort"{{{
 
   let ctx = im#rime#key(char2nr(char), 0)
   let out = (ctx.accepted && !empty(get(ctx, 'committed', ''))) ? ctx.committed : char
-  call im#rime#reset()
+  let reset_ctx = im#rime#reset()
+  if !empty(get(reset_ctx, 'changed_options', []))
+    call im#apply_option_changes(reset_ctx)
+  endif
 
   let lnum = line('.')
   let line = getline(lnum)
