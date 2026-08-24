@@ -320,7 +320,7 @@ export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 默认按键映射（可设 `g:im_no_default_mappings=1` 关闭，用对应的 `g:im_*_key` 修改）：
 
 | 按键      | 模式                                 | 功能           |
-| --------- | ------------------------------------ | -------------- |
+| ------- | ------------------------------------ | -------------- |
 | `;;`      | normal / insert / command / terminal | 切换输入法开关 |
 | `<c-;>`   | normal / insert                      | 切换中/英模式  |
 | `;a`      | normal / insert                      | 切换中英文标点 |
@@ -538,26 +538,37 @@ patch:
 ```vim
 function RimeKeymapRemap()
   if &filetype ==# 'markdown'
-    lnoremap <silent><expr> <tab> im#state#composing() ? "\<cmd>call im#key( 0xff09, 0)\<CR>" :
+    lnoremap <silent><expr> <tab> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \ UltiSnips#CanJumpForwards() ?
           \"\<c-r>=UltiSnips#JumpForwards()\<cr>" :  bullet#is_bullet() ?
           \ "\<C-o>\<Plug>(bullets-demote)\<C-o>$" :  "\<tab>"
 
-    lnoremap <silent><expr> <s-tab> im#state#composing() ? "\<cmd>call im#key( 0xff09, 1)\<CR>" :
+    lnoremap <silent><expr> <s-tab> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ UltiSnips#CanJumpBackwards() ?
           \ "\<c-r>=UltiSnips#JumpBackwards()\<cr>" : bullet#is_bullet()?
           \ "\<C-o>\<Plug>(bullets-promote)\<C-o>$" : "\<s-tab>"
 
-    lnoremap <silent><expr> <cr> im#state#composing() ? "\<cmd>call im#key( 0xff0d, 0)\<cr>" :
-          \ "\<Plug>(bullets-newline)"
+    lnoremap <silent><expr> <cr> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
+          \ delimitMate#WithinEmptyPair() ?
+          \ "\<c-r>=delimitMate#ExpandReturn()\<cr>" : "\<Plug>(bullets-newline)"
   else
-    lnoremap <silent><expr> <tab> im#state#composing() ? "\<cmd>call im#key( 0xff09, 0)\<CR>" :
+    lnoremap <silent><expr> <tab> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \ UltiSnips#CanJumpForwards() ?
           \"\<c-r>=UltiSnips#JumpForwards()\<cr>" : "\<tab>"
 
-    lnoremap <silent><expr> <s-tab> im#state#composing() ? "\<cmd>call im#key( 0xff09, 1)\<CR>" :
+    lnoremap <silent><expr> <s-tab> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ UltiSnips#CanJumpBackwards() ?
           \ "\<c-r>=UltiSnips#JumpBackwards()\<cr>" : "\<s-tab>"
+
+    lnoremap <silent><expr> <cr> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
+          \ delimitMate#WithinEmptyPair() ?
+          \ "\<c-r>=delimitMate#ExpandReturn()\<cr>" : "\<cr>"
   endif
 endfunction
 
@@ -578,7 +589,8 @@ augroup END
 
 ```vim
 function RimeKeymapRemap()
-  lnoremap <silent><expr> <c-w> im#state#composing() ? "\<cmd>call im#key( 0xff08, 0)\<CR>" :
+  lnoremap <silent><expr> <c-w> im#state#composing() ?
+        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#ctrl_w()\<cr>" :
         \ "<Plug>(Jieba_C_w)"
 endfunction
@@ -753,11 +765,13 @@ function RimeKeymapRemap()
   lnoremap <expr> <c-g> im#pair#jump_any()   " 跳过右侧一个闭符/引号
   lnoremap <expr> <c-tab> im#pair#jump_many()  " 跳过右侧连续一串闭符/引号
 
-  lnoremap <silent><expr> <bs> im#state#composing() ? "\<cmd>call im#key( 0xff08, 0)\<CR>" :
+  lnoremap <silent><expr> <bs> im#state#composing() ?
+        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs_pair() ? im#pair#bs() : "\<bs>"
 
-  lnoremap <silent><expr> <s-bs> im#state#composing() ? "\<cmd>call im#key( 0xff08, 1)\<CR>" :
+  lnoremap <silent><expr> <s-bs> im#state#composing() ?
+        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs_pair() ? "\<bs>" : "\<s-bs>"
 
