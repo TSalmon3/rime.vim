@@ -204,30 +204,11 @@ function! im#ascii_switch(style) abort"{{{
   let was_composing = im#state#composing()
   let ctx = im#rime#switch_ascii_mode(a:style)
   call im#apply_option_changes(ctx)
-
-  let committed = get(ctx, 'committed', '')
-  if !empty(committed)
+  if !ctx.composing
+    let committed = get(ctx, 'committed', '')
     call s:commit_text(committed)
-    if ctx.composing
-      " 多段组合：已确认前缀上屏后，剩余部分从光标处继续组合
-      let state.boundary = col('.')
-      let state.preedit_len = 0
-      call s:redraw(ctx)
-    endif
-  elseif ctx.composing
-    if was_composing
-      call s:redraw(ctx)
-    endif
-  elseif was_composing
-    " clear 路径：把 buffer 中的 preedit 文本一并移除，等价引擎 ctx->Clear()
-    let lnum = line('.')
-    let line = getline(lnum)
-    let before = strpart(line, 0, state.boundary - 1)
-    let after  = strpart(line, state.boundary - 1 + state.preedit_len)
-    call setline(lnum, before . after)
-    call cursor(lnum, state.boundary)
-    call im#underline#clean()
-    call im#state#reset_input()
+  else
+    call s:redraw(ctx)
   endif
   redrawstatus
 endfunction"}}}

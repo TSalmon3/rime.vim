@@ -113,12 +113,8 @@ function! s:begin_composition() abort"{{{
   let state.sel_end     = 0
 endfunction"}}}
 
-function! s:replace_passive() abort"{{{
-  return !get(g:, 'im_replace_mode', 0) && mode(1) =~# '^R'
-endfunction"}}}
-
 function! im#keymap#char(char) abort"{{{
-  if s:replace_passive()
+  if !im#replace#active() && mode(1) =~# '^R'
     return a:char
   endif
   if !im#state#composing()
