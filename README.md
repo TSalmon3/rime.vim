@@ -31,6 +31,16 @@
 
   建议同时只保留一个编辑器会话；或为不同编辑器分别配置独立的 `g:im_user_data_dir`，避免词库互相覆盖。
   ```
+
+- 编辑器退出后 rime-query 进程会残留吗？
+
+  ```answer
+  正常情况下不会。插件在 `VimLeavePre` 时对后端执行两层关闭：先发送 `quit` 协议命令让后端
+  完成 `destroy_session + finalize` 后自行退出，再发送 SIGTERM 兜底。即使编辑器被强杀
+  （关闭终端 / tmux kill-session / kill -9，此时不会触发任何 autocmd），后端也能通过
+  SIGTERM/SIGHUP 信号或 stdin 管道 EOF 自行清理——后端主循环基于非阻塞轮询实现，
+  对以上任一事件都能在一百毫秒内响应。
+  ```
 </details>
 
 ---
@@ -63,7 +73,7 @@
 
 ## 简介
 
-Rime（中州韵）输入法在 Vim / Neovim 中的集成方案，基于 [rime-ice](https://github.com/iDvelve/rime-ice) 词库，同时支持 Vim（>= 8.2.1978）与 Neovim。
+Rime（中州韵）输入法在 Vim / Neovim 中的集成方案，基于 [rime-ice](https://github.com/iDvel/rime-ice) 词库，同时支持 Vim（>= 8.2.1978）与 Neovim。
 
 **用法**：进入插入模式后直接键入拼音，候选词浮窗出现；数字键或 `Up` / `Down` 选择候选，`Enter` / `Space` 上屏，`Esc` 取消本次组合。
 
@@ -82,8 +92,8 @@ Rime（中州韵）输入法在 Vim / Neovim 中的集成方案，基于 [rime-i
 ### 环境要求
 
 - Vim >= 8.2.1978 或 Neovim
-- librime（编译后端所必需）
-- Rime 共享数据目录与用户数据目录（例如 [rime-ice](https://github.com/iDvelve/rime-ice)）
+- [librime](https://github.com/rime/librime)（编译后端所必需）
+- Rime 共享数据目录与用户数据目录（例如 [rime-ice](https://github.com/iDvel/rime-ice)）
 
 ### 安装
 
@@ -216,7 +226,7 @@ let g:im_status_simplified_text    = '简'
 " 繁体状态文本
 let g:im_status_traditional_text   = '繁'
 " 词库被其他实例占用时的锁定提示图标
-let g:im_status_locked_text        = '!'
+let g:im_status_lock_text        = '!'
 " 初始标点状态（1 为半角）
 let g:im_option_ascii_punct        = 0
 " 初始简繁状态（1 为繁体）

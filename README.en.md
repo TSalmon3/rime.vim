@@ -35,6 +35,19 @@ Answers to common questions.
   `g:im_user_data_dir` for each editor so the dictionaries don't overwrite
   each other.
   ```
+
+- Does a rime-query process linger after the editor exits?
+
+  ```answer
+  Normally no. On `VimLeavePre` the plugin shuts the backend down in two
+  layers: it first sends a `quit` protocol command so the backend finishes
+  `destroy_session + finalize` and exits on its own, then sends SIGTERM as a
+  fallback. Even when the editor is killed hard (terminal closed /
+  tmux kill-session / kill -9, none of which run autocmds), the backend still
+  cleans itself up via the SIGTERM/SIGHUP signals or stdin pipe EOF — the
+  backend's main loop is built on non-blocking polling and reacts to any of
+  these events within one hundred milliseconds.
+  ```
 </details>
 
 ---
@@ -245,7 +258,7 @@ let g:im_status_simplified_text    = '简'
 " Traditional status text
 let g:im_status_traditional_text   = '繁'
 " Locked-indicator icon when the dictionary is held by another instance
-let g:im_status_locked_text        = '!'
+let g:im_status_lock_text        = '!'
 " Initial punctuation state (1 = half-width)
 let g:im_option_ascii_punct        = 0
 " Initial simplified/traditional state (1 = traditional)

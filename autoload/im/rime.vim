@@ -43,7 +43,6 @@ endfunction"}}}
 
 function! s:on_error_nvim(job_id, data, event) abort"{{{
   " call LIB#log#info("[job error] data: " . join(a:data, "\n") . "event: " . a:event)
-  let s:job = v:null
 endfunction"}}}
 
 function! s:job_start_nvim(cmd) abort"{{{
@@ -76,7 +75,6 @@ endfunction"}}}
 
 function! s:error_cb_vim(job, status) abort"{{{
   " call LIB#log#info("[job exit]")
-  let s:job = v:null
 endfunction"}}}
 
 function! s:job_start_vim(cmd) abort"{{{
@@ -150,16 +148,20 @@ function! im#rime#start() abort"{{{
 
   let other = []
   if has('win32') || has('win64')
-    let other = systemlist('pgrep -x ' . shellescape(fnamemodify(g:im_rime_bin, ':t')))
+    let bin = fnamemodify(g:im_rime_bin, ':t')
+    let bin = bin =~? '\.exe$' ? bin : bin . '.exe'
+    let other = filter(systemlist('tasklist /FI "IMAGENAME eq ' . bin . '" /FO CSV /NH'),
+          \ {_, l -> l =~ '^"'})
   elseif has('unix')
-    let other = systemlist('pgrep -x ' . shellescape(fnamemodify(g:im_rime_bin, ':t')))
+    let other = filter(systemlist('pgrep -x ' . shellescape(fnamemodify(g:im_rime_bin, ':t'))),
+          \ {_, v -> v =~ '^\d\+$'})
   endif
 
-  " if len(other) > 0
-  "   echohl WarningMsg
-  "   echom '[IM] another rime-query already running; multi-instance word-frequency may silently reset'
-  "   echohl None
-  " endif
+  if len(other) > 0
+    echohl WarningMsg
+    echom '[IM] another rime-query backend is holding the user dictionary; its word frequency may silently reset'
+    echohl None
+  endif
 
   let state = im#state#get()
   let state.locked = len(other) > 0 ? 1 : 0
@@ -178,6 +180,10 @@ endfunction"}}}
 
 function! im#rime#stop() abort"{{{
   if s:job isnot v:null
+    try
+      call s:job_send(s:job, "{\"type\":\"quit\",\"id\":-99}\n")
+    catch
+    endtry
     call s:job_stop(s:job)
     let s:job = v:null
   endif

@@ -4,12 +4,21 @@
 
 #include <cstdlib>
 #include <csignal>
+#include <cerrno>
 #include <cstring>
 #include <string>
 #include <vector>
 #include <algorithm>
 #include <iostream>
 #include <filesystem>
+
+#ifdef _WIN32
+#include <windows.h>
+using ssize_t = SSIZE_T;
+#else
+#include <poll.h>
+#include <unistd.h>
+#endif
 
 #include <rime_api.h>
 #include "3rd/json.hpp"
@@ -64,21 +73,13 @@ static void log_init() {// {{{
 static RimeSessionId g_session = 0;
 static volatile std::sig_atomic_t g_should_exit = 0;
 
-// 最近一次部署（maintenance）的状态，由 notification handler 在 librime 的
-// 维护线程里写入；主线程只在 join_maintenance_thread() 返回后读取，无竞态。
 static std::string g_deploy_status;
 
-// option / schema 变化记录：由 notification handler 在 process_key() 内部
-// 同线程同步写入，key handler 在 process_key() 返回后读取，无竞态。
-// 每次 key 请求前由 clear_key_notifications() 清空。
 static std::vector<std::pair<std::string, bool>> g_changed_options;
 static bool g_schema_changed = false;
 static std::string g_schema_id;
 static std::string g_schema_name;
 
-// inline_ascii 临时英文态是否生效。引擎只有经真实 Shift 事件进入 inline 时
-// 才会挂 OnContextUpdate 自动回切；switch_ascii_mode 直接 set_option 挂不上，
-// 由本进程在组合结束时代劳。
 static bool g_inline_ascii_active = false;
 
 static void on_notification(void *, RimeSessionId, const char *message_type,
@@ -106,14 +107,11 @@ static void on_notification(void *, RimeSessionId, const char *message_type,
     }
 }// }}}
 
-// 清空上一次 process_key() 留下的通知记录；每次请求前调用，防止
-// set_option 等同步发出的通知泄漏到下一次 key 响应的 changed_options 里。
 static void clear_key_notifications() {// {{{
     g_changed_options.clear();
     g_schema_changed = false;
 }// }}}
 
-// 把本次请求内捕获的 option / schema 变化写入响应。
 static void fill_notifications(json &resp) {// {{{
     json opts = json::array();
     for (auto &kv : g_changed_options)
@@ -126,9 +124,55 @@ static void fill_notifications(json &resp) {// {{{
     }
 }// }}}
 
+#ifdef _WIN32
+static BOOL WINAPI console_ctrl_handler(DWORD) {
+    g_should_exit = 1;
+    return TRUE;
+}
+#else
 static void on_signal(int) {
     g_should_exit = 1;
 }
+#endif
+
+// 返回 1=有数据可读，0=超时（调用方应重查退出标志），-1=EOF/错误。
+static int wait_stdin_ready(int timeout_ms) {// {{{
+#ifdef _WIN32
+    HANDLE h = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD avail = 0;
+    if (!PeekNamedPipe(h, nullptr, 0, nullptr, &avail, nullptr))
+        return -1;  // 管道已断开，视同 EOF
+    if (avail > 0)
+        return 1;
+    Sleep(timeout_ms);
+    return 0;
+#else
+    struct pollfd pfd;
+    pfd.fd      = STDIN_FILENO;
+    pfd.events  = POLLIN;
+    int r = poll(&pfd, 1, timeout_ms);
+    if (r < 0)
+        return errno == EINTR ? 0 : -1;
+    if (r == 0)
+        return 0;
+    if (pfd.revents & POLLIN)
+        return 1;
+    return -1;
+#endif
+}// }}}
+
+// 返回读取字节数，0 或负数表示 EOF/错误。
+static ssize_t read_stdin(char *buf, size_t n) {// {{{
+#ifdef _WIN32
+    DWORD got = 0;
+    if (!ReadFile(GetStdHandle(STD_INPUT_HANDLE), buf, static_cast<DWORD>(n),
+                  &got, nullptr))
+        return 0;
+    return static_cast<ssize_t>(got);
+#else
+    return read(STDIN_FILENO, buf, n);
+#endif
+}// }}}
 
 static void rime_init(const char *shared_dir, const char *user_dir) {// {{{
     RIME_STRUCT(RimeTraits, traits);
@@ -241,6 +285,13 @@ static json handle_request(const json &req) {// {{{
     // --- ping ---
     if (type == "ping") {
         resp["ok"] = true;
+        return resp;
+    }
+
+    // --- quit ---
+    if (type == "quit") {
+        resp["ok"] = true;
+        g_should_exit = 1;
         return resp;
     }
 
@@ -517,11 +568,34 @@ static json handle_request(const json &req) {// {{{
     return resp;
 }// }}}
 
+// 处理单行请求并写出响应；解析失败也回一个错误包，保持原有行为。
+static void handle_line(const std::string &line) {// {{{
+    try {
+        json req  = json::parse(line);
+        spdlog::debug(">> {}", line);
+        json resp = handle_request(req);
+        std::cout << resp.dump() << "\n";
+        spdlog::debug("<< {}", resp.dump());
+        std::cout.flush();
+    } catch (const json::exception &e) {
+        json err;
+        err["id"]    = 0;
+        err["ok"]    = false;
+        err["error"] = std::string("JSON parse error: ") + e.what();
+        std::cout << err.dump() << "\n";
+        std::cout.flush();
+    }
+}// }}}
+
 int main() {// {{{
     log_init();
-
+#ifdef _WIN32
+    SetConsoleCtrlHandler(console_ctrl_handler, TRUE);
+#else
     std::signal(SIGINT,  on_signal);
     std::signal(SIGTERM, on_signal);
+    std::signal(SIGHUP,  on_signal);
+#endif
 
     const char *shared_dir = getenv("RIME_SHARED_DATA_DIR");
     const char *user_dir   = getenv("RIME_USER_DATA_DIR");
@@ -537,24 +611,23 @@ int main() {// {{{
     spdlog::info("RIME_SHARED_DATA_DIR: {}", shared_dir);
     spdlog::info("RIME_USER_DATA_DIR: {}", user_dir);
 
-    std::string line;
-    while (!g_should_exit && std::getline(std::cin, line)) {
-        if (line.empty()) continue;
+    std::string pending;
+    char buf[4096];
+    while (!g_should_exit) {
+        int ready = wait_stdin_ready(100);
+        if (ready < 0) break;      // EOF / 管道断开
+        if (ready == 0) continue;  // 超时，回查退出标志
+        ssize_t n = read_stdin(buf, sizeof(buf));
+        if (n <= 0) break;
 
-        try {
-            json req  = json::parse(line);
-            spdlog::debug(">> {}", line);
-            json resp = handle_request(req);
-            std::cout << resp.dump() << "\n";
-            spdlog::debug("<< {}", resp.dump());
-            std::cout.flush();
-        } catch (const json::exception &e) {
-            json err;
-            err["id"]    = 0;
-            err["ok"]    = false;
-            err["error"] = std::string("JSON parse error: ") + e.what();
-            std::cout << err.dump() << "\n";
-            std::cout.flush();
+        pending.append(buf, static_cast<size_t>(n));
+        size_t pos;
+        while (!g_should_exit &&
+               (pos = pending.find('\n')) != std::string::npos) {
+            std::string line = pending.substr(0, pos);
+            pending.erase(0, pos + 1);
+            if (line.empty()) continue;
+            handle_line(line);
         }
     }
 
@@ -562,5 +635,6 @@ int main() {// {{{
     if (g_session) api->destroy_session(g_session);
     api->finalize();
 
+    spdlog::info("bye");
     return 0;
 }// }}}
