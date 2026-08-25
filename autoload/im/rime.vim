@@ -365,6 +365,11 @@ function! im#rime#sync() abort"{{{
   return im#rime#deploy()
 endfunction"}}}
 
+function! im#rime#warmup() abort"{{{
+  " 强制完成首键懒加载，避免第一次打字卡顿。
+  call im#rime#call({'type': 'warmup'}, 800)
+endfunction"}}}
+
 function! im#rime#apply_initial_options() abort"{{{
   let state = im#state#get()
   if exists('g:im_option_ascii_mode')
@@ -378,6 +383,8 @@ function! im#rime#apply_initial_options() abort"{{{
   if exists('g:im_option_traditional')
     let value = im#rime#set_option('traditionalization', get(g:, 'im_option_traditional', 0))
   endif
+
+  call im#rime#warmup()
 endfunction"}}}
 
 function! im#rime#toggle_traditional() abort"{{{

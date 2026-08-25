@@ -244,6 +244,17 @@ static json handle_request(const json &req) {// {{{
         return resp;
     }
 
+    // --- warmup ---
+    if (type == "warmup") {
+        RimeSessionId sid = get_session();
+        if (sid) {
+            api->process_key(sid, 'a', 0);
+            api->clear_composition(sid);
+        }
+        resp["ok"] = true;
+        return resp;
+    }
+
     if (type == "key") {
       if (!req.contains("keycode")) {
         resp["ok"]    = false;
