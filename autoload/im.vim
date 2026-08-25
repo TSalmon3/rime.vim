@@ -47,9 +47,11 @@ function! s:redraw(ctx) abort"{{{
   let lnum = line('.')
   let line = getline(lnum)
 
-  let before = strpart(line, 0, state.boundary - 1)
-  let after  = strpart(line, state.boundary - 1 + state.preedit_len)
-  call setline(lnum, before . a:ctx.preedit . after)
+  " padding wtth space in virtcol mode
+  let r = state.boundary - 1 - state.vpad
+  let before = strpart(line, 0, r)
+  let after  = strpart(line, r + state.vpad + state.preedit_len)
+  call setline(lnum, before . repeat(' ', state.vpad) . a:ctx.preedit . after)
 
   let state.preedit_len = strlen(a:ctx.preedit)
   let state.cursor_pos  = a:ctx.cursor_pos
@@ -110,9 +112,11 @@ function! s:commit_text(committed) abort"{{{
     let lnum = line('.')
     let line = getline(lnum)
 
-    let before = strpart(line, 0, state.boundary - 1)
-    let after = strpart(line, state.boundary - 1 + state.preedit_len)
-    call setline(lnum, before . a:committed . after)
+    " padding wtth space in virtcol mode
+    let r = state.boundary - 1 - state.vpad
+    let before = strpart(line, 0, r)
+    let after = strpart(line, r + state.vpad + state.preedit_len)
+    call setline(lnum, before . repeat(' ', state.vpad) . a:committed . after)
 
     call cursor(line('.'), state.boundary + strlen(a:committed))
   endif

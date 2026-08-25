@@ -107,6 +107,16 @@ function! s:begin_composition() abort"{{{
     call im#replace#sync()
   endif
   let state.boundary    = col('.')
+  let state.vpad        = virtcol('.') - 1 - strdisplaywidth(getline('.'))
+  if state.vpad > 0
+    if im#replace#active()
+      let state.base_line = state.base_line . repeat(' ', state.vpad)
+      let state.base_cidx = state.base_cidx + state.vpad
+    endif
+    let state.boundary  = strlen(getline('.')) + state.vpad + 1
+  else
+    let state.vpad      = 0
+  endif
   let state.preedit_len = 0
   let state.cursor_pos  = 0
   let state.sel_start   = 0

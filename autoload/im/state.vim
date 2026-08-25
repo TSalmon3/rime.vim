@@ -6,6 +6,7 @@ let s:state = {
       \ 'boundary'        : -1,
       \ 'preedit'         : '',
       \ 'preedit_len'     : 0,
+      \ 'vpad'            : 0,
       \ 'cursor_pos'      : 0,
       \ 'sel_start'       : 0,
       \ 'sel_end'         : 0,
@@ -47,6 +48,7 @@ function! im#state#init() abort
   let s:state.boundary       = -1
   let s:state.preedit        = ''
   let s:state.preedit_len    = 0
+  let s:state.vpad           = 0
   let s:state.cursor_pos     = 0
   let s:state.sel_start      = 0
   let s:state.sel_end        = 0
@@ -79,6 +81,7 @@ function! im#state#reset_input() abort
   let s:state.candidate_count = 0
   let s:state.preedit         = ''
   let s:state.preedit_len     = 0
+  let s:state.vpad            = 0
   let s:state.cursor_pos      = 0
   let s:state.sel_start       = 0
   let s:state.sel_end         = 0
