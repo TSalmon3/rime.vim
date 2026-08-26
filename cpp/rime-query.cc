@@ -1017,7 +1017,7 @@ static std::string default_endpoint() {// {{{
 namespace pipe_server {
 static std::thread acceptor;
 static std::mutex mu;
-static std::vector<HANDLE> pending;         // 已连接待主循环收养的实例
+static std::vector<HANDLE> pending;
 static std::atomic<bool> stop{false};
 static std::wstring pipe_name;
 
@@ -1061,7 +1061,6 @@ static void acceptor_loop() {// {{{
 }// }}}
 
 static void wake_acceptor() {// {{{
-  // 用一次哑连接解除 ConnectNamedPipe 的阻塞。
   if (!WaitNamedPipeW(pipe_name.c_str(), 200)) return;
   HANDLE h = CreateFileW(pipe_name.c_str(), GENERIC_READ | GENERIC_WRITE,
                          0, nullptr, OPEN_EXISTING, 0, nullptr);
@@ -1070,7 +1069,6 @@ static void wake_acceptor() {// {{{
 }  // namespace pipe_server
 
 static int run_server_windows(std::string endpoint_utf8, long idle_exit_ms) {// {{{
-  // 编辑器总是显式传完整管道名；缺省时才落到按用户名推导的默认值。
   if (endpoint_utf8.empty() ||
       endpoint_utf8.rfind("\\\\.\\pipe\\", 0) != 0)
     endpoint_utf8 = default_endpoint();
@@ -1080,7 +1078,6 @@ static int run_server_windows(std::string endpoint_utf8, long idle_exit_ms) {// 
   const char *user_dir   = nullptr;
   if (!read_rime_dirs(shared_dir, user_dir))
     return 1;
-  // 先抢管道名（首个 CreateNamedPipeW 在 acceptor 线程里做），再初始化。
   pipe_server::acceptor = std::thread(pipe_server::acceptor_loop);
   Sleep(50);
   if (pipe_server::stop.load()) {
@@ -1097,7 +1094,6 @@ static int run_server_windows(std::string endpoint_utf8, long idle_exit_ms) {// 
   bool idle_counting = true;
 
   while (!g_should_exit) {
-    // 收养新连接
     {
       std::lock_guard<std::mutex> lk(pipe_server::mu);
       for (HANDLE h : pipe_server::pending) {
