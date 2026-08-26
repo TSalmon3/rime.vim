@@ -157,11 +157,11 @@ function! im#rime#start() abort"{{{
           \ {_, v -> v =~ '^\d\+$'})
   endif
 
-  if len(other) > 0
-    echohl WarningMsg
-    echom '[IM] another rime-query backend is holding the user dictionary; its word frequency may silently reset'
-    echohl None
-  endif
+  " if len(other) > 0
+  "   echohl WarningMsg
+  "   echom '[IM] another rime-query backend is holding the user dictionary; its word frequency may silently reset'
+  "   echohl None
+  " endif
 
   let state = im#state#get()
   let state.locked = len(other) > 0 ? 1 : 0
