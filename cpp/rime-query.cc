@@ -132,8 +132,6 @@ struct Client {
   std::string schema_id;
   std::string schema_name;
 
-  // deploy 后的全局方案广播。与上面的单键事件分开：clear_key_notifications()
-  // 会清后者，但不能吞掉前者——广播要保证送达一次后才复位。
   bool schema_broadcast = false;
 };
 
