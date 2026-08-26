@@ -1,23 +1,3 @@
-// rime-query: JSON-lines bridge between an editor and librime.
-//
-// Two run modes:
-//
-//   rime-query --serve [--socket PATH] [--idle-exit-ms N]
-//       Singleton daemon. Owns the Rime user database (LevelDB) exclusively
-//       and multiplexes one RimeSessionId per connected client over a Unix
-//       domain socket (or a Windows named pipe). This mirrors how ibus-rime /
-//       fcitx-rime host librime in a single process, so several editor
-//       instances -- even vim and neovim side by side -- share word frequency
-//       learning without fighting over the LevelDB LOCK file.
-//
-//   rime-query --stdio
-//       Legacy single-client mode kept for debugging and CI: requests on
-//       stdin, responses on stdout, one line of JSON each way.
-//
-// Protocol (both modes): line-delimited JSON objects. Every response echoes
-// the request's "id". The daemon additionally pushes {"id":0,"type":"ready"}
-// to each client right after accepting it.
-
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
 #endif
@@ -120,7 +100,7 @@ struct Client {
   bool is_stdio = false;
   bool dead = false;              // 写失败/对端断开，事件循环统一清扫
 
-  std::string in_buf;             // 半行缓冲
+  std::string in_buf;
 
   RimeSessionId session = 0;      // 一连接一 session（ibus-rime 同款模型）
   bool inline_ascii_active = false;
@@ -376,8 +356,6 @@ static json handle_request(Client &c, const json &req) {// {{{
   RimeApi *api = rime_get_api();
 
   // --- ping ---
-  // 编辑器连接后用它做就绪握手：serve 模式下监听先于 rime 初始化就绪，
-  // 初始化完成前请求只是排队，ping 的答复即代表后端可用。
   if (type == "ping") {
     if (req.contains("app")) c.app_hint = req.value("app", std::string());
     resp["ok"] = true;
@@ -385,8 +363,6 @@ static json handle_request(Client &c, const json &req) {// {{{
   }
 
   // --- quit ---
-  // 管理员语义：关停整个 daemon（所有客户端都会被断开）。
-  // 普通编辑器退出只关闭自己的连接，不发 quit。
   if (type == "quit") {
     resp["ok"] = true;
     g_should_exit = 1;
@@ -872,16 +848,14 @@ static int open_unix_listener(const std::string &path) {// {{{
   sockaddr_un addr{};
   addr.sun_family = AF_UNIX;
   std::strncpy(addr.sun_path, path.c_str(), sizeof(addr.sun_path) - 1);
-  // 不预先 unlink：EADDRINUSE 说明要么有活实例（上面已试连），要么是残留文件。
+
   if (::bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
     if (errno == EADDRINUSE) {
-      // bind 与 listen 之间的窗口可能让上面的试连失败；再确认一次。
       if (try_connect_existing(path)) {
         ::close(fd);
         spdlog::info("another rime-query daemon is already serving '{}'", path);
         return -2;
       }
-      // 残留 socket 文件（上次崩溃），接管。
       spdlog::warn("stale socket file '{}', taking over", path);
       ::unlink(path.c_str());
       if (::bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
@@ -906,7 +880,7 @@ static int open_unix_listener(const std::string &path) {// {{{
 static int run_server_unix(const std::string &endpoint, long idle_exit_ms) {// {{{
   int listen_fd = open_unix_listener(endpoint);
   if (listen_fd == -2) return 0;   // 已有实例，安静退出
-  if (listen_fd < 0) return 1;
+  if (listen_fd < 0) return 1; // 失败退出
 
   const char *shared_dir = nullptr;
   const char *user_dir   = nullptr;
@@ -925,10 +899,6 @@ static int run_server_unix(const std::string &endpoint, long idle_exit_ms) {// {
   using clock = std::chrono::steady_clock;
   clock::time_point idle_since = clock::now();
   bool idle_counting = true;  // 无客户端即开始计时
-
-  auto reset_idle = [&]() {
-    idle_since = clock::now();
-  };
 
   while (!g_should_exit) {
     std::vector<pollfd> pfds;
@@ -950,7 +920,7 @@ static int run_server_unix(const std::string &endpoint, long idle_exit_ms) {// {
         auto [it, inserted] = g_clients.try_emplace(key);
         it->second.fd = cfd;
         it->second.in_buf.clear();
-        reset_idle();
+        idle_since = clock::now();
         idle_counting = false;
         spdlog::info("client {} connected ({} active)", (long long)key,
                      (long long)g_clients.size());
@@ -977,7 +947,7 @@ static int run_server_unix(const std::string &endpoint, long idle_exit_ms) {// {
         dead.push_back(key);
         continue;
       }
-      reset_idle();
+      idle_since = clock::now();
       idle_counting = false;
       feed_bytes(it->second, buf, static_cast<size_t>(n));
       if (it->second.dead) dead.push_back(key);
