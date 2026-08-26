@@ -600,7 +600,7 @@ augroup END
 ```vim
 function RimeKeymapRemap()
   lnoremap <silent><expr> <c-w> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
+        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#ctrl_w()\<cr>" :
         \ "<Plug>(Jieba_C_w)"
 endfunction
