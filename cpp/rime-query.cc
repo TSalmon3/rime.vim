@@ -40,6 +40,10 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#if !defined(_SSIZE_T_DEFINED)
+#define _SSIZE_T_DEFINED
+typedef SSIZE_T ssize_t;  // POSIX 类型，Windows/MSVC 目标下用 SSIZE_T 等价定义
+#endif
 #else
 #include <poll.h>
 #include <unistd.h>
@@ -147,7 +151,6 @@ static ClientKey client_key(const Client &c) {
 }
 
 #ifdef _WIN32
-static void on_signal(int) { g_should_exit = 1; }
 static BOOL WINAPI console_ctrl_handler(DWORD) { g_should_exit = 1; return TRUE; }
 #else
 static void on_signal(int) { g_should_exit = 1; }
