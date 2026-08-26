@@ -1,7 +1,9 @@
-let s:job        = v:null
+let s:chan       = v:null
 let s:resp_buf   = ''
 let s:resp_ready = 0
 let s:next_id    = 0
+
+let s:not_running = 1
 
 " 当前正在等待答复的请求 id；只有回包里的 id 跟它一致才算数，
 " 迟到的旧请求答复（比如上一次超时了，但后端过一会儿还是回了）
@@ -15,13 +17,13 @@ function! s:on_line(line) abort"{{{
   try
     let decoded = json_decode(a:line)
   catch
-    " 解析失败也当成一次有效答复交给调用方去报错，保持原有行为。
+    " 解析失败
     let s:resp_buf   = a:line
     let s:resp_ready = 1
     return
   endtry
   if get(decoded, 'id', -1) != s:pending_id
-    " 迟到的旧回包，直接丢弃，继续等真正对应这次请求的答复。
+    " 迟到的旧回包（含 daemon 的 ready 广播 id=0），直接丢弃。
     return
   endif
   let s:resp_buf   = a:line
@@ -30,36 +32,55 @@ endfunction"}}}
 
 " --- Neovim implementation -------------------------------------------
 
-function! s:on_stdout_nvim(job_id, data, event) abort"{{{
+function! s:on_stdout_nvim(chan_id, data, event) abort"{{{
   for line in a:data
     call s:on_line(line)
   endfor
 endfunction"}}}
 
-function! s:on_exit_nvim(job_id, code, event) abort"{{{
-  " call LIB#log#info("[job exit] code: " . a:code . " event: " . a:event)
-  let s:job = v:null
+function! s:on_chan_exit_nvim(chan_id, data, event) abort"{{{
+  let s:chan = v:null
 endfunction"}}}
 
-function! s:on_error_nvim(job_id, data, event) abort"{{{
-  " call LIB#log#info("[job error] data: " . join(a:data, "\n") . "event: " . a:event)
+function! s:conn_open_nvim(path) abort"{{{
+  let chan = v:null
+  try
+    let chan = sockconnect('pipe', a:path, {
+          \ 'on_data': function('s:on_stdout_nvim'),
+          \ 'on_exit': function('s:on_chan_exit_nvim'),
+          \ })
+  catch
+    return 0
+  endtry
+  if type(chan) == v:t_number && chan > 0
+    let s:chan = chan
+    return 1
+  endif
+  return 0
 endfunction"}}}
 
-function! s:job_start_nvim(cmd) abort"{{{
-  let job = jobstart(a:cmd, {
-        \ 'on_stdout': function('s:on_stdout_nvim'),
-        \ 'on_exit'  : function('s:on_exit_nvim'),
-        \ 'on_stderr'  : function('s:on_error_nvim'),
-        \ })
-  return job > 0 ? job : v:null
+function! s:conn_send_nvim(text) abort"{{{
+  try
+    return chansend(s:chan, a:text) >= 0
+  catch
+    return 0
+  endtry
 endfunction"}}}
 
-function! s:job_send_nvim(job, text) abort"{{{
-  call chansend(a:job, a:text)
+function! s:conn_alive_nvim() abort"{{{
+  try
+    return chansend(s:chan, '') >= 0
+  catch
+    return 0
+  endtry
 endfunction"}}}
 
-function! s:job_stop_nvim(job) abort"{{{
-  call jobstop(a:job)
+function! s:conn_close_nvim() abort"{{{
+  try
+    call chanclose(s:chan)
+  catch
+  endtry
+  let s:chan = v:null
 endfunction"}}}
 
 " --- Vim implementation ------------------------------------------------
@@ -68,55 +89,99 @@ function! s:out_cb_vim(channel, msg) abort"{{{
   call s:on_line(a:msg)
 endfunction"}}}
 
-function! s:exit_cb_vim(job, status) abort"{{{
-  " call LIB#log#info("[job exit]")
-  let s:job = v:null
+function! s:exit_cb_vim(channel, msg) abort"{{{
+  let s:chan = v:null
 endfunction"}}}
 
-function! s:error_cb_vim(job, status) abort"{{{
-  " call LIB#log#info("[job exit]")
+function! s:conn_open_vim(path) abort"{{{
+  let chan = v:null
+  try
+    let chan = ch_open('unix:' . a:path, {
+          \ 'mode':     'nl',
+          \ 'callback': function('s:out_cb_vim'),
+          \ })
+  catch
+    return 0
+  endtry
+  if type(chan) == v:t_channel && ch_status(chan) ==# 'open'
+    let s:chan = chan
+    return 1
+  endif
+  return 0
 endfunction"}}}
 
-function! s:job_start_vim(cmd) abort"{{{
-  let job = job_start(a:cmd, {
-        \ 'out_cb'  : function('s:out_cb_vim'),
-        \ 'exit_cb' : function('s:exit_cb_vim'),
-        \ 'err_cb' : function('s:error_cb_vim'),
-        \ })
-  return job_status(job) ==# 'run' ? job : v:null
+function! s:conn_send_vim(text) abort"{{{
+  try
+    call ch_sendraw(s:chan, a:text)
+    return 1
+  catch
+    return 0
+  endtry
 endfunction"}}}
 
-function! s:job_send_vim(job, text) abort"{{{
-  call ch_sendraw(job_getchannel(a:job), a:text)
+function! s:conn_alive_vim() abort"{{{
+  try
+    return ch_status(s:chan) ==# 'open'
+  catch
+    return 0
+  endtry
 endfunction"}}}
 
-function! s:job_stop_vim(job) abort"{{{
-  call job_stop(a:job)
+function! s:conn_close_vim() abort"{{{
+  try
+    call ch_close(s:chan)
+  catch
+  endtry
+  let s:chan = v:null
 endfunction"}}}
 
 " --- Dispatchers ------------------------------------------------------
 
-function! s:job_start(cmd) abort"{{{
-  return has('nvim') ? s:job_start_nvim(a:cmd) : s:job_start_vim(a:cmd)
+function! s:conn_open(path) abort"{{{
+  return has('nvim') ? s:conn_open_nvim(a:path) : s:conn_open_vim(a:path)
 endfunction"}}}
 
-function! s:job_send(job, text) abort"{{{
+function! s:conn_send(text) abort"{{{
   if has('nvim')
-    call s:job_send_nvim(a:job, a:text)
+    return s:conn_send_nvim(a:text)
   else
-    call s:job_send_vim(a:job, a:text)
+    return s:conn_send_vim(a:text)
   endif
 endfunction"}}}
 
-function! s:job_stop(job) abort"{{{
+function! s:conn_alive() abort"{{{
+  if s:chan is v:null
+    return 0
+  endif
+  return has('nvim') ? s:conn_alive_nvim() : s:conn_alive_vim()
+endfunction"}}}
+
+function! s:conn_close() abort"{{{
+  if s:chan is v:null
+    return
+  endif
   if has('nvim')
-    call s:job_stop_nvim(a:job)
+    call s:conn_close_nvim()
   else
-    call s:job_stop_vim(a:job)
+    call s:conn_close_vim()
   endif
 endfunction"}}}
 
-" --- Lifecycle ------------------------------------------------------
+" --- Endpoint & lifecycle ----------------------------------------------
+
+function! s:socket_path() abort"{{{
+  if !empty(get(g:, 'im_socket_path', ''))
+    return expand(g:im_socket_path)
+  endif
+  if has('win32') || has('win64')
+    let user = !empty($USERNAME) ? $USERNAME : 'default'
+    return '\\.\pipe\rime-query-' . user
+  endif
+  if !empty($XDG_RUNTIME_DIR)
+    return $XDG_RUNTIME_DIR . '/rime-query.sock'
+  endif
+  return expand('~/.cache/rime-query.sock')
+endfunction"}}}
 
 function! im#rime#init() abort"{{{
   let g:im_rime_bin = get(g:, 'im_rime_bin', 'rime-query')
@@ -134,73 +199,108 @@ function! im#rime#init() abort"{{{
   endif
 endfunction"}}}
 
-function! im#rime#start() abort"{{{
-  if s:job isnot v:null
+function! s:spawn_daemon(sock) abort"{{{
+  let args = [
+        \ g:im_rime_bin,
+        \ '--serve',
+        \ '--socket', a:sock,
+        \ '--idle-exit-ms', string(get(g:, 'im_idle_exit_ms', 60000)),
+        \ ]
+  if has('nvim')
+    call jobstart(args, {'detach': v:true})
+  else
+    call job_start(args, {'stoponexit': ''})
+  endif
+endfunction"}}}
+
+function! s:handshake_and_setup(sock) abort"{{{
+  let resp = s:roundtrip({
+        \ 'type': 'ping',
+        \ 'app':  has('nvim') ? 'nvim' : 'vim',
+        \ }, get(g:, 'im_handshake_timeout_ms', 30000))
+  if resp is v:null
+    echohl WarningMsg
+    echom '[IM] rime backend did not become ready in time: ' . a:sock
+    echohl None
+    call s:conn_close()
+    return 0
+  endif
+  call im#rime#apply_initial_options()
+  return 1
+endfunction"}}}
+
+
+
+" 连接现有 daemon，连不上则拉起并重试。成功返回 1。
+function! s:ensure_backend() abort"{{{
+  if s:conn_alive()
     return 1
   endif
+  call s:conn_close()
 
-  if !executable('rime-query')
+  let sock = s:socket_path()
+
+  if s:conn_open(sock)
+    return s:handshake_and_setup(sock)
+  endif
+
+  if !executable(g:im_rime_bin)
     echohl WarningMsg
     echomsg "[IM]: rime-query not found in PATH, please check your installation"
     echohl None
     return 0
   endif
 
-  let other = []
-  if has('win32') || has('win64')
-    let bin = fnamemodify(g:im_rime_bin, ':t')
-    let bin = bin =~? '\.exe$' ? bin : bin . '.exe'
-    let other = filter(systemlist('tasklist /FI "IMAGENAME eq ' . bin . '" /FO CSV /NH'),
-          \ {_, l -> l =~ '^"'})
-  elseif has('unix')
-    let other = filter(systemlist('pgrep -x ' . shellescape(fnamemodify(g:im_rime_bin, ':t'))),
-          \ {_, v -> v =~ '^\d\+$'})
+  " 确保 socket 父目录存在（默认路径落在 ~/.cache 时首次需要创建）。
+  if has('unix')
+    silent! call mkdir(fnamemodify(sock, ':h'), 'p')
   endif
 
-  if len(other) > 0
-    echohl WarningMsg
-    echom '[IM] another rime-query backend is holding the user dictionary; its word frequency may silently reset'
-    echohl None
-  endif
+  call s:spawn_daemon(sock)
 
-  let state = im#state#get()
-  let state.locked = len(other) > 0 ? 1 : 0
+  let timeout_s = get(g:, 'im_connect_timeout_ms', 30000) / 1000.0
+  let deadline = reltimefloat(reltime()) + timeout_s
+  while reltimefloat(reltime()) < deadline
+    sleep 50m
+    if s:conn_open(sock)
+      return s:handshake_and_setup(sock)
+    endif
+  endwhile
 
-  let s:job = s:job_start([g:im_rime_bin])
-  if s:job is v:null
-    echohl WarningMsg
-    echom '[IM] failed to start rime backend: ' . g:im_rime_bin
-    echohl None
-    return 0
-  endif
+  echohl WarningMsg
+  echom '[IM] failed to start rime backend: ' . g:im_rime_bin
+  echohl None
+  return 0
+endfunction"}}}
 
-  call im#rime#apply_initial_options()
-  return 1
+function! im#rime#start() abort"{{{
+  let s:not_running = 0
+  return s:ensure_backend()
 endfunction"}}}
 
 function! im#rime#stop() abort"{{{
-  if s:job isnot v:null
-    try
-      call s:job_send(s:job, "{\"type\":\"quit\",\"id\":-99}\n")
-    catch
-    endtry
-    call s:job_stop(s:job)
-    let s:job = v:null
-  endif
+  let s:not_running = 1
+  call s:conn_close()
 endfunction"}}}
 
-function! im#rime#call(request, timeout_ms) abort"{{{
-  if s:job is v:null
-    return v:null
+function! im#rime#shutdown() abort"{{{
+  if s:chan isnot v:null && !s:not_running
+    try
+      call s:roundtrip({'type': 'quit'}, 2000)
+    endtry
   endif
+  call s:conn_close()
+  let s:not_running = 1
+endfunction"}}}
 
+function! s:roundtrip(request, timeout_ms) abort"{{{
   let s:next_id += 1
   let s:pending_id = s:next_id
   let request = extend(copy(a:request), {'id': s:pending_id})
 
   let s:resp_ready = 0
   let s:resp_buf   = ''
-  call s:job_send(s:job, json_encode(request) . "\n")
+  call s:conn_send(json_encode(request) . "\n")
 
   let remaining = a:timeout_ms
   while !s:resp_ready && remaining > 0
@@ -222,6 +322,25 @@ function! im#rime#call(request, timeout_ms) abort"{{{
     throw v:exception
   endtry
   return v:null
+endfunction"}}}
+
+function! im#rime#call(request, timeout_ms) abort"{{{
+  if s:chan is v:null || s:not_running
+    return v:null
+  endif
+
+  let resp = s:roundtrip(a:request, a:timeout_ms)
+  if resp isnot v:null
+    return resp
+  endif
+
+  " 超时无答复, 断开重连一次再试同样的请求
+  call s:conn_close()
+  let s:not_running = 0
+  if !s:ensure_backend()
+    return v:null
+  endif
+  return s:roundtrip(a:request, a:timeout_ms)
 endfunction"}}}
 
 function! s:parse_context(resp) abort"{{{
@@ -473,4 +592,3 @@ function! im#rime#toggle_full_shape() abort"{{{
   let state.full_shape = value ? 1 : 0
   redrawstatus
 endfunction"}}}
-

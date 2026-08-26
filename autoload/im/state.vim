@@ -19,7 +19,6 @@ let s:state = {
       \ 'emoji'           : 0,
       \ 'full_shape'      : 0,
       \ 'traditional'     : 0,
-      \ 'locked'          : 0,
       \ 'schema'          : '',
       \ 'last_commit'     : '',
       \ 'ns_id'           : 0,

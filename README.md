@@ -21,25 +21,27 @@
   会产生冲突，建议新建一个目录，存放你的拼音方案，也就是你的「用户数据目录」最好不要跟系统输入法的是同一目录。
   ```
 
-- 为什么词频功能会失效？
+- 多个 Vim / Neovim 实例同时使用，词频会互相覆盖吗？
 
   ```answer
-  每个 Vim / Neovim 实例都会各自启动一个独立的 rime-query 后端进程，而所有实例共享同一个用户词库目录
-  （`g:im_user_data_dir`）。用户词库（*.userdb 目录）是 LevelDB 单写者存储，同一时刻只允许一个进程
-  持有写锁：当另一个实例先启动并占用了词库时，后启动的实例会抢不到锁，librime 会静默地挪走旧词库目录并
-  新建空库，表现为「词频丢失、候选词排序回到默认」。
+  不会。rime-query 后端以单例 daemon 模式运行（与 ibus-rime / fcitx-rime 同款架构）：
+  首个编辑器实例拉起一个共享后端进程，它独占用户词库（*.userdb）这一个写者身份；
+  之后任何编辑器实例——包括 vim 和 neovim 混用——都通过 Unix domain socket
+  （Windows 上是命名管道）热接入同一个 daemon，各自持有独立的 Rime 会话，
+  组词状态互不干扰，而词频学习全部汇入同一个词库。
 
-  建议同时只保留一个编辑器会话；或为不同编辑器分别配置独立的 `g:im_user_data_dir`，避免词库互相覆盖。
+  daemon 在最后一个客户端离开并空闲超过 `g:im_idle_exit_ms`（默认 60 秒）后
+  自动收尾退出；期间任一编辑器重新打开都会秒连热进程。
   ```
 
 - 编辑器退出后 rime-query 进程会残留吗？
 
   ```answer
-  正常情况下不会。插件在 `VimLeavePre` 时对后端执行两层关闭：先发送 `quit` 协议命令让后端
-  完成 `destroy_session + finalize` 后自行退出，再发送 SIGTERM 兜底。即使编辑器被强杀
-  （关闭终端 / tmux kill-session / kill -9，此时不会触发任何 autocmd），后端也能通过
-  SIGTERM/SIGHUP 信号或 stdin 管道 EOF 自行清理——后端主循环基于非阻塞轮询实现，
-  对以上任一事件都能在一百毫秒内响应。
+  不会残留。编辑器退出只断开自己的连接，绝不影响其他还挂着的编辑器；
+  当最后一个客户端离开后，daemon 再等待 `g:im_idle_exit_ms`（默认 60 秒，
+  可设为 0 表示常驻），超时即完成 `destroy_session + finalize` 落盘退出，
+  并清理 socket 文件。即使 daemon 被 kill -9 强杀，下一次按键时插件会自动
+  重连或重新拉起，打字无感恢复。需要立即关停共享 daemon 可执行 `:IMShutdown`。
   ```
 </details>
 
@@ -86,6 +88,7 @@ Rime（中州韵）输入法在 Vim / Neovim 中的集成方案，基于 [rime-i
 - 支持简繁、中英文标点、emoji 切换
 - 候选词浮窗，下划线渲染，状态栏可显示当前输入状
 - 提供命令行和终端输入解决方案
+- 单例 daemon 架构（同 ibus-rime / fcitx-rime）：多实例共享词频学习，vim 与 neovim 可同时使用
 
 ## 快速开始
 
@@ -215,6 +218,12 @@ let g:im_toggle_traditional_key    = ';f'
 let g:im_toggle_emoji_key          = ';e'
 " :IMDeploy / :IMSync 的后端等待超时（毫秒）
 let g:im_deploy_timeout            = 60000
+" 共享 daemon 的 socket 路径（Unix 为 socket 文件，Windows 为命名管道名）
+let g:im_socket_path               = ''
+" 最后一个客户端离开后 daemon 的空闲存活时间（毫秒，0 为常驻）
+let g:im_idle_exit_ms              = 60000
+" 拉起 daemon 后等待其就绪的超时（毫秒）
+let g:im_connect_timeout_ms        = 30000
 " 状态栏图标
 let g:im_status_text               = 'ㄓ'
 " 半角标点状态文本
@@ -225,8 +234,6 @@ let g:im_status_full_text          = '¥'
 let g:im_status_simplified_text    = '简'
 " 繁体状态文本
 let g:im_status_traditional_text   = '繁'
-" 词库被其他实例占用时的锁定提示图标
-let g:im_status_lock_text        = '!'
 " 初始标点状态（1 为半角）
 let g:im_option_ascii_punct        = 0
 " 初始简繁状态（1 为繁体）
@@ -309,13 +316,14 @@ export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 
 ### 命令
 
-| 命令        | 说明                                   |
+| 命令         | 说明                                   |
 | ----------- | -------------------------------------- |
-| `:IMStart`  | 启动输入法（并启动 `rime-query` 后端） |
-| `:IMStop`   | 停止输入法                             |
+| `:IMStart`  | 启动输入法（连接或拉起共享 `rime-query` daemon） |
+| `:IMStop`   | 停止输入法（只断开本编辑器的连接）     |
 | `:IMToggle` | 切换输入法开关                         |
 | `:IMDeploy` | 重新部署 Rime（改配置后生效）          |
 | `:IMSync`   | 同步用户词库并重新部署                 |
+| `:IMShutdown` | 关停共享 daemon（所有编辑器断开）    |
 
 #### 重新部署
 

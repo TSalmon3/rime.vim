@@ -15,6 +15,7 @@ command! IMStart              call im#start()
 command! IMStop               call im#stop()
 command! IMDeploy             call im#deploy()
 command! IMSync               call im#sync()
+command! IMShutdown           call im#rime#shutdown()
 
 if !get(g:, 'im_no_default_mappings', 0)
   let s:toggle_key = get(g:, 'im_toggle_key', ';;')
@@ -46,7 +47,7 @@ endfunction
 augroup im_lifecycle
   autocmd!
   autocmd VimEnter    * call im#rime#start()
-  autocmd VimLeavePre * call im#rime#stop()
+  autocmd VimLeave * call im#rime#stop()
   autocmd User RimeIMEnable  call im#hooks#on_enable()
   autocmd User RimeIMDisable call im#hooks#on_disable()
 augroup END
