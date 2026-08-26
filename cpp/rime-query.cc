@@ -126,11 +126,15 @@ struct Client {
   bool inline_ascii_active = false;
   std::string app_hint;
 
-  // 由通知回调填充、随下一次响应带给前端。
+  // 由通知回调填充、随下一次响应发给前端。
   std::vector<std::pair<std::string, bool>> changed_options;
   bool schema_changed = false;
   std::string schema_id;
   std::string schema_name;
+
+  // deploy 后的全局方案广播。与上面的单键事件分开：clear_key_notifications()
+  // 会清后者，但不能吞掉前者——广播要保证送达一次后才复位。
+  bool schema_broadcast = false;
 };
 
 static std::map<long long, Client> g_clients;
@@ -237,8 +241,11 @@ static void fill_notifications(Client &c, json &resp) {// {{{
   for (auto &kv : c.changed_options)
     opts.push_back({{"name", kv.first}, {"value", kv.second}});
   resp["changed_options"] = opts;
-  resp["schema_changed"]  = c.schema_changed;
-  if (c.schema_changed) {
+  // deploy 广播与单键事件取或；广播送达即复位，保证恰好一次。
+  bool schema_changed = c.schema_changed || c.schema_broadcast;
+  c.schema_broadcast = false;
+  resp["schema_changed"]  = schema_changed;
+  if (schema_changed) {
     if (!c.schema_id.empty()) {
       resp["schema_id"]   = c.schema_id;
       resp["schema_name"] = c.schema_name;
@@ -357,8 +364,9 @@ static void rebuild_all_client_sessions() {// {{{
     destroy_client_session(cli);
     cli.inline_ascii_active = false;
     cli.changed_options.clear();
+    cli.schema_changed = false;
     ensure_session(cli);
-    cli.schema_changed = true;
+    cli.schema_broadcast = true;
   }
 }// }}}
 
