@@ -27,11 +27,23 @@
   不会。rime-query 后端以单例 daemon 模式运行（与 ibus-rime / fcitx-rime 同款架构）：
   首个编辑器实例拉起一个共享后端进程，它独占用户词库（*.userdb）这一个写者身份；
   之后任何编辑器实例——包括 vim 和 neovim 混用——都通过 Unix domain socket
-  （Windows 上是命名管道）热接入同一个 daemon，各自持有独立的 Rime 会话，
-  组词状态互不干扰，而词频学习全部汇入同一个词库。
+  （Windows 上 nvim 默认走命名管道、vim 走 TCP，nvim 设置 `g:im_tcp_addr`
+  后也走 TCP）热接入同一个 daemon，
+  各自持有独立的 Rime 会话，组词状态互不干扰，而词频学习全部汇入同一个词库。
 
   daemon 在最后一个客户端离开并空闲超过 `g:im_idle_exit_ms`（默认 60 秒）后
   自动收尾退出；
+  ```
+
+- Windows 上 Vim（非 Neovim）的支持原理是什么？
+
+  ```answer
+  Vim 的 channel 客户端无法连接 Windows 命名管道，因此后端在 Windows 上
+  会同时监听命名管道与 TCP 回环端口（默认 `127.0.0.1:18666`，可用
+  `g:im_tcp_addr` 或环境变量 `RIME_QUERY_TCP` 覆盖）：Vim 自动走 TCP；
+  Neovim 默认走命名管道，设置了 `g:im_tcp_addr` 则同样走 TCP。
+  无论哪个编辑器先拉起 daemon，另一类编辑器都能热接入
+  同一进程；若 TCP 端口被其他程序占用，daemon 会明确报错退出而不静默降级。
   ```
 </details>
 
@@ -151,15 +163,31 @@ emake --ini=emake/linux.ini main.mak
 
 #### Windows
 
-1. 下载 librime 预编译 release 压缩包。
-2. 指定 librime 头文件 include 路径与动态库 lib 路径后编译。
+1. 下载 librime 预编译 release 压缩包，解压后得到包含 `include/` 与 `lib/` 的目录（下述命令中的 `/path/to/librime` 即指向该目录）。
+2. 编译 `rime-query`。
 3. 将 `rime.dll` 拷贝到可执行文件同一目录。
-4. 将可执行文件添加到 `PATH`。
+4. 将可执行文件所在目录加入 `PATH`，或在 vimrc 中用 `let g:im_rime_bin = '完整路径'` 直接指定。
 
 ```bash
 cd /path/to/rime.vim/cpp
-clang++ -std=c++17 -I./3rd -I/path/to/librime/include -L/path/to/librime/lib -lrime -o build/rime-query.exe rime-query.cc
+mkdir build
+clang++ -std=c++17 -O2 -I./3rd -I/path/to/librime/include -c rime-query.cc -o build/rime-query.o
+clang++ build/rime-query.o -L/path/to/librime/lib -lrime -lws2_32 -o build/rime-query.exe
 ```
+
+其中 `-lws2_32` 链接 Windows Sockets，为后端 TCP 监听所必需；它是系统自带组件（System32），无需额外安装。
+
+或者使用 CMake（必要时修改 `CMakeLists.txt` 中的编译器与 librime include / lib 路径）：
+
+```bash
+cd /path/to/rime.vim/cpp
+cmake -S . -B build -G "MinGW Makefiles"
+cmake --build build
+```
+
+> [!note]
+> - 需要 `clang++` 与 `mingw32-make` 在 `PATH` 中；若已安装 Ninja，可省略 `-G` 参数（CMake 会优先选用）
+> - 不要使用 Visual Studio 生成器——项目的编译选项是 clang/GCC 风格，MSVC 工具链无法识别
 
 或者使用 emake （必要时修改 `main.mak` 中的 librime include / lib 路径）：
 
@@ -188,6 +216,29 @@ let g:im_user_data_dir             = '/path/to/rime'
 let g:im_shared_data_dir           = '/usr/share/rime-data'
 " 后端日志路径（$RIME_LOG）
 let g:im_log_file                  = '~/.local/state/log/vim/rime.log'
+
+
+" 共享 daemon 的端点自定义路径：
+"   Unix 为 socket 文件路径（Neovim 与 Vim 均生效）
+"   Windows 为命名管道名（仅 nvim 生效；设置了 g:im_tcp_addr 时本项不生效）
+" 不设置时使用默认值：Unix 依 $XDG_RUNTIME_DIR 或 ~/.cache，
+" Windows 为 \\.\pipe\rime-query-<用户名>
+let g:im_socket_path               = ''
+" Windows 上编辑器客户端使用的 TCP 端点。Windows 上 Vim 只能走 TCP；
+" Neovim 默认走命名管道，设置本项后同样改走 TCP。（Unix 平台无需设置）
+"
+" 零配置即可：Windows 上 vim 自动走 TCP（默认 127.0.0.1:18666），
+" nvim 自动走命名管道，两者接入同一个 daemon。
+"
+" 若想显式只为 Windows 上的 vim 固定 TCP 端点（nvim 保持默认管道）：
+if has('win32') && !has('nvim')
+  let g:im_tcp_addr = '127.0.0.1:18666'
+endif
+" 最后一个客户端离开后 daemon 的空闲存活时间（毫秒，0 为常驻）
+let g:im_idle_exit_ms              = 60000
+" 拉起 daemon 后等待其就绪的超时（毫秒）
+let g:im_connect_timeout_ms        = 30000
+
 " 候选词弹窗高度
 let g:im_pumheight                 = 9
 " 设为 1 关闭下划线渲染
@@ -208,12 +259,6 @@ let g:im_toggle_traditional_key    = ';f'
 let g:im_toggle_emoji_key          = ';e'
 " :IMDeploy / :IMSync 的后端等待超时（毫秒）
 let g:im_deploy_timeout            = 60000
-" 共享 daemon 的 socket 路径（Unix 为 socket 文件，Windows 为命名管道名）
-let g:im_socket_path               = ''
-" 最后一个客户端离开后 daemon 的空闲存活时间（毫秒，0 为常驻）
-let g:im_idle_exit_ms              = 60000
-" 拉起 daemon 后等待其就绪的超时（毫秒）
-let g:im_connect_timeout_ms        = 30000
 " 状态栏图标
 let g:im_status_text               = 'ㄓ'
 " 半角标点状态文本
@@ -299,6 +344,9 @@ export RIME_LOG="$HOME/.local/state/log/vim/rime.log"
 export RIME_USER_DATA_DIR="$HOME/.local/share/rime-ice"
 export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 ```
+
+Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 `127.0.0.1:18666`，
+设为 `none` 关闭 TCP 监听；与 `g:im_tcp_addr` 同义，后者优先）。
 
 > 注意：在 Vim 中设置 `g:im_user_data_dir` / `g:im_shared_data_dir` / `g:im_log_file` 会覆盖同名环境变量。
 

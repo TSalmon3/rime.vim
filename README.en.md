@@ -184,7 +184,7 @@ emake --ini=emake/linux.ini main.mak
 
 ```bash
 cd /path/to/rime.vim/cpp
-clang++ -std=c++17 -I./3rd -I/path/to/librime/include -L/path/to/librime/lib -lstdc++ -lrime -o build/rime-query.exe rime-query.cc
+clang++ -std=c++17 -I./3rd -I/path/to/librime/include -L/path/to/librime/lib -lstdc++ -lrime -lws2_32 -o build/rime-query.exe rime-query.cc
 ```
 
 Alternatively, use emake (edit the librime include / lib paths in `main.mak` if needed):
@@ -247,6 +247,18 @@ let g:im_toggle_traditional_key    = ';f'
 let g:im_toggle_emoji_key          = ';e'
 " Backend wait timeout for :IMDeploy / :IMSync (ms)
 let g:im_deploy_timeout            = 60000
+" Custom endpoint of the shared daemon:
+"   Unix: socket file path (effective for both Neovim and Vim)
+"   Windows: named pipe name (nvim only; ignored when g:im_tcp_addr is set)
+let g:im_socket_path               = ''
+" TCP endpoint used by editor clients on Windows. On Windows Vim can only use
+" TCP; Neovim defaults to the named pipe and also switches to TCP when this is
+" set. (Not needed on Unix.)
+let g:im_tcp_addr                  = ''
+" Daemon idle lifetime after the last client leaves (ms; 0 = stay resident)
+let g:im_idle_exit_ms              = 60000
+" Timeout for connecting to / starting the daemon (ms)
+let g:im_connect_timeout_ms        = 30000
 " Statusline icon
 let g:im_status_text               = 'ㄓ'
 " Half-width punctuation status text
@@ -337,6 +349,10 @@ export RIME_LOG="$HOME/.local/state/log/vim/rime.log"
 export RIME_USER_DATA_DIR="$HOME/.local/share/rime-ice"
 export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 ```
+
+On Windows, `RIME_QUERY_TCP` overrides the backend's TCP listen endpoint
+(default `127.0.0.1:18666`, `none` disables TCP; same meaning as
+`g:im_tcp_addr`, which takes precedence).
 
 > Note: setting `g:im_user_data_dir`, `g:im_shared_data_dir` or `g:im_log_file`
 > in Vim overrides the corresponding environment variable.

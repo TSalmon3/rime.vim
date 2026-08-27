@@ -42,10 +42,11 @@ function! s:on_chan_exit_nvim(chan_id, data, event) abort"{{{
   let s:chan = v:null
 endfunction"}}}
 
-function! s:conn_open_nvim(path) abort"{{{
+function! s:conn_open_nvim(addr, transport) abort"{{{
+  " transport: 'pipe'（命名管道）或 'tcp'（host:port），sockconnect 两种都支持
   let chan = v:null
   try
-    let chan = sockconnect('pipe', a:path, {
+    let chan = sockconnect(a:transport, a:addr, {
           \ 'on_data': function('s:on_stdout_nvim'),
           \ 'on_exit': function('s:on_chan_exit_nvim'),
           \ })
@@ -93,10 +94,13 @@ function! s:exit_cb_vim(channel, msg) abort"{{{
   let s:chan = v:null
 endfunction"}}}
 
-function! s:conn_open_vim(path) abort"{{{
+function! s:conn_open_vim(addr, transport) abort"{{{
+  " Vim channel 在 Windows 上打不开命名管道（E475），TCP 反而原生支持；
+  " unix 前缀则仅对 unix domain socket 有意义。
+  let target = a:transport ==# 'unix' ? 'unix:' . a:addr : a:addr
   let chan = v:null
   try
-    let chan = ch_open('unix:' . a:path, {
+    let chan = ch_open(target, {
           \ 'mode':     'nl',
           \ 'callback': function('s:out_cb_vim'),
           \ })
@@ -137,8 +141,10 @@ endfunction"}}}
 
 " --- Dispatchers ------------------------------------------------------
 
-function! s:conn_open(path) abort"{{{
-  return has('nvim') ? s:conn_open_nvim(a:path) : s:conn_open_vim(a:path)
+function! s:conn_open(addr, transport) abort"{{{
+  return has('nvim')
+        \ ? s:conn_open_nvim(a:addr, a:transport)
+        \ : s:conn_open_vim(a:addr, a:transport)
 endfunction"}}}
 
 function! s:conn_send(text) abort"{{{
@@ -169,18 +175,49 @@ endfunction"}}}
 
 " --- Endpoint & lifecycle ----------------------------------------------
 
-function! s:socket_path() abort"{{{
-  if !empty(get(g:, 'im_socket_path', ''))
-    return expand(g:im_socket_path)
+" 解析 TCP 端点（仅 Windows + Vim 场景使用，与后端 --tcp/env 解析保持一致）
+function! s:tcp_addr() abort"{{{
+  if !empty(get(g:, 'im_tcp_addr', ''))
+    return g:im_tcp_addr
   endif
+  if !empty($RIME_QUERY_TCP)
+    return $RIME_QUERY_TCP
+  endif
+  return '127.0.0.1:18666'
+endfunction"}}}
+
+" 返回 [transport, address]：
+"   win + nvim -> ['pipe', 命名管道名]   sockconnect 原生支持；
+"                  但设置了 g:im_tcp_addr 时改走 ['tcp', host:port]
+"   win + vim  -> ['tcp', host:port]     Vim channel 打不开命名管道（E475），
+"                  im_socket_path 对 Windows 上的 Vim 无意义
+"   其他平台    -> ['unix', socket 文件]  nvim/vim 共用，Vim 连接时的
+"                  unix: 前缀由 conn_open_vim 处理
+function! s:endpoint() abort"{{{
+  let l:custom = !empty(get(g:, 'im_socket_path', ''))
+        \ ? expand(g:im_socket_path) : ''
   if has('win32') || has('win64')
-    let user = !empty($USERNAME) ? $USERNAME : 'default'
-    return '\\.\pipe\rime-query-' . user
+    if has('nvim')
+      " 显式配置 TCP 端点即视为选择 TCP 传输（优先于管道路径）
+      if !empty(get(g:, 'im_tcp_addr', ''))
+        return ['tcp', s:tcp_addr()]
+      endif
+      if !empty(l:custom)
+        return ['pipe', l:custom]
+      endif
+      let user = !empty($USERNAME) ? $USERNAME : 'default'
+      return ['pipe', '\\.\pipe\rime-query-' . user]
+    endif
+    return ['tcp', s:tcp_addr()]
+  endif
+  " Unix：自定义 socket 路径对两类编辑器均生效
+  if !empty(l:custom)
+    return ['unix', l:custom]
   endif
   if !empty($XDG_RUNTIME_DIR)
-    return $XDG_RUNTIME_DIR . '/rime-query.sock'
+    return ['unix', $XDG_RUNTIME_DIR . '/rime-query.sock']
   endif
-  return expand('~/.cache/rime-query.sock')
+  return ['unix', expand('~/.cache/rime-query.sock')]
 endfunction"}}}
 
 function! im#rime#init() abort"{{{
@@ -199,13 +236,18 @@ function! im#rime#init() abort"{{{
   endif
 endfunction"}}}
 
-function! s:spawn_daemon(sock) abort"{{{
+function! s:spawn_daemon(addr) abort"{{{
   let args = [
         \ g:im_rime_bin,
         \ '--serve',
-        \ '--socket', a:sock,
+        \ '--socket', a:addr,
         \ '--idle-exit-ms', string(get(g:, 'im_idle_exit_ms', 60000)),
         \ ]
+  " Windows 上始终带 --tcp：daemon 对任何前端都提供双传输，
+  " nvim 先启动的 daemon 才能被 Vim 复用，反之亦然。
+  if has('win32') || has('win64')
+    call extend(args, ['--tcp', s:tcp_addr()])
+  endif
   if has('nvim')
     call jobstart(args, {'detach': v:true})
   else
@@ -229,8 +271,6 @@ function! s:handshake_and_setup(sock) abort"{{{
   return 1
 endfunction"}}}
 
-
-
 " 连接现有 daemon，连不上则拉起并重试。成功返回 1。
 function! s:ensure_backend() abort"{{{
   if s:conn_alive()
@@ -238,10 +278,10 @@ function! s:ensure_backend() abort"{{{
   endif
   call s:conn_close()
 
-  let sock = s:socket_path()
+  let [l:transport, l:addr] = s:endpoint()
 
-  if s:conn_open(sock)
-    return s:handshake_and_setup(sock)
+  if s:conn_open(l:addr, l:transport)
+    return s:handshake_and_setup(l:addr)
   endif
 
   if !executable(g:im_rime_bin)
@@ -252,18 +292,18 @@ function! s:ensure_backend() abort"{{{
   endif
 
   " 确保 socket 父目录存在（默认路径落在 ~/.cache 时首次需要创建）。
-  if has('unix')
-    silent! call mkdir(fnamemodify(sock, ':h'), 'p')
+  if l:transport ==# 'unix'
+    silent! call mkdir(fnamemodify(l:addr, ':h'), 'p')
   endif
 
-  call s:spawn_daemon(sock)
+  call s:spawn_daemon(l:addr)
 
   let timeout_s = get(g:, 'im_connect_timeout_ms', 30000) / 1000.0
   let deadline = reltimefloat(reltime()) + timeout_s
   while reltimefloat(reltime()) < deadline
     sleep 50m
-    if s:conn_open(sock)
-      return s:handshake_and_setup(sock)
+    if s:conn_open(l:addr, l:transport)
+      return s:handshake_and_setup(l:addr)
     endif
   endwhile
 
