@@ -43,10 +43,10 @@ function! s:on_chan_exit_nvim(chan_id, data, event) abort"{{{
 endfunction"}}}
 
 function! s:conn_open_nvim(addr, transport) abort"{{{
-  " transport: 'pipe'（命名管道）或 'tcp'（host:port），sockconnect 两种都支持
+  let mode = a:transport ==# 'tcp' ? 'tcp' : 'pipe'
   let chan = v:null
   try
-    let chan = sockconnect(a:transport, a:addr, {
+    let chan = sockconnect(mode, a:addr, {
           \ 'on_data': function('s:on_stdout_nvim'),
           \ 'on_exit': function('s:on_chan_exit_nvim'),
           \ })
@@ -95,8 +95,6 @@ function! s:exit_cb_vim(channel, msg) abort"{{{
 endfunction"}}}
 
 function! s:conn_open_vim(addr, transport) abort"{{{
-  " Vim channel 在 Windows 上打不开命名管道（E475），TCP 反而原生支持；
-  " unix 前缀则仅对 unix domain socket 有意义。
   let target = a:transport ==# 'unix' ? 'unix:' . a:addr : a:addr
   let chan = v:null
   try
@@ -175,7 +173,6 @@ endfunction"}}}
 
 " --- Endpoint & lifecycle ----------------------------------------------
 
-" 解析 TCP 端点（仅 Windows + Vim 场景使用，与后端 --tcp/env 解析保持一致）
 function! s:tcp_addr() abort"{{{
   if !empty(get(g:, 'im_tcp_addr', ''))
     return g:im_tcp_addr
@@ -186,38 +183,42 @@ function! s:tcp_addr() abort"{{{
   return '127.0.0.1:18666'
 endfunction"}}}
 
-" 返回 [transport, address]：
-"   win + nvim -> ['pipe', 命名管道名]   sockconnect 原生支持；
-"                  但设置了 g:im_tcp_addr 时改走 ['tcp', host:port]
-"   win + vim  -> ['tcp', host:port]     Vim channel 打不开命名管道（E475），
-"                  im_socket_path 对 Windows 上的 Vim 无意义
-"   其他平台    -> ['unix', socket 文件]  nvim/vim 共用，Vim 连接时的
-"                  unix: 前缀由 conn_open_vim 处理
-function! s:endpoint() abort"{{{
-  let l:custom = !empty(get(g:, 'im_socket_path', ''))
-        \ ? expand(g:im_socket_path) : ''
-  if has('win32') || has('win64')
-    if has('nvim')
-      " 显式配置 TCP 端点即视为选择 TCP 传输（优先于管道路径）
-      if !empty(get(g:, 'im_tcp_addr', ''))
-        return ['tcp', s:tcp_addr()]
-      endif
-      if !empty(l:custom)
-        return ['pipe', l:custom]
-      endif
-      let user = !empty($USERNAME) ? $USERNAME : 'default'
-      return ['pipe', '\\.\pipe\rime-query-' . user]
-    endif
-    return ['tcp', s:tcp_addr()]
-  endif
-  " Unix：自定义 socket 路径对两类编辑器均生效
-  if !empty(l:custom)
-    return ['unix', l:custom]
+function! s:unix_socket_path() abort"{{{
+  let v = get(g:, 'im_unix_socket', '')
+  return empty(v) ? '' : expand(v)
+endfunction"}}}
+
+function! s:endpoint_unix() abort"{{{
+  let path = s:unix_socket_path()
+  if !empty(path)
+    return ['unix', path]
   endif
   if !empty($XDG_RUNTIME_DIR)
     return ['unix', $XDG_RUNTIME_DIR . '/rime-query.sock']
   endif
   return ['unix', expand('~/.cache/rime-query.sock')]
+endfunction"}}}
+
+function! s:endpoint_windows() abort"{{{
+  if !has('nvim')
+    return ['tcp', s:tcp_addr()]
+  endif
+  if !empty(get(g:, 'im_tcp_addr', ''))
+    return ['tcp', s:tcp_addr()]
+  endif
+  let pipe = get(g:, 'im_pipe_name', '')
+  if !empty(pipe)
+    return ['pipe', expand(pipe)]
+  endif
+  let user = !empty($USERNAME) ? $USERNAME : 'default'
+  return ['pipe', '\\.\pipe\rime-query-' . user]
+endfunction"}}}
+
+function! s:endpoint() abort"{{{
+  if has('win32') || has('win64')
+    return s:endpoint_windows()
+  endif
+  return s:endpoint_unix()
 endfunction"}}}
 
 function! im#rime#init() abort"{{{
@@ -278,10 +279,10 @@ function! s:ensure_backend() abort"{{{
   endif
   call s:conn_close()
 
-  let [l:transport, l:addr] = s:endpoint()
+  let [transport, addr] = s:endpoint()
 
-  if s:conn_open(l:addr, l:transport)
-    return s:handshake_and_setup(l:addr)
+  if s:conn_open(addr, transport)
+    return s:handshake_and_setup(addr)
   endif
 
   if !executable(g:im_rime_bin)
@@ -292,18 +293,18 @@ function! s:ensure_backend() abort"{{{
   endif
 
   " 确保 socket 父目录存在（默认路径落在 ~/.cache 时首次需要创建）。
-  if l:transport ==# 'unix'
-    silent! call mkdir(fnamemodify(l:addr, ':h'), 'p')
+  if transport ==# 'unix'
+    silent! call mkdir(fnamemodify(addr, ':h'), 'p')
   endif
 
-  call s:spawn_daemon(l:addr)
+  call s:spawn_daemon(addr)
 
   let timeout_s = get(g:, 'im_connect_timeout_ms', 30000) / 1000.0
   let deadline = reltimefloat(reltime()) + timeout_s
   while reltimefloat(reltime()) < deadline
     sleep 50m
-    if s:conn_open(l:addr, l:transport)
-      return s:handshake_and_setup(l:addr)
+    if s:conn_open(addr, transport)
+      return s:handshake_and_setup(addr)
     endif
   endwhile
 

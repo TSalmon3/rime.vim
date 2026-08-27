@@ -26,10 +26,10 @@
   ```answer
   不会。rime-query 后端以单例 daemon 模式运行（与 ibus-rime / fcitx-rime 同款架构）：
   首个编辑器实例拉起一个共享后端进程，它独占用户词库（*.userdb）这一个写者身份；
-  之后任何编辑器实例——包括 vim 和 neovim 混用——都通过 Unix domain socket
-  （Windows 上 nvim 默认走命名管道、vim 走 TCP，nvim 设置 `g:im_tcp_addr`
-  后也走 TCP）热接入同一个 daemon，
-  各自持有独立的 Rime 会话，组词状态互不干扰，而词频学习全部汇入同一个词库。
+  之后任何编辑器实例——包括 vim 和 neovim 混用——都通过 daemon 的 socket 端点
+  热接入同一个进程（Unix 上走 Unix domain socket；Windows 上 nvim 走命名管道、
+  vim 走 TCP），各自持有独立的 Rime 会话，组词状态互不干扰，
+  而词频学习全部汇入同一个词库。
 
   daemon 在最后一个客户端离开并空闲超过 `g:im_idle_exit_ms`（默认 60 秒）后
   自动收尾退出；
@@ -40,8 +40,9 @@
   ```answer
   Vim 的 channel 客户端无法连接 Windows 命名管道，因此后端在 Windows 上
   会同时监听命名管道与 TCP 回环端口（默认 `127.0.0.1:18666`，可用
-  `g:im_tcp_addr` 或环境变量 `RIME_QUERY_TCP` 覆盖）：Vim 自动走 TCP；
-  Neovim 默认走命名管道，设置了 `g:im_tcp_addr` 则同样走 TCP。
+  `g:im_tcp_addr` 或环境变量 `RIME_QUERY_TCP` 覆盖）：
+  Windows 上 Vim 自动走 TCP，Neovim 默认走命名管道、设置了 `g:im_tcp_addr`
+  则同样走 TCP。
   无论哪个编辑器先拉起 daemon，另一类编辑器都能热接入
   同一进程；若 TCP 端口被其他程序占用，daemon 会明确报错退出而不静默降级。
   ```
@@ -138,13 +139,6 @@ cmake -S . -B build
 cmake --build build
 ```
 
-或者使用 emake （必要时修改 `main.mak` 中的 librime include / lib 路径）：
-
-```bash
-cd /path/to/rime.vim/cpp
-emake --ini=emake/darwin.ini main.mak
-```
-
 #### Linux
 
 需手动编译 librime，并分别指定其头文件 include 路径与动态库 lib 路径：
@@ -152,13 +146,6 @@ emake --ini=emake/darwin.ini main.mak
 ```bash
 cd /path/to/rime.vim/cpp
 clang++ -std=c++17 -I./3rd -I/path/to/librime/include -L/path/to/librime/lib -lstdc++ -lrime -o build/rime-query rime-query.cc
-```
-
-或者使用 emake （必要时修改 `main.mak` 中的 librime include / lib 路径）：
-
-```bash
-cd /path/to/rime.vim/cpp
-emake --ini=emake/linux.ini main.mak
 ```
 
 #### Windows
@@ -189,13 +176,6 @@ cmake --build build
 > - 需要 `clang++` 与 `mingw32-make` 在 `PATH` 中；若已安装 Ninja，可省略 `-G` 参数（CMake 会优先选用）
 > - 不要使用 Visual Studio 生成器——项目的编译选项是 clang/GCC 风格，MSVC 工具链无法识别
 
-或者使用 emake （必要时修改 `main.mak` 中的 librime include / lib 路径）：
-
-```bash
-cd /path/to/rime.vim/cpp
-emake --ini=emake/llm.ini main.mak
-```
-
 构建完成后，请把生成的 `rime-query` 添加到 `PATH`。
 
 ## 配置
@@ -218,22 +198,15 @@ let g:im_shared_data_dir           = '/usr/share/rime-data'
 let g:im_log_file                  = '~/.local/state/log/vim/rime.log'
 
 
-" 共享 daemon 的端点自定义路径：
-"   Unix 为 socket 文件路径（Neovim 与 Vim 均生效）
-"   Windows 为命名管道名（仅 nvim 生效；设置了 g:im_tcp_addr 时本项不生效）
-" 不设置时使用默认值：Unix 依 $XDG_RUNTIME_DIR 或 ~/.cache，
-" Windows 为 \\.\pipe\rime-query-<用户名>
-let g:im_socket_path               = ''
-" Windows 上编辑器客户端使用的 TCP 端点。Windows 上 Vim 只能走 TCP；
-" Neovim 默认走命名管道，设置本项后同样改走 TCP。（Unix 平台无需设置）
-"
-" 零配置即可：Windows 上 vim 自动走 TCP（默认 127.0.0.1:18666），
-" nvim 自动走命名管道，两者接入同一个 daemon。
-"
-" 若想显式只为 Windows 上的 vim 固定 TCP 端点（nvim 保持默认管道）：
-if has('win32') && !has('nvim')
-  let g:im_tcp_addr = '127.0.0.1:18666'
-endif
+" Unix：socket 文件路径
+" 留空时依 $XDG_RUNTIME_DIR，其次 ~/.cache/rime-query.sock
+let g:im_unix_socket                = ''
+" Windows nvim：命名管道名（Vim 无法使用命名管道）
+" 留空时默认 \\.\pipe\rime-query-<用户名>
+let g:im_pipe_name                  = ''
+" Windows：TCP 端点。Vim 只能走 TCP；nvim 设置本项后改走 TCP
+" 留空时默认 127.0.0.1:18666
+let g:im_tcp_addr                   = ''
 " 最后一个客户端离开后 daemon 的空闲存活时间（毫秒，0 为常驻）
 let g:im_idle_exit_ms              = 60000
 " 拉起 daemon 后等待其就绪的超时（毫秒）
@@ -315,6 +288,15 @@ tnoremap ;; <c-\><c-n><cmd>call im#start()<cr>q:a:PassToTerm<space>
 
 - `g:im_rime_bin` 对应后端可执行文件。
 - `g:im_user_data_dir` / `g:im_shared_data_dir` / `g:im_log_file` 分别对应下述三个环境变量，且**优先级更高**。
+
+各平台 / 编辑器的传输支持情况：
+
+| 平台          | 编辑器 | 默认传输        | 可选传输                  | 自定义端点         |
+|---------------|--------|-----------------|---------------------------|--------------------|
+| macOS / Linux | Neovim | Unix socket     | —                         | `g:im_unix_socket` |
+| macOS / Linux | Vim    | Unix socket     | —                         | `g:im_unix_socket` |
+| Windows       | Neovim | 命名管道        | TCP（设 `g:im_tcp_addr`） | `g:im_pipe_name`   |
+| Windows       | Vim    | TCP（仅此一种） | —                         | `g:im_tcp_addr`    |
 
 ### 环境变量
 

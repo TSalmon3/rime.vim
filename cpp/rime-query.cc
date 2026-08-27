@@ -1096,14 +1096,13 @@ static std::vector<SOCKET> pending;
 static std::atomic<bool> stop{false};
 static SOCKET listener = INVALID_SOCKET;
 
-static void close_listener() {
+static void close_listener() {// {{{
   if (listener != INVALID_SOCKET) {
     closesocket(listener);
     listener = INVALID_SOCKET;
   }
-}
+}// }}}
 
-// endpoint: "[host:]port"；host 缺省 127.0.0.1，仅限数值地址（不做 DNS）。
 static bool open_listener(const std::string &endpoint) {// {{{
   std::string host = "127.0.0.1";
   std::string port = endpoint;
@@ -1162,8 +1161,7 @@ static void wake_acceptor() {// {{{
 }// }}}
 }  // namespace tcp_server
 
-// 按传输类型归还客户端连接资源（主循环清扫与退出清理共用）。
-static void close_client_conn(Client &c) {
+static void close_client_conn(Client &c) {// {{{
   if (c.is_tcp) {
     if (c.sock != INVALID_SOCKET) {
       ::shutdown(c.sock, SD_BOTH);
@@ -1177,7 +1175,7 @@ static void close_client_conn(Client &c) {
       c.fd = INVALID_HANDLE_VALUE;
     }
   }
-}
+}// }}}
 
 static bool ensure_wsa() {// {{{
   WSADATA data;
