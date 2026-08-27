@@ -200,18 +200,7 @@ function! s:endpoint_unix() abort"{{{
 endfunction"}}}
 
 function! s:endpoint_windows() abort"{{{
-  if !has('nvim')
-    return ['tcp', s:tcp_addr()]
-  endif
-  if !empty(get(g:, 'im_tcp_addr', ''))
-    return ['tcp', s:tcp_addr()]
-  endif
-  let pipe = get(g:, 'im_pipe_name', '')
-  if !empty(pipe)
-    return ['pipe', expand(pipe)]
-  endif
-  let user = !empty($USERNAME) ? $USERNAME : 'default'
-  return ['pipe', '\\.\pipe\rime-query-' . user]
+  return ['tcp', s:tcp_addr()]
 endfunction"}}}
 
 function! s:endpoint() abort"{{{
@@ -238,17 +227,13 @@ function! im#rime#init() abort"{{{
 endfunction"}}}
 
 function! s:spawn_daemon(addr) abort"{{{
-  let args = [
-        \ g:im_rime_bin,
-        \ '--serve',
-        \ '--socket', a:addr,
-        \ '--idle-exit-ms', string(get(g:, 'im_idle_exit_ms', 60000)),
-        \ ]
-  " Windows 上始终带 --tcp：daemon 对任何前端都提供双传输，
-  " nvim 先启动的 daemon 才能被 Vim 复用，反之亦然。
+  let args = [g:im_rime_bin, '--serve']
   if has('win32') || has('win64')
     call extend(args, ['--tcp', s:tcp_addr()])
+  else
+    call extend(args, ['--socket', a:addr])
   endif
+  call extend(args, ['--idle-exit-ms', string(get(g:, 'im_idle_exit_ms', 60000))])
   if has('nvim')
     call jobstart(args, {'detach': v:true})
   else
@@ -299,7 +284,7 @@ function! s:ensure_backend() abort"{{{
 
   call s:spawn_daemon(addr)
 
-  let timeout_s = get(g:, 'im_connect_timeout_ms', 30000) / 1000.0
+  let timeout_s = get(g:, 'im_connect_timeout_ms', 5000) / 1000.0
   let deadline = reltimefloat(reltime()) + timeout_s
   while reltimefloat(reltime()) < deadline
     sleep 50m

@@ -95,9 +95,8 @@ static std::string g_deploy_status;
 
 struct Client {
 #ifdef _WIN32
-  HANDLE fd = INVALID_HANDLE_VALUE;
-  SOCKET sock = INVALID_SOCKET;   // TCP 传输时有效；is_tcp 决定读写字段
-  bool is_tcp = false;
+  SOCKET sock = INVALID_SOCKET;
+  HANDLE stdin_handle = INVALID_HANDLE_VALUE;  // 仅 stdio 模式使用
 #else
   int fd = -1;
 #endif
@@ -130,7 +129,7 @@ using ClientKey = long long;
 
 static ClientKey client_key(const Client &c) {
 #ifdef _WIN32
-  return reinterpret_cast<ClientKey>(c.fd);
+  return static_cast<ClientKey>(c.sock);
 #else
   return c.fd;
 #endif
@@ -658,26 +657,16 @@ static void write_stdout_line(const std::string &line) {// {{{
 #ifdef _WIN32
 static bool send_line_to_client(Client &c, const std::string &line) {// {{{
   std::string data = line + "\n";
-  if (c.is_tcp) {
-    size_t off = 0;
-    while (off < data.size()) {
-      int n = ::send(c.sock, data.data() + off,
-                     (int)(data.size() - off), 0);
-      if (n == SOCKET_ERROR || n == 0) {
-        spdlog::warn("send to client failed: {}", WSAGetLastError());
-        c.dead = true;
-        return false;
-      }
-      off += static_cast<size_t>(n);
+  size_t off = 0;
+  while (off < data.size()) {
+    int n = ::send(c.sock, data.data() + off,
+                   (int)(data.size() - off), 0);
+    if (n == SOCKET_ERROR || n == 0) {
+      spdlog::warn("send to client failed: {}", WSAGetLastError());
+      c.dead = true;
+      return false;
     }
-    return true;
-  }
-  DWORD written = 0;
-  if (!WriteFile(c.fd, data.data(), (DWORD)data.size(), &written, nullptr) ||
-      written != data.size()) {
-    spdlog::warn("write to client failed, marking dead");
-    c.dead = true;
-    return false;
+    off += static_cast<size_t>(n);
   }
   return true;
 }// }}}
@@ -790,7 +779,7 @@ static int run_stdio() {// {{{
   Client stdio_client;
   stdio_client.is_stdio = true;
 #ifdef _WIN32
-  stdio_client.fd = GetStdHandle(STD_INPUT_HANDLE);
+  stdio_client.stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
 #else
   stdio_client.fd = STDIN_FILENO;
 #endif
@@ -1012,82 +1001,10 @@ static int run_server_unix(const std::string &endpoint, long idle_exit_ms) {// {
 #endif  // !_WIN32
 
 // ---------------------------------------------------------------------------
-// Serve mode: Windows named pipe
+// Serve mode: Windows TCP loopback
 // ---------------------------------------------------------------------------
 
 #ifdef _WIN32
-
-static std::wstring utf8_to_wide(const std::string &s) {// {{{
-  // 显式传长度而非 -1：-1 会把结尾 NUL 也计入，且第二次调用按 n 写入
-  // n 个 wchar（含 NUL）会越界 1 格。
-  int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), nullptr, 0);
-  std::wstring w(n > 0 ? n : 0, L'\0');
-  if (n > 0)
-    MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), &w[0], n);
-  return w;
-}// }}}
-
-static std::string default_endpoint() {// {{{
-  const char *env = getenv("RIME_QUERY_SOCKET");
-  if (env && *env) return env;
-  const char *user = getenv("USERNAME");
-  std::string name = user && *user ? user : "default";
-  return "\\\\.\\pipe\\rime-query-" + name;
-}// }}}
-
-namespace pipe_server {
-static std::thread acceptor;
-static std::mutex mu;
-static std::vector<HANDLE> pending;
-static std::atomic<bool> stop{false};
-static std::wstring pipe_name;
-
-static void acceptor_loop() {// {{{
-  bool first = true;
-  while (!stop.load()) {
-    DWORD flags = PIPE_ACCESS_DUPLEX;
-    if (first) flags |= FILE_FLAG_FIRST_PIPE_INSTANCE;
-    HANDLE h = CreateNamedPipeW(
-        pipe_name.c_str(), flags,
-        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
-        PIPE_UNLIMITED_INSTANCES, 4096, 4096, 0, nullptr);
-    if (h == INVALID_HANDLE_VALUE) {
-      DWORD err = GetLastError();
-      if (first && err == ERROR_ACCESS_DENIED) {
-        spdlog::info("another rime-query daemon already owns the pipe");
-        stop.store(true);
-        return;
-      }
-      spdlog::warn("CreateNamedPipeW failed: {}", (unsigned long)err);
-      Sleep(100);
-      continue;
-    }
-    first = false;
-
-    BOOL connected = ConnectNamedPipe(h, nullptr);  // 阻塞等待客户端
-    if (stop.load()) {
-      CloseHandle(h);
-      break;
-    }
-    if (!connected &&
-        GetLastError() != ERROR_PIPE_CONNECTED) {
-      CloseHandle(h);
-      continue;
-    }
-    {
-      std::lock_guard<std::mutex> lk(mu);
-      pending.push_back(h);
-    }
-  }
-}// }}}
-
-static void wake_acceptor() {// {{{
-  if (!WaitNamedPipeW(pipe_name.c_str(), 200)) return;
-  HANDLE h = CreateFileW(pipe_name.c_str(), GENERIC_READ | GENERIC_WRITE,
-                         0, nullptr, OPEN_EXISTING, 0, nullptr);
-  if (h != INVALID_HANDLE_VALUE) CloseHandle(h);
-}// }}}
-}  // namespace pipe_server
 
 namespace tcp_server {
 static std::thread acceptor;
@@ -1103,6 +1020,7 @@ static void close_listener() {// {{{
   }
 }// }}}
 
+// endpoint: "[host:]port"；host 缺省 127.0.0.1，仅限数值地址（不做 DNS）。
 static bool open_listener(const std::string &endpoint) {// {{{
   std::string host = "127.0.0.1";
   std::string port = endpoint;
@@ -1162,18 +1080,10 @@ static void wake_acceptor() {// {{{
 }  // namespace tcp_server
 
 static void close_client_conn(Client &c) {// {{{
-  if (c.is_tcp) {
-    if (c.sock != INVALID_SOCKET) {
-      ::shutdown(c.sock, SD_BOTH);
-      closesocket(c.sock);
-      c.sock = INVALID_SOCKET;
-    }
-  } else {
-    if (c.fd != INVALID_HANDLE_VALUE) {
-      DisconnectNamedPipe(c.fd);
-      CloseHandle(c.fd);
-      c.fd = INVALID_HANDLE_VALUE;
-    }
+  if (c.sock != INVALID_SOCKET) {
+    ::shutdown(c.sock, SD_BOTH);
+    closesocket(c.sock);
+    c.sock = INVALID_SOCKET;
   }
 }// }}}
 
@@ -1187,55 +1097,70 @@ static bool ensure_wsa() {// {{{
   return true;
 }// }}}
 
+static bool probe_existing_daemon(const std::string &endpoint) {// {{{
+  std::string host = "127.0.0.1";
+  std::string port = endpoint;
+  auto pos = endpoint.rfind(':');
+  if (pos != std::string::npos) {
+    host = endpoint.substr(0, pos);
+    port = endpoint.substr(pos + 1);
+  }
+  addrinfo hints{};
+  hints.ai_family   = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+  hints.ai_flags    = AI_NUMERICHOST | AI_NUMERICSERV;
+  addrinfo *res = nullptr;
+  if (getaddrinfo(host.c_str(), port.c_str(), &hints, &res) != 0 || !res)
+    return false;
 
-static int run_server_windows(std::string endpoint_utf8,
-                              const std::string &tcp_endpoint,
+  bool alive = false;
+  for (addrinfo *ai = res; ai && !alive; ai = ai->ai_next) {
+    SOCKET s = ::socket(ai->ai_family, SOCK_STREAM, IPPROTO_TCP);
+    if (s == INVALID_SOCKET) continue;
+    if (::connect(s, ai->ai_addr, (int)ai->ai_addrlen) == 0) {
+      std::string req = "{\"id\":1,\"type\":\"ping\"}\n";
+      int sent = ::send(s, req.data(), (int)req.size(), 0);
+      char buf[512];
+      int got = (sent > 0)
+        ? ::recv(s, buf, sizeof(buf) - 1, 0) : SOCKET_ERROR;
+      if (got > 0) {
+        buf[got] = '\0';
+        alive = strstr(buf, "\"id\":1") != nullptr;
+      }
+    }
+    closesocket(s);
+  }
+  freeaddrinfo(res);
+  return alive;
+}// }}}
+
+static int run_server_windows(const std::string &tcp_endpoint,
                               long idle_exit_ms) {// {{{
-  if (endpoint_utf8.empty() ||
-      endpoint_utf8.rfind("\\\\.\\pipe\\", 0) != 0)
-    endpoint_utf8 = default_endpoint();
-  pipe_server::pipe_name = utf8_to_wide(endpoint_utf8);
-
   const char *shared_dir = nullptr;
   const char *user_dir   = nullptr;
   if (!read_rime_dirs(shared_dir, user_dir))
     return 1;
 
-  bool tcp_on = tcp_endpoint != "none";
   if (!ensure_wsa()) return 1;
 
-  // 先立命名管道监听：FILE_FLAG_FIRST_PIPE_INSTANCE 是原子的单例证明，
-  // 拿不到它说明已有 daemon，本进程按客户端模式静默退出。
-  pipe_server::acceptor = std::thread(pipe_server::acceptor_loop);
-  Sleep(50);
-  if (pipe_server::stop.load()) {
-    pipe_server::acceptor.join();
-    WSACleanup();
-    return 0;  // 名字已被占用
-  }
-
-  if (tcp_on) {
-    if (!tcp_server::open_listener(tcp_endpoint)) {
-      spdlog::error("fatal: cannot listen on tcp {} "
-                    "(port taken by another program?)", tcp_endpoint);
-      // 按约定 fatal：释放刚拿到的管道所有权后退出，避免出现只监听单传输的 daemon。
-      pipe_server::stop.store(true);
-      pipe_server::wake_acceptor();
-      if (pipe_server::acceptor.joinable())
-        pipe_server::acceptor.join();
+  if (!tcp_server::open_listener(tcp_endpoint)) {
+    if (probe_existing_daemon(tcp_endpoint)) {
+      spdlog::info("another rime-query daemon already serves on tcp {}",
+                   tcp_endpoint);
       WSACleanup();
-      return 1;
+      return 0;   // 已有实例，安静退出
     }
-    tcp_server::acceptor = std::thread(tcp_server::acceptor_loop);
+    spdlog::error("fatal: cannot listen on tcp {} "
+                  "(port taken by another program?)", tcp_endpoint);
+    WSACleanup();
+    return 1;
   }
+  tcp_server::acceptor = std::thread(tcp_server::acceptor_loop);
 
   rime_init(shared_dir, user_dir);
-  if (tcp_on)
-    spdlog::info("serving on {} and tcp {} (idle_exit_ms={})",
-                 endpoint_utf8, tcp_endpoint, idle_exit_ms);
-  else
-    spdlog::info("serving on {} (idle_exit_ms={})",
-                 endpoint_utf8, idle_exit_ms);
+  spdlog::info("serving on tcp {} (idle_exit_ms={})",
+               tcp_endpoint, idle_exit_ms);
 
   long long next_id = 1;
   using clock = std::chrono::steady_clock;
@@ -1244,25 +1169,15 @@ static int run_server_windows(std::string endpoint_utf8,
 
   while (!g_should_exit) {
     {
-      std::lock_guard<std::mutex> lk(pipe_server::mu);
-      for (HANDLE h : pipe_server::pending) {
-        ClientKey key = next_id++;
-        auto [it, ok] = g_clients.try_emplace(key);
-        it->second.fd = h;
-        idle_since = clock::now();
-        idle_counting = false;
-        spdlog::info("client {} connected (pipe)", (long long)key);
-        send_ready_greeting(it->second);
-      }
-      pipe_server::pending.clear();
-    }
-    {
       std::lock_guard<std::mutex> lk(tcp_server::mu);
       for (SOCKET s : tcp_server::pending) {
         ClientKey key = next_id++;
         auto [it, ok] = g_clients.try_emplace(key);
-        it->second.is_tcp = true;
-        it->second.sock   = s;
+        BOOL nd = 1;
+        if (setsockopt(s, IPPROTO_TCP, TCP_NODELAY,
+                       (const char *)&nd, sizeof(nd)) != 0)
+          spdlog::warn("TCP_NODELAY failed: {}", WSAGetLastError());
+        it->second.sock = s;
         idle_since = clock::now();
         idle_counting = false;
         spdlog::info("client {} connected (tcp)", (long long)key);
@@ -1275,44 +1190,26 @@ static int run_server_windows(std::string endpoint_utf8,
     for (auto &[key, cli] : g_clients) {
       char buf[4096];
       size_t got = 0;
-      if (cli.is_tcp) {
-        u_long avail = 0;
-        if (ioctlsocket(cli.sock, FIONREAD, &avail) != 0) {
-          dead.push_back(key);
-          continue;
-        }
-        if (avail == 0) {
-          // FIONREAD 对已正常关闭(FIN)的对端同样报 0 字节；
-          // 用 0 超时 select 区分「空闲无数据」与「EOF」：
-          // readable 且无可读字节 <=> 对端已关闭。
-          fd_set rf;
-          FD_ZERO(&rf);
-          FD_SET(cli.sock, &rf);
-          timeval tv{0, 0};
-          int r = ::select(0, &rf, nullptr, nullptr, &tv);
-          if (r > 0) {
-            spdlog::info("tcp client {} reached EOF", (long long)key);
-            dead.push_back(key);
-          }
-          continue;
-        }
-        int n = ::recv(cli.sock, buf, (int)sizeof(buf), 0);
-        if (n <= 0) { dead.push_back(key); continue; }
-        got = static_cast<size_t>(n);
-      } else {
-        DWORD avail = 0;
-        if (!PeekNamedPipe(cli.fd, nullptr, 0, nullptr, &avail, nullptr)) {
-          dead.push_back(key);
-          continue;
-        }
-        if (avail == 0) continue;
-        DWORD n = 0;
-        if (!ReadFile(cli.fd, buf, (DWORD)sizeof(buf), &n, nullptr) || n == 0) {
-          dead.push_back(key);
-          continue;
-        }
-        got = static_cast<size_t>(n);
+      u_long avail = 0;
+      if (ioctlsocket(cli.sock, FIONREAD, &avail) != 0) {
+        dead.push_back(key);
+        continue;
       }
+      if (avail == 0) {
+        fd_set rf;
+        FD_ZERO(&rf);
+        FD_SET(cli.sock, &rf);
+        timeval tv{0, 0};
+        int r = ::select(0, &rf, nullptr, nullptr, &tv);
+        if (r > 0) {
+          spdlog::info("tcp client {} reached EOF", (long long)key);
+          dead.push_back(key);
+        }
+        continue;
+      }
+      int n = ::recv(cli.sock, buf, (int)sizeof(buf), 0);
+      if (n <= 0) { dead.push_back(key); continue; }
+      got = static_cast<size_t>(n);
       idle_since = clock::now();
       idle_counting = false;
       feed_bytes(cli, buf, got);
@@ -1349,16 +1246,9 @@ static int run_server_windows(std::string endpoint_utf8,
   }
   g_clients.clear();
 
-  pipe_server::stop.store(true);
-  pipe_server::wake_acceptor();
-  if (pipe_server::acceptor.joinable())
-    pipe_server::acceptor.join();
-
-  if (tcp_on) {
-    tcp_server::wake_acceptor();
-    if (tcp_server::acceptor.joinable())
-      tcp_server::acceptor.join();
-  }
+  tcp_server::wake_acceptor();
+  if (tcp_server::acceptor.joinable())
+    tcp_server::acceptor.join();
 
   RimeApi *api = rime_get_api();
   api->finalize();
@@ -1393,23 +1283,24 @@ static void usage() {// {{{
     "  --stdio            legacy single-client stdin/stdout mode\n"
     "\n"
     "options:\n"
-    "  --socket PATH      endpoint: unix socket path or windows named pipe\n"
+#ifdef _WIN32
+    "  --tcp [HOST:]PORT  tcp loopback endpoint all clients connect to\n"
+    "                     (default: $RIME_QUERY_TCP, else 127.0.0.1:18666).\n"
+#else
+    "  --socket PATH      unix domain socket path\n"
     "                     (default: $RIME_QUERY_SOCKET, else $XDG_RUNTIME_DIR\n"
     "                      or ~/.cache + rime-query.sock)\n"
-#ifdef _WIN32
-    "  --tcp [HOST:]PORT  additionally listen on tcp (Windows only; default\n"
-    "                     127.0.0.1:18666, \"none\" disables). Vim clients use\n"
-    "                     this channel because its channels cannot open named\n"
-    "                     pipes.\n"
 #endif
     "  --idle-exit-ms N   exit N ms after the last client leaves\n"
     "                     (default 60000, 0 = stay resident)\n"
     "  --help\n"
     "\n"
     "environment:\n"
-    "  RIME_SHARED_DATA_DIR, RIME_USER_DATA_DIR, RIME_LOG, RIME_QUERY_SOCKET\n"
+    "  RIME_SHARED_DATA_DIR, RIME_USER_DATA_DIR, RIME_LOG"
 #ifdef _WIN32
-    ", RIME_QUERY_TCP\n"
+    ", RIME_QUERY_TCP"
+#else
+    ", RIME_QUERY_SOCKET"
 #endif
     ;
 }// }}}
@@ -1427,8 +1318,8 @@ int main(int argc, char **argv) {// {{{
 
   bool mode_stdio = false;
   bool mode_serve = false;
-  std::string endpoint;
-  std::string tcp_endpoint;   // Windows: 空=默认解析；"none"=关闭 TCP 监听
+  std::string endpoint;       // Unix: socket 路径
+  std::string tcp_endpoint;   // Windows: TCP 端点
   long idle_exit_ms = 60000;
 
   for (int i = 1; i < argc; ++i) {
@@ -1438,10 +1329,22 @@ int main(int argc, char **argv) {// {{{
     } else if (arg == "--stdio") {
       mode_stdio = true;
     } else if (arg == "--socket" && i + 1 < argc) {
+#ifdef _WIN32
+      spdlog::warn("--socket ignored on Windows (TCP-only daemon)");
+      ++i;
+#else
       endpoint = argv[++i];
+#endif
     } else if (arg == "--tcp") {
 #ifdef _WIN32
-      if (i + 1 < argc) tcp_endpoint = argv[++i];
+      if (i + 1 < argc) {
+        tcp_endpoint = argv[++i];
+        if (tcp_endpoint == "none") {
+          spdlog::error("fatal: --tcp none is not allowed "
+                        "(TCP is the only transport on Windows)");
+          return 1;
+        }
+      }
 #endif
     } else if (arg == "--idle-exit-ms" && i + 1 < argc) {
       idle_exit_ms = std::atol(argv[++i]);
@@ -1474,17 +1377,15 @@ int main(int argc, char **argv) {// {{{
   }
 
   // 默认 serve 模式。
-  if (endpoint.empty())
-    endpoint = default_endpoint();
-
 #ifdef _WIN32
   if (tcp_endpoint.empty()) {
     const char *env = getenv("RIME_QUERY_TCP");
     tcp_endpoint = (env && *env) ? env : "127.0.0.1:18666";
   }
-  return run_server_windows(endpoint, tcp_endpoint, idle_exit_ms);
+  return run_server_windows(tcp_endpoint, idle_exit_ms);
 #else
-  (void)tcp_endpoint;
+  if (endpoint.empty())
+    endpoint = default_endpoint();
   return run_server_unix(endpoint, idle_exit_ms);
 #endif
 }// }}}

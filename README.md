@@ -20,32 +20,6 @@
   ```answer
   会产生冲突，建议新建一个目录，存放你的拼音方案，也就是你的「用户数据目录」最好不要跟系统输入法的是同一目录。
   ```
-
-- 多个 Vim / Neovim 实例同时使用，词频会互相覆盖吗？
-
-  ```answer
-  不会。rime-query 后端以单例 daemon 模式运行（与 ibus-rime / fcitx-rime 同款架构）：
-  首个编辑器实例拉起一个共享后端进程，它独占用户词库（*.userdb）这一个写者身份；
-  之后任何编辑器实例——包括 vim 和 neovim 混用——都通过 daemon 的 socket 端点
-  热接入同一个进程（Unix 上走 Unix domain socket；Windows 上 nvim 走命名管道、
-  vim 走 TCP），各自持有独立的 Rime 会话，组词状态互不干扰，
-  而词频学习全部汇入同一个词库。
-
-  daemon 在最后一个客户端离开并空闲超过 `g:im_idle_exit_ms`（默认 60 秒）后
-  自动收尾退出；
-  ```
-
-- Windows 上 Vim（非 Neovim）的支持原理是什么？
-
-  ```answer
-  Vim 的 channel 客户端无法连接 Windows 命名管道，因此后端在 Windows 上
-  会同时监听命名管道与 TCP 回环端口（默认 `127.0.0.1:18666`，可用
-  `g:im_tcp_addr` 或环境变量 `RIME_QUERY_TCP` 覆盖）：
-  Windows 上 Vim 自动走 TCP，Neovim 默认走命名管道、设置了 `g:im_tcp_addr`
-  则同样走 TCP。
-  无论哪个编辑器先拉起 daemon，另一类编辑器都能热接入
-  同一进程；若 TCP 端口被其他程序占用，daemon 会明确报错退出而不静默降级。
-  ```
 </details>
 
 ---
@@ -173,6 +147,7 @@ cmake --build build
 ```
 
 > [!note]
+>
 > - 需要 `clang++` 与 `mingw32-make` 在 `PATH` 中；若已安装 Ninja，可省略 `-G` 参数（CMake 会优先选用）
 > - 不要使用 Visual Studio 生成器——项目的编译选项是 clang/GCC 风格，MSVC 工具链无法识别
 
@@ -201,16 +176,13 @@ let g:im_log_file                  = '~/.local/state/log/vim/rime.log'
 " Unix：socket 文件路径
 " 留空时依 $XDG_RUNTIME_DIR，其次 ~/.cache/rime-query.sock
 let g:im_unix_socket                = ''
-" Windows nvim：命名管道名（Vim 无法使用命名管道）
-" 留空时默认 \\.\pipe\rime-query-<用户名>
-let g:im_pipe_name                  = ''
-" Windows：TCP 端点。Vim 只能走 TCP；nvim 设置本项后改走 TCP
+" Windows：TCP 回环端点，Vim 与 Neovim 共用同一条通道
 " 留空时默认 127.0.0.1:18666
 let g:im_tcp_addr                   = ''
 " 最后一个客户端离开后 daemon 的空闲存活时间（毫秒，0 为常驻）
 let g:im_idle_exit_ms              = 60000
 " 拉起 daemon 后等待其就绪的超时（毫秒）
-let g:im_connect_timeout_ms        = 30000
+let g:im_connect_timeout_ms        = 5000
 
 " 候选词弹窗高度
 let g:im_pumheight                 = 9
@@ -291,12 +263,16 @@ tnoremap ;; <c-\><c-n><cmd>call im#start()<cr>q:a:PassToTerm<space>
 
 各平台 / 编辑器的传输支持情况：
 
-| 平台          | 编辑器 | 默认传输        | 可选传输                  | 自定义端点         |
-|---------------|--------|-----------------|---------------------------|--------------------|
-| macOS / Linux | Neovim | Unix socket     | —                         | `g:im_unix_socket` |
-| macOS / Linux | Vim    | Unix socket     | —                         | `g:im_unix_socket` |
-| Windows       | Neovim | 命名管道        | TCP（设 `g:im_tcp_addr`） | `g:im_pipe_name`   |
-| Windows       | Vim    | TCP（仅此一种） | —                         | `g:im_tcp_addr`    |
+| 平台          | 编辑器 | 默认传输    | 可选传输 | 自定义端点                                  |
+| ------------- | ------ | ----------- | -------- | ------------------------------------------- |
+| macOS / Linux | Neovim | Unix socket | —        | `g:im_unix_socket`                          |
+| macOS / Linux | Vim    | Unix socket | —        | `g:im_unix_socket`                          |
+| Windows       | Neovim | TCP 回环    | —        | `g:im_tcp_addr` / 环境变量 `RIME_QUERY_TCP` |
+| Windows       | Vim    | TCP 回环    | —        | `g:im_tcp_addr` / 环境变量 `RIME_QUERY_TCP` |
+
+> [!Note]
+> Windows 上 daemon 只监听单条 TCP 通道（Vim 与 Neovim 共用），
+> 自定义 `g:im_tcp_addr` 时 vimrc 与 Neovim 配置需保持一致。
 
 ### 环境变量
 
@@ -327,8 +303,8 @@ export RIME_USER_DATA_DIR="$HOME/.local/share/rime-ice"
 export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 ```
 
-Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 `127.0.0.1:18666`，
-设为 `none` 关闭 TCP 监听；与 `g:im_tcp_addr` 同义，后者优先）。
+Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 `127.0.0.1:18666`；
+与 `g:im_tcp_addr` 同义，`g:im_tcp_addr` 优先）。
 
 > 注意：在 Vim 中设置 `g:im_user_data_dir` / `g:im_shared_data_dir` / `g:im_log_file` 会覆盖同名环境变量。
 
@@ -336,14 +312,14 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 
 ### 命令
 
-| 命令         | 说明                                   |
-| ----------- | -------------------------------------- |
-| `:IMStart`  | 启动输入法（连接或拉起共享 `rime-query` daemon） |
-| `:IMStop`   | 停止输入法（只断开本编辑器的连接）     |
-| `:IMToggle` | 切换输入法开关                         |
-| `:IMDeploy` | 重新部署 Rime（改配置后生效）          |
-| `:IMSync`   | 同步用户词库并重新部署                 |
-| `:IMShutdown` | 关停共享 daemon（所有编辑器断开）    |
+| 命令          | 说明                                             |
+| ------------- | ------------------------------------------------ |
+| `:IMStart`    | 启动输入法（连接或拉起共享 `rime-query` daemon） |
+| `:IMStop`     | 停止输入法（只断开本编辑器的连接）               |
+| `:IMToggle`   | 切换输入法开关                                   |
+| `:IMDeploy`   | 重新部署 Rime（改配置后生效）                    |
+| `:IMSync`     | 同步用户词库并重新部署                           |
+| `:IMShutdown` | 关停共享 daemon（所有编辑器断开）                |
 
 #### 重新部署
 
@@ -357,13 +333,13 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 
 默认按键映射（可设 `g:im_no_default_mappings=1` 关闭，用对应的 `g:im_*_key` 修改）：
 
-| 按键      | 模式                                 | 功能           |
+| 按键    | 模式                                 | 功能           |
 | ------- | ------------------------------------ | -------------- |
-| `;;`      | normal / insert / command / terminal | 切换输入法开关 |
-| `<c-;>`   | normal / insert                      | 切换中/英模式  |
-| `;a`      | normal / insert                      | 切换中英文标点 |
-| `;f`      | normal / insert                      | 切换简/繁体    |
-| `;e`      | normal / insert                      | 切换 emoji     |
+| `;;`    | normal / insert / command / terminal | 切换输入法开关 |
+| `<c-;>` | normal / insert                      | 切换中/英模式  |
+| `;a`    | normal / insert                      | 切换中英文标点 |
+| `;f`    | normal / insert                      | 切换简/繁体    |
+| `;e`    | normal / insert                      | 切换 emoji     |
 
 按键和组合键基本兼容系统级输入法
 
