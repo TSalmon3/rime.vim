@@ -16,12 +16,12 @@
 #include <chrono>
 
 #ifdef _WIN32
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0600  // Vista+：WSAPoll 需要
+#endif
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
-#include <thread>
-#include <atomic>
-#include <mutex>
 #if !defined(_SSIZE_T_DEFINED)
 #define _SSIZE_T_DEFINED
 typedef SSIZE_T ssize_t;  // POSIX 类型，Windows/MSVC 目标下用 SSIZE_T 等价定义
@@ -1007,10 +1007,6 @@ static int run_server_unix(const std::string &endpoint, long idle_exit_ms) {// {
 #ifdef _WIN32
 
 namespace tcp_server {
-static std::thread acceptor;
-static std::mutex mu;
-static std::vector<SOCKET> pending;
-static std::atomic<bool> stop{false};
 static SOCKET listener = INVALID_SOCKET;
 
 static void close_listener() {// {{{
@@ -1055,28 +1051,6 @@ static bool open_listener(const std::string &endpoint) {// {{{
   return ok;
 }// }}}
 
-static void acceptor_loop() {// {{{
-  while (!stop.load()) {
-    sockaddr_storage ss{};
-    int len = sizeof(ss);
-    SOCKET cs = ::accept(listener, reinterpret_cast<sockaddr *>(&ss), &len);
-    if (cs == INVALID_SOCKET) {
-      if (stop.load()) break;          // 正常关闭路径
-      spdlog::warn("accept failed: {}", WSAGetLastError());
-      Sleep(50);
-      continue;
-    }
-    {
-      std::lock_guard<std::mutex> lk(mu);
-      pending.push_back(cs);
-    }
-  }
-}// }}}
-
-static void wake_acceptor() {// {{{
-  stop.store(true);
-  close_listener();   // 解除阻塞中的 accept()
-}// }}}
 }  // namespace tcp_server
 
 static void close_client_conn(Client &c) {// {{{
@@ -1156,7 +1130,6 @@ static int run_server_windows(const std::string &tcp_endpoint,
     WSACleanup();
     return 1;
   }
-  tcp_server::acceptor = std::thread(tcp_server::acceptor_loop);
 
   rime_init(shared_dir, user_dir);
   spdlog::info("serving on tcp {} (idle_exit_ms={})",
@@ -1165,55 +1138,68 @@ static int run_server_windows(const std::string &tcp_endpoint,
   long long next_id = 1;
   using clock = std::chrono::steady_clock;
   clock::time_point idle_since = clock::now();
-  bool idle_counting = true;
+  bool idle_counting = true;  // 无客户端即开始计时
 
+  // 与 Unix 版 poll() 循环同构：每个 tick 一次 WSAPoll 同时等待
+  // 监听 socket 与所有客户端 socket，不再需要单独的 acceptor 线程。
   while (!g_should_exit) {
-    {
-      std::lock_guard<std::mutex> lk(tcp_server::mu);
-      for (SOCKET s : tcp_server::pending) {
-        ClientKey key = next_id++;
-        auto [it, ok] = g_clients.try_emplace(key);
+    std::vector<WSAPOLLFD> pfds;
+    std::vector<ClientKey> keys;  // pfds[i+1] 对应 keys[i]（Windows 下 key 不等于 socket 句柄）
+    pfds.push_back({tcp_server::listener, POLLRDNORM, 0});
+    for (auto &[key, cli] : g_clients) {
+      pfds.push_back({cli.sock, POLLRDNORM, 0});
+      keys.push_back(key);
+    }
+
+    int r = WSAPoll(pfds.data(), (ULONG)pfds.size(), 100);
+    if (r == SOCKET_ERROR) {
+      spdlog::error("WSAPoll() failed: {}", WSAGetLastError());
+      break;
+    }
+
+    if (pfds[0].revents & POLLRDNORM) {
+      sockaddr_storage ss{};
+      int len = sizeof(ss);
+      SOCKET cs = ::accept(tcp_server::listener,
+                           reinterpret_cast<sockaddr *>(&ss), &len);
+      if (cs != INVALID_SOCKET) {
         BOOL nd = 1;
-        if (setsockopt(s, IPPROTO_TCP, TCP_NODELAY,
+        if (setsockopt(cs, IPPROTO_TCP, TCP_NODELAY,
                        (const char *)&nd, sizeof(nd)) != 0)
           spdlog::warn("TCP_NODELAY failed: {}", WSAGetLastError());
-        it->second.sock = s;
+        ClientKey key = next_id++;
+        auto [it, inserted] = g_clients.try_emplace(key);
+        it->second.sock = cs;
         idle_since = clock::now();
         idle_counting = false;
-        spdlog::info("client {} connected (tcp)", (long long)key);
+        spdlog::info("client {} connected (tcp) ({} active)", (long long)key,
+                     (long long)g_clients.size());
         send_ready_greeting(it->second);
       }
-      tcp_server::pending.clear();
     }
 
     std::vector<ClientKey> dead;
-    for (auto &[key, cli] : g_clients) {
-      char buf[4096];
-      size_t got = 0;
-      u_long avail = 0;
-      if (ioctlsocket(cli.sock, FIONREAD, &avail) != 0) {
+    for (size_t i = 1; i < pfds.size(); ++i) {
+      short re = pfds[i].revents;
+      if (!(re & (POLLRDNORM | POLLERR | POLLHUP | POLLNVAL))) continue;
+      ClientKey key = keys[i - 1];
+      auto it = g_clients.find(key);
+      if (it == g_clients.end()) continue;
+
+      if (re & (POLLERR | POLLHUP | POLLNVAL)) {
         dead.push_back(key);
         continue;
       }
-      if (avail == 0) {
-        fd_set rf;
-        FD_ZERO(&rf);
-        FD_SET(cli.sock, &rf);
-        timeval tv{0, 0};
-        int r = ::select(0, &rf, nullptr, nullptr, &tv);
-        if (r > 0) {
-          spdlog::info("tcp client {} reached EOF", (long long)key);
-          dead.push_back(key);
-        }
+      char buf[4096];
+      int n = ::recv(it->second.sock, buf, (int)sizeof(buf), 0);
+      if (n <= 0) {
+        dead.push_back(key);
         continue;
       }
-      int n = ::recv(cli.sock, buf, (int)sizeof(buf), 0);
-      if (n <= 0) { dead.push_back(key); continue; }
-      got = static_cast<size_t>(n);
       idle_since = clock::now();
       idle_counting = false;
-      feed_bytes(cli, buf, got);
-      if (cli.dead) dead.push_back(key);
+      feed_bytes(it->second, buf, static_cast<size_t>(n));
+      if (it->second.dead) dead.push_back(key);
     }
 
     for (ClientKey key : dead) {
@@ -1229,6 +1215,7 @@ static int run_server_windows(const std::string &tcp_endpoint,
       idle_counting = true;
     }
 
+    // 空闲退出：最后一个客户端离开且超过宽限期仍未有人接入。
     if (idle_exit_ms > 0 && idle_counting && g_clients.empty()) {
       auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
                          clock::now() - idle_since).count();
@@ -1237,7 +1224,6 @@ static int run_server_windows(const std::string &tcp_endpoint,
         break;
       }
     }
-    Sleep(5);
   }
 
   for (auto &[key, cli] : g_clients) {
@@ -1246,9 +1232,7 @@ static int run_server_windows(const std::string &tcp_endpoint,
   }
   g_clients.clear();
 
-  tcp_server::wake_acceptor();
-  if (tcp_server::acceptor.joinable())
-    tcp_server::acceptor.join();
+  tcp_server::close_listener();
 
   RimeApi *api = rime_get_api();
   api->finalize();
