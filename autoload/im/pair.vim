@@ -2,7 +2,6 @@ let s:default_rules = [
       \ {'open': '(',  'close': ')',  'kind': 'delim'},
       \ {'open': '[',  'close': ']',  'kind': 'delim'},
       \ {'open': '{',  'close': '}',  'kind': 'delim'},
-      \ {'open': '<',  'close': '>',  'kind': 'delim'},
       \ {'open': '（', 'close': '）', 'kind': 'delim'},
       \ {'open': '【', 'close': '】', 'kind': 'delim'},
       \ {'open': '「', 'close': '」', 'kind': 'delim'},

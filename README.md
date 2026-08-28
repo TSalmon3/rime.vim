@@ -20,27 +20,6 @@
   ```answer
   会产生冲突，建议新建一个目录，存放你的拼音方案，也就是你的「用户数据目录」最好不要跟系统输入法的是同一目录。
   ```
-
-- 为什么词频功能会失效？
-
-  ```answer
-  每个 Vim / Neovim 实例都会各自启动一个独立的 rime-query 后端进程，而所有实例共享同一个用户词库目录
-  （`g:im_user_data_dir`）。用户词库（*.userdb 目录）是 LevelDB 单写者存储，同一时刻只允许一个进程
-  持有写锁：当另一个实例先启动并占用了词库时，后启动的实例会抢不到锁，librime 会静默地挪走旧词库目录并
-  新建空库，表现为「词频丢失、候选词排序回到默认」。
-
-  建议同时只保留一个编辑器会话；或为不同编辑器分别配置独立的 `g:im_user_data_dir`，避免词库互相覆盖。
-  ```
-
-- 编辑器退出后 rime-query 进程会残留吗？
-
-  ```answer
-  正常情况下不会。插件在 `VimLeavePre` 时对后端执行两层关闭：先发送 `quit` 协议命令让后端
-  完成 `destroy_session + finalize` 后自行退出，再发送 SIGTERM 兜底。即使编辑器被强杀
-  （关闭终端 / tmux kill-session / kill -9，此时不会触发任何 autocmd），后端也能通过
-  SIGTERM/SIGHUP 信号或 stdin 管道 EOF 自行清理——后端主循环基于非阻塞轮询实现，
-  对以上任一事件都能在一百毫秒内响应。
-  ```
 </details>
 
 ---
@@ -59,8 +38,8 @@
   - [命令](#命令)
   - [按键映射](#按键映射)
 - [集成](#集成)
-  - [Autocmd](#autocmd)
-  - [Statusline](#statusline)
+  - [事件](#事件)
+  - [状态栏](#状态栏)
 - [高级主题](#高级主题)
   - [rime-ice 配置示例](#rime-ice-配置示例)
   - [让中文编辑更加丝滑](#让中文编辑更加丝滑)
@@ -85,6 +64,8 @@ Rime（中州韵）输入法在 Vim / Neovim 中的集成方案，基于 [rime-i
 - 支持全拼、双拼、九宫格等输入方案
 - 支持简繁、中英文标点、emoji 切换
 - 候选词浮窗，下划线渲染，状态栏可显示当前输入状
+- 支持括号、引号等自动补全
+- 支持多实例共享词频学习，甚至 Vim 和 Neovim 混合多实例
 - 提供命令行和终端输入解决方案
 
 ## 快速开始
@@ -133,13 +114,6 @@ cmake -S . -B build
 cmake --build build
 ```
 
-或者使用 emake （必要时修改 `main.mak` 中的 librime include / lib 路径）：
-
-```bash
-cd /path/to/rime.vim/cpp
-emake --ini=emake/darwin.ini main.mak
-```
-
 #### Linux
 
 需手动编译 librime，并分别指定其头文件 include 路径与动态库 lib 路径：
@@ -149,31 +123,33 @@ cd /path/to/rime.vim/cpp
 clang++ -std=c++17 -I./3rd -I/path/to/librime/include -L/path/to/librime/lib -lstdc++ -lrime -o build/rime-query rime-query.cc
 ```
 
-或者使用 emake （必要时修改 `main.mak` 中的 librime include / lib 路径）：
-
-```bash
-cd /path/to/rime.vim/cpp
-emake --ini=emake/linux.ini main.mak
-```
-
 #### Windows
 
-1. 下载 librime 预编译 release 压缩包。
-2. 指定 librime 头文件 include 路径与动态库 lib 路径后编译。
+1. 下载 librime 预编译 release 压缩包，解压后得到包含 `include/` 与 `lib/` 的目录（下述命令中的 `/path/to/librime` 即指向该目录）。
+2. 编译 `rime-query`。
 3. 将 `rime.dll` 拷贝到可执行文件同一目录。
-4. 将可执行文件添加到 `PATH`。
+4. 将可执行文件所在目录加入 `PATH`，或在 vimrc 中用 `let g:im_rime_bin = '完整路径'` 直接指定。
 
 ```bash
 cd /path/to/rime.vim/cpp
-clang++ -std=c++17 -I./3rd -I/path/to/librime/include -L/path/to/librime/lib -lrime -o build/rime-query.exe rime-query.cc
+mkdir build
+clang++ -std=c++17 -O2 -I./3rd -I/path/to/librime/include -c rime-query.cc -o build/rime-query.o
+clang++ build/rime-query.o -L/path/to/librime/lib -lrime -lws2_32 -o build/rime-query.exe
 ```
 
-或者使用 emake （必要时修改 `main.mak` 中的 librime include / lib 路径）：
+其中 `-lws2_32` 链接 Windows Sockets，为后端 TCP 监听所必需；它是系统自带组件（System32），无需额外安装。
+
+或者使用 CMake（必要时修改 `CMakeLists.txt` 中的编译器与 librime include / lib 路径）：
 
 ```bash
 cd /path/to/rime.vim/cpp
-emake --ini=emake/llm.ini main.mak
+cmake -S . -B build -G "MinGW Makefiles"
+cmake --build build
 ```
+
+> [!note]
+>
+> 需要 `clang++` 与 `mingw32-make` 在 `PATH` 中
 
 构建完成后，请把生成的 `rime-query` 添加到 `PATH`。
 
@@ -195,6 +171,19 @@ let g:im_user_data_dir             = '/path/to/rime'
 let g:im_shared_data_dir           = '/usr/share/rime-data'
 " 后端日志路径（$RIME_LOG）
 let g:im_log_file                  = '~/.local/state/log/vim/rime.log'
+
+
+" Unix：socket 文件路径
+" 留空时依 $XDG_RUNTIME_DIR，其次 ~/.cache/rime-query.sock
+let g:im_unix_socket                = ''
+" Windows：TCP 回环端点，Vim 与 Neovim 共用同一条通道
+" 留空时默认 127.0.0.1:18666
+let g:im_tcp_addr                   = ''
+" 最后一个客户端离开后 daemon 的空闲存活时间（毫秒，0 为常驻）
+let g:im_idle_exit_ms              = 60000
+" 拉起 daemon 后等待其就绪的超时（毫秒）
+let g:im_connect_timeout_ms        = 30000
+
 " 候选词弹窗高度
 let g:im_pumheight                 = 9
 " 设为 1 关闭下划线渲染
@@ -225,8 +214,8 @@ let g:im_status_full_text          = '¥'
 let g:im_status_simplified_text    = '简'
 " 繁体状态文本
 let g:im_status_traditional_text   = '繁'
-" 词库被其他实例占用时的锁定提示图标
-let g:im_status_lock_text        = '!'
+" 输入法断连状态文本
+let g:im_status_disconnect         = '断'
 " 初始标点状态（1 为半角）
 let g:im_option_ascii_punct        = 0
 " 初始简繁状态（1 为繁体）
@@ -274,6 +263,19 @@ tnoremap ;; <c-\><c-n><cmd>call im#start()<cr>q:a:PassToTerm<space>
 - `g:im_rime_bin` 对应后端可执行文件。
 - `g:im_user_data_dir` / `g:im_shared_data_dir` / `g:im_log_file` 分别对应下述三个环境变量，且**优先级更高**。
 
+各平台 / 编辑器的传输支持情况：
+
+| 平台          | 编辑器 | 默认传输    | 可选传输 | 自定义端点                                  |
+| ------------- | ------ | ----------- | -------- | ------------------------------------------- |
+| macOS / Linux | Neovim | Unix socket | —        | `g:im_unix_socket`                          |
+| macOS / Linux | Vim    | Unix socket | —        | `g:im_unix_socket`                          |
+| Windows       | Neovim | TCP 回环    | —        | `g:im_tcp_addr` / 环境变量 `RIME_QUERY_TCP` |
+| Windows       | Vim    | TCP 回环    | —        | `g:im_tcp_addr` / 环境变量 `RIME_QUERY_TCP` |
+
+> [!Note]
+> Windows 上 daemon 只监听单条 TCP 通道（Vim 与 Neovim 共用），
+> 自定义 `g:im_tcp_addr` 时 vimrc 与 Neovim 配置需保持一致。
+
 ### 环境变量
 
 插件通过三个环境变量获取数据目录与日志路径，两种设置方式任选其一：
@@ -303,19 +305,23 @@ export RIME_USER_DATA_DIR="$HOME/.local/share/rime-ice"
 export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 ```
 
+Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 `127.0.0.1:18666`；
+与 `g:im_tcp_addr` 同义，`g:im_tcp_addr` 优先）。
+
 > 注意：在 Vim 中设置 `g:im_user_data_dir` / `g:im_shared_data_dir` / `g:im_log_file` 会覆盖同名环境变量。
 
 ## 使用
 
 ### 命令
 
-| 命令        | 说明                                   |
-| ----------- | -------------------------------------- |
-| `:IMStart`  | 启动输入法（并启动 `rime-query` 后端） |
-| `:IMStop`   | 停止输入法                             |
-| `:IMToggle` | 切换输入法开关                         |
-| `:IMDeploy` | 重新部署 Rime（改配置后生效）          |
-| `:IMSync`   | 同步用户词库并重新部署                 |
+| 命令          | 说明                                                  |
+|---------------|-------------------------------------------------------|
+| `:IMStart`    | 启动/重启输入法（连接或拉起共享 `rime-query` daemon） |
+| `:IMStop`     | 停止输入法（只断开本编辑器的连接）                    |
+| `:IMToggle`   | 切换输入法开关                                        |
+| `:IMDeploy`   | 重新部署 Rime（改配置后生效）                         |
+| `:IMSync`     | 同步用户词库并重新部署                                |
+| `:IMShutdown` | 关停共享 daemon（所有编辑器断开）                     |
 
 #### 重新部署
 
@@ -329,13 +335,13 @@ export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 
 默认按键映射（可设 `g:im_no_default_mappings=1` 关闭，用对应的 `g:im_*_key` 修改）：
 
-| 按键      | 模式                                 | 功能           |
+| 按键    | 模式                                 | 功能           |
 | ------- | ------------------------------------ | -------------- |
-| `;;`      | normal / insert / command / terminal | 切换输入法开关 |
-| `<c-;>`   | normal / insert                      | 切换中/英模式  |
-| `;a`      | normal / insert                      | 切换中英文标点 |
-| `;f`      | normal / insert                      | 切换简/繁体    |
-| `;e`      | normal / insert                      | 切换 emoji     |
+| `;;`    | normal / insert / command / terminal | 切换输入法开关 |
+| `<c-;>` | normal / insert                      | 切换中/英模式  |
+| `;a`    | normal / insert                      | 切换中英文标点 |
+| `;f`    | normal / insert                      | 切换简/繁体    |
+| `;e`    | normal / insert                      | 切换 emoji     |
 
 按键和组合键基本兼容系统级输入法
 
@@ -365,7 +371,7 @@ export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 
 ## 集成
 
-### Autocmd
+### 事件
 
 **`autocmd User RimeKeymapSetup {command}`**
 
@@ -417,7 +423,7 @@ augroup IMGroup
 augroup END
 ```
 
-### Statusline
+### 状态栏
 
 最简单的方式是在你的 `'statusline'` 选项中加入 `%{IM_Status()}`。开启时显示
 `[ㄓ]半|简`（图标 / 标点 / 简繁，文本可分别用 `g:im_status_*` 定制），关闭时返回空串。

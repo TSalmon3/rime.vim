@@ -1,7 +1,11 @@
-# rime vim
-
-A Chinese input method (Rime / ㄓ) solution for Vim and Neovim, based on the
-[rime-ice](https://github.com/iDvelve/rime-ice) scheme.
+<p align="center">
+  <img alt="Logo" src="./icon.png" height="200" />
+  <p align="center">Rime input method support for Vim/Neovim</p>
+  <p align="center">
+    <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square"></a>
+    <a href="https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity"><img alt="Maintenance" src="https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=flat-square"></a>
+  </p>
+</p>
 
 ---
 
@@ -17,36 +21,6 @@ Answers to common questions.
   Yes, it will conflict. It is recommended to create a new directory for your
   pinyin scheme, i.e. your "user data directory", and preferably not the same
   directory as the system input method.
-  ```
-
-- Why does word-frequency stop working?
-
-  ```answer
-  Each Vim / Neovim instance starts its own independent rime-query backend
-  process, yet all instances share the same user dictionary directory
-  (`g:im_user_data_dir`). The user dictionary (*.userdb directories) is a
-  LevelDB single-writer store: only one process can hold the write lock at a
-  time. When another instance starts first and takes the dictionary, later
-  instances cannot acquire the lock; librime silently moves the old dictionary
-  directory aside and creates an empty one, which shows up as "word frequency
-  lost and candidate ordering back to defaults".
-
-  Keep only one editor session at a time; or configure a separate
-  `g:im_user_data_dir` for each editor so the dictionaries don't overwrite
-  each other.
-  ```
-
-- Does a rime-query process linger after the editor exits?
-
-  ```answer
-  Normally no. On `VimLeavePre` the plugin shuts the backend down in two
-  layers: it first sends a `quit` protocol command so the backend finishes
-  `destroy_session + finalize` and exits on its own, then sends SIGTERM as a
-  fallback. Even when the editor is killed hard (terminal closed /
-  tmux kill-session / kill -9, none of which run autocmds), the backend still
-  cleans itself up via the SIGTERM/SIGHUP signals or stdin pipe EOF — the
-  backend's main loop is built on non-blocking polling and reacts to any of
-  these events within one hundred milliseconds.
   ```
 </details>
 
@@ -98,6 +72,8 @@ Key features:
 - Supports full pinyin, double pinyin, nine-grid (T9) and other input schemes
 - Toggle between simplified / traditional, half/full-width punctuation, and emoji
 - Candidate popup / underline rendering; the statusline can show the current input state
+- Supports auto-completion for brackets, quotes, and other delimiters
+- Supports shared word-frequency learning across multiple instances, including mixed Vim and Neovim sessions
 - Provides command-line and terminal input solutions
 
 ---
@@ -184,7 +160,7 @@ emake --ini=emake/linux.ini main.mak
 
 ```bash
 cd /path/to/rime.vim/cpp
-clang++ -std=c++17 -I./3rd -I/path/to/librime/include -L/path/to/librime/lib -lstdc++ -lrime -o build/rime-query.exe rime-query.cc
+clang++ -std=c++17 -I./3rd -I/path/to/librime/include -L/path/to/librime/lib -lstdc++ -lrime -lws2_32 -o build/rime-query.exe rime-query.cc
 ```
 
 Alternatively, use emake (edit the librime include / lib paths in `main.mak` if needed):
@@ -218,6 +194,19 @@ let g:im_user_data_dir             = '/path/to/rime'
 let g:im_shared_data_dir           = '/usr/share/rime-data'
 " Backend log path ($RIME_LOG)
 let g:im_log_file                  = '~/.local/state/log/vim/rime.log'
+
+
+" Unix: socket file path
+" Falls back to $XDG_RUNTIME_DIR, then ~/.cache/rime-query.sock
+let g:im_unix_socket                = ''
+" Windows: TCP loopback endpoint, shared between Vim and Neovim
+" Falls back to 127.0.0.1:18666
+let g:im_tcp_addr                   = ''
+" Daemon idle lifetime after the last client leaves (ms; 0 = stay resident)
+let g:im_idle_exit_ms              = 60000
+" Timeout for connecting to / starting the daemon (ms)
+let g:im_connect_timeout_ms        = 30000
+
 " Candidate popup height
 let g:im_pumheight                 = 9
 " Set to 1 to disable underline rendering
@@ -229,15 +218,6 @@ let g:im_replace_mode              = 0
 " Toggle input method on/off
 let g:im_toggle_key                = ';;'
 " Toggle Chinese/English mode
-" The in-composition behavior can be chosen via an optional mapping argument
-" (equivalent to Squirrel's switch_key, independent of your rime config):
-" 'commit_code' commit raw code / 'commit_text' commit highlighted candidate /
-" 'clear' discard composition / 'inline_ascii' temporary ascii that
-" auto-reverts when the composition ends /
-" 'set_ascii_mode' force English / 'unset_ascii_mode' force Chinese. Example:
-"   inoremap <expr> <c-;> im#keymap#toggle_ascii_mode('inline_ascii')
-" Without an argument it simulates Shift via the engine; behavior then
-" follows your rime switch_key config.
 let g:im_toggle_ascii_mode_key     = '<c-;>'
 " Toggle Chinese/English punctuation
 let g:im_toggle_ascii_punct_key    = ';a'
@@ -257,8 +237,8 @@ let g:im_status_full_text          = '¥'
 let g:im_status_simplified_text    = '简'
 " Traditional status text
 let g:im_status_traditional_text   = '繁'
-" Locked-indicator icon when the dictionary is held by another instance
-let g:im_status_lock_text        = '!'
+" Input method disconnected status text
+let g:im_status_disconnect         = '断'
 " Initial punctuation state (1 = half-width)
 let g:im_option_ascii_punct        = 0
 " Initial simplified/traditional state (1 = traditional)
@@ -307,6 +287,20 @@ Notes:
 - `g:im_user_data_dir` / `g:im_shared_data_dir` / `g:im_log_file` map to the
   three environment variables below, and take **higher priority**.
 
+Platform / editor transport support:
+
+| Platform       | Editor | Default transport | Optional | Custom endpoint                                   |
+| -------------- | ------ | ----------------- | -------- | ------------------------------------------------- |
+| macOS / Linux  | Neovim | Unix socket       | —        | `g:im_unix_socket`                                |
+| macOS / Linux  | Vim    | Unix socket       | —        | `g:im_unix_socket`                                |
+| Windows        | Neovim | TCP loopback      | —        | `g:im_tcp_addr` / env `RIME_QUERY_TCP`            |
+| Windows        | Vim    | TCP loopback      | —        | `g:im_tcp_addr` / env `RIME_QUERY_TCP`            |
+
+> [!Note]
+> On Windows the daemon only listens on a single TCP channel (shared between
+> Vim and Neovim). When customizing `g:im_tcp_addr`, keep vimrc and Neovim
+> config in sync.
+
 ### Environment variables
 
 The plugin reads three environment variables for its data directories and log
@@ -338,6 +332,10 @@ export RIME_USER_DATA_DIR="$HOME/.local/share/rime-ice"
 export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 ```
 
+On Windows, `RIME_QUERY_TCP` overrides the backend's TCP listen endpoint
+(default `127.0.0.1:18666`, `none` disables TCP; same meaning as
+`g:im_tcp_addr`, which takes precedence).
+
 > Note: setting `g:im_user_data_dir`, `g:im_shared_data_dir` or `g:im_log_file`
 > in Vim overrides the corresponding environment variable.
 
@@ -347,13 +345,14 @@ export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 
 ### Commands
 
-| Command   | Description                                        |
-| --------- | -------------------------------------------------- |
-| `:IMStart` | Start the input method (and start the `rime-query` backend) |
-| `:IMStop`  | Stop the input method                              |
-| `:IMToggle`| Toggle the input method on/off                     |
-| `:IMDeploy`| Redeploy Rime (takes effect after editing config)  |
-| `:IMSync`  | Sync the user dictionary, then redeploy            |
+| Command     | Description                                        |
+| ----------- | -------------------------------------------------- |
+| `:IMStart`  | Start/restart the input method (connect or launch the shared `rime-query` daemon) |
+| `:IMStop`   | Stop the input method (disconnect this editor only) |
+| `:IMToggle` | Toggle the input method on/off                     |
+| `:IMDeploy` | Redeploy Rime (takes effect after editing config)  |
+| `:IMSync`   | Sync the user dictionary, then redeploy            |
+| `:IMShutdown` | Shut down the shared daemon (all editors disconnect) |
 
 #### Redeploying
 
@@ -642,6 +641,28 @@ augroup END
 ```
 ![demo3](https://github.com/user-attachments/assets/093e5089-0b8c-4528-854f-5d4aee85328d)
 
+If you have [jieba.vim](https://github.com/kkew3/jieba.vim) installed, you can enhance `<c-w>`.
+
+```vim
+function RimeKeymapRemap()
+  lnoremap <silent><expr> <c-w> im#state#composing() ?
+        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
+        \ im#replace#can_restore() ? "\<cmd>call im#replace#ctrl_w()\<cr>" :
+        \ "<Plug>(Jieba_C_w)"
+endfunction
+
+function RimeKeymapClear()
+
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimeKeymapClear call RimeKeymapClear()
+augroup END
+
+```
+
 ### Customizing Chinese/English switching and the scheme menu
 
 #### Scheme menu
@@ -759,12 +780,15 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 
 - Default pairs: `()` `[]` `{}` `<>` and full-width `（）` `【】` `「」` `『』` `《》`, plus quotes `"` `'`
 - Half-width punctuation goes straight to the screen; full-width punctuation goes through Rime. Pairing is handled correctly in both cases
-- Configuration priority: `b:im_pair_rules` > `g:im_pair_rules` > default
+- Configuration priority: `b:im_pair_rules` > `g:im_pair_rules` > default (only `im_pair_rules` supports `b:`, other options are global `g:`)
+- Highlight blacklist: auto-pair is disabled when the cursor is inside a highlight group listed below (e.g. comments, strings), and re-enabled when the cursor leaves. **Disabled by default**; takes no effect when unset or empty:
 - You can manually map keys to skip close delimiters/quotes to the right:
 
 ```vim
 " Auto pair toggle (default 0)
 let g:im_pair_enabled = 0
+" Toggle auto pair
+let g:im_toggle_pair_key = ';p'
 " Pair rules list; each entry has open/close and kind ('delim' open != close, 'quote' open = close)
 let g:im_pair_rules = [
       \ {'open': '(',  'close': ')',  'kind': 'delim'},
@@ -776,10 +800,30 @@ let g:im_pair_rules = [
       \ {'open': '「', 'close': '」', 'kind': 'delim'},
       \ {'open': '『', 'close': '』', 'kind': 'delim'},
       \ {'open': '《', 'close': '》', 'kind': 'delim'},
+      \ {'open': "'",  'close': "'",  'kind': 'delim'},
+      \ {'open': "“",  'close': "”",  'kind': 'delim'},
       \ {'open': '"',  'close': '"',  'kind': 'quote'},
       \ {'open': "'",  'close': "'",  'kind': 'quote'},
       \ ]
 
+" Or
+let g:im_pair_rules = im#pair#default_rules()
+
+" Disable auto pair by highlight group name (case-insensitive regex list; disabled by default [])
+let g:im_pair_blacklist_highlight = ['comment', 'doc', 'string']
+" Disable auto pair by filetype
+let g:im_pair_blacklist_filetypes = ['vim']
+
+" The following options only take effect in Neovim (requires Treesitter support); in Vim, highlight checking uses regex matching.
+" Priority: `g:im_pair_blacklist_filetypes` > `g:im_pair_ts_config` > `g:im_pair_blacklist_highlight`
+let g:im_pair_ts_check  = 0
+
+" '*' is a global wildcard; specific filetypes override the global setting (explicitly define [] to disable checking for that filetype)
+let g:im_pair_ts_config = {
+      \ '*':      ['comment', 'string'],
+      \ 'lua':    ['comment', 'string'],
+      \ 'python': ['comment', 'string'],
+      \ }
 ```
 
 Or modify the default key mappings:

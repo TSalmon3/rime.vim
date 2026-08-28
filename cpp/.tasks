@@ -1,5 +1,6 @@
 [project-init]
-command=cmake -S . -B build
+command/macos=cmake -S . -B build
+command/win64=cmake -S . -B build -G "MinGW Makefiles"
 cwd=$(VIM_ROOT)
 
 [project-build]

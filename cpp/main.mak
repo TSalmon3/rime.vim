@@ -18,6 +18,7 @@ llm/inc: d:/Library/librime/include
 llm/lib: d:/Library/librime/lib
 
 link: rime
+llm/link: ws2_32
 
 src: rime-query.cc
 
