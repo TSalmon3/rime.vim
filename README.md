@@ -621,7 +621,7 @@ augroup END
 
 #### 方案选单
 
-`im#keymap#toggle_scheme()` 向 Rime 发送 `Ctrl+\``，打开内置的「方案选单」，与系统输入法行为一致：
+`im#keymap#toggle_scheme()` 向 Rime 发送 `` Ctrl+` ``，打开内置的「方案选单」，与系统输入法行为一致：
 
 - 选单内容来自用户数据目录里 `default.custom.yaml` 的 `schema_list`，以及 switcher 中的开关项（简繁、中英标点、emoji 等）
 - 切换后状态栏立即刷新
