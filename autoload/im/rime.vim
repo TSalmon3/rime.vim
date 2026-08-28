@@ -321,10 +321,10 @@ function! s:connect_poll_tick(timer_id) abort"{{{
   endif
 
   if s:conn_open(s:connect_addr, s:connect_transport)
-    let s:connect_timer = -1
     let state = im#state#get()
-    let state.ready = 1
+    let s:connect_timer = -1
     if s:handshake_and_setup(s:connect_addr)
+      let state.ready = 1
       silent! doautocmd User RimeIMReady
     else
       let state.ready = 0
