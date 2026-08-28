@@ -2,6 +2,7 @@
 let s:state = {
       \ 'started'         : 0,
       \ 'enabled'         : 0,
+      \ 'ready'           : 0,
       \ 'candidate_count' : 0,
       \ 'boundary'        : -1,
       \ 'preedit'         : '',

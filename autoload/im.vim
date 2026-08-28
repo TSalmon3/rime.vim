@@ -281,7 +281,13 @@ function! im#start() abort"{{{
   if state.started
     return
   endif
-  let state.started = im#rime#start()
+  let state.started = 1
+  call im#rime#start()
+  return
+endfunction"}}}
+
+function! im#on_ready() abort"{{{
+  let state = im#state#get()
   if !state.started
     return
   endif
@@ -309,9 +315,11 @@ function! im#stop() abort"{{{
   if !state.started
     return
   endif
-  call s:clear_im_autocmd()
-  call im#disable()
-  call s:vimrc_restore()
+  if state.ready
+    call s:clear_im_autocmd()
+    call im#disable()
+    call s:vimrc_restore()
+  endif
   let state.started = 0
   silent! doautocmd User RimeIMDisable
   echo '[IM] off'
@@ -341,9 +349,9 @@ endfunction"}}}
 
 function! im#deploy() abort"{{{
   let state = im#state#get()
-  if !state.started
+  if !state.started || !state.ready
     echohl WarningMsg
-    echom '[IM] rime not started, run :IMStart first'
+    echom '[IM] rime not started or still connecting, run :IMStart first'
     echohl None
     return
   endif
@@ -366,9 +374,9 @@ endfunction"}}}
 
 function! im#sync() abort"{{{
   let state = im#state#get()
-  if !state.started
+  if !state.started || !state.ready
     echohl WarningMsg
-    echom '[IM] rime not started, run :IMStart first'
+    echom '[IM] rime not started or still connecting, run :IMStart first'
     echohl None
     return
   endif
@@ -424,11 +432,15 @@ function! im#status() abort"{{{
   let icon_traditional = get(g:, 'im_status_traditional_text', '繁')
   let icon_chinese = get(g:, 'im_status_chinese_text', '中')
   let icon_english = get(g:, 'im_status_english_text', '英')
+  let icon_disconnect = get(g:, 'im_status_disconnect', '断')
+  " let icon_lock = get(g:, 'im_status_lock_text', '锁')
 
+  " let locked = state.locked ?  icon_lock : ""
   let mode = state.ascii_mode ? icon_english : icon_chinese
   let punct = state.ascii_punct ? icon_half : icon_full
   let trad = state.traditional ? icon_traditional : icon_simplified
-  return state.started ? "[" . icon . "]" . mode . '|' . punct . '|' . trad  : ''
+  let connect = state.ready ? "" : icon_disconnect
+  return state.started ? connect . "[" . icon . "]" . mode . '|' . punct . '|' . trad  : ''
 endfunction"}}}
 
 function! im#schema() abort"{{{

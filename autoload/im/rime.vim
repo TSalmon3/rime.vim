@@ -3,7 +3,7 @@ let s:resp_buf   = ''
 let s:resp_ready = 0
 let s:next_id    = 0
 
-let s:not_running = 1
+let s:connect_timer = -1
 
 " 当前正在等待答复的请求 id；只有回包里的 id 跟它一致才算数，
 " 迟到的旧请求答复（比如上一次超时了，但后端过一会儿还是回了）
@@ -245,7 +245,7 @@ function! s:handshake_and_setup(sock) abort"{{{
   let resp = s:roundtrip({
         \ 'type': 'ping',
         \ 'app':  has('nvim') ? 'nvim' : 'vim',
-        \ }, get(g:, 'im_handshake_timeout_ms', 30000))
+        \ }, get(g:, 'im_handshake_timeout_ms', 800))
   if resp is v:null
     echohl WarningMsg
     echom '[IM] rime backend did not become ready in time: ' . a:sock
@@ -257,17 +257,28 @@ function! s:handshake_and_setup(sock) abort"{{{
   return 1
 endfunction"}}}
 
-" 连接现有 daemon，连不上则拉起并重试。成功返回 1。
 function! s:ensure_backend() abort"{{{
+  let state = im#state#get()
   if s:conn_alive()
-    return 1
+    let state.ready = 1
+    if s:handshake_and_setup(s:endpoint()[1])
+      silent! doautocmd User RimeIMReady
+      return 1
+    endif
+    let state.ready = 0
+    call s:conn_close()
   endif
-  call s:conn_close()
 
   let [transport, addr] = s:endpoint()
 
   if s:conn_open(addr, transport)
-    return s:handshake_and_setup(addr)
+    let state.ready = 1
+    if s:handshake_and_setup(addr)
+      silent! doautocmd User RimeIMReady
+      return 1
+    endif
+    let state.ready = 0
+    call s:conn_close()
   endif
 
   if !executable(g:im_rime_bin)
@@ -283,40 +294,77 @@ function! s:ensure_backend() abort"{{{
   endif
 
   call s:spawn_daemon(addr)
-
-  let timeout_s = get(g:, 'im_connect_timeout_ms', 5000) / 1000.0
-  let deadline = reltimefloat(reltime()) + timeout_s
-  while reltimefloat(reltime()) < deadline
-    sleep 50m
-    if s:conn_open(addr, transport)
-      return s:handshake_and_setup(addr)
-    endif
-  endwhile
-
-  echohl WarningMsg
-  echom '[IM] failed to start rime backend: ' . g:im_rime_bin
-  echohl None
+  call s:start_connect_poll(addr, transport)
   return 0
 endfunction"}}}
 
+function! s:start_connect_poll(addr, transport) abort"{{{
+  if s:connect_timer != -1
+    call timer_stop(s:connect_timer)
+  endif
+  let s:connect_start = reltimefloat(reltime())
+  let s:connect_addr = a:addr
+  let s:connect_transport = a:transport
+  let s:connect_timer = timer_start(50, function('s:connect_poll_tick'))
+endfunction"}}}
+
+function! s:connect_poll_tick(timer_id) abort"{{{
+  let timeout_s = get(g:, 'im_connect_timeout_ms', 30000) / 1000.0
+  let elapsed = reltimefloat(reltime()) - s:connect_start
+
+  if elapsed >= timeout_s
+    let s:connect_timer = -1
+    echohl WarningMsg
+    echom '[IM] failed to start rime backend: ' . g:im_rime_bin
+    echohl None
+    return
+  endif
+
+  if s:conn_open(s:connect_addr, s:connect_transport)
+    let s:connect_timer = -1
+    let state = im#state#get()
+    let state.ready = 1
+    if s:handshake_and_setup(s:connect_addr)
+      silent! doautocmd User RimeIMReady
+    else
+      let state.ready = 0
+    endif
+    return
+  endif
+
+  " 继续轮询
+  let s:connect_timer = timer_start(50, function('s:connect_poll_tick'))
+endfunction"}}}
+
 function! im#rime#start() abort"{{{
-  let s:not_running = 0
+  let state = im#state#get()
+  let state.ready = 0
   return s:ensure_backend()
 endfunction"}}}
 
 function! im#rime#stop() abort"{{{
-  let s:not_running = 1
+  let state = im#state#get()
+  let state.ready = 0
+  if s:connect_timer != -1
+    call timer_stop(s:connect_timer)
+    let s:connect_timer = -1
+  endif
   call s:conn_close()
 endfunction"}}}
 
 function! im#rime#shutdown() abort"{{{
-  if s:chan isnot v:null && !s:not_running
+  let state = im#state#get()
+  let state.ready = 0
+  if s:connect_timer != -1
+    call timer_stop(s:connect_timer)
+    let s:connect_timer = -1
+  endif
+  if s:chan isnot v:null && state.started
     try
-      call s:roundtrip({'type': 'quit'}, 2000)
+      call s:roundtrip({'type': 'quit'}, 800)
     endtry
   endif
   call s:conn_close()
-  let s:not_running = 1
 endfunction"}}}
 
 function! s:roundtrip(request, timeout_ms) abort"{{{
@@ -351,7 +399,8 @@ function! s:roundtrip(request, timeout_ms) abort"{{{
 endfunction"}}}
 
 function! im#rime#call(request, timeout_ms) abort"{{{
-  if s:chan is v:null || s:not_running
+  let state = im#state#get()
+  if s:chan is v:null || !state.started || !state.ready
     return v:null
   endif
 
@@ -360,13 +409,11 @@ function! im#rime#call(request, timeout_ms) abort"{{{
     return resp
   endif
 
-  " 超时无答复, 断开重连一次再试同样的请求
+  " 超时无答复, 断开重连（异步），本次请求丢弃
   call s:conn_close()
-  let s:not_running = 0
-  if !s:ensure_backend()
-    return v:null
-  endif
-  return s:roundtrip(a:request, a:timeout_ms)
+  let state.ready = 0
+  call s:ensure_backend()
+  return v:null
 endfunction"}}}
 
 function! s:parse_context(resp) abort"{{{

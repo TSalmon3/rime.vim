@@ -182,7 +182,7 @@ let g:im_tcp_addr                   = ''
 " 最后一个客户端离开后 daemon 的空闲存活时间（毫秒，0 为常驻）
 let g:im_idle_exit_ms              = 60000
 " 拉起 daemon 后等待其就绪的超时（毫秒）
-let g:im_connect_timeout_ms        = 5000
+let g:im_connect_timeout_ms        = 30000
 
 " 候选词弹窗高度
 let g:im_pumheight                 = 9
@@ -625,7 +625,7 @@ augroup END
 
 #### 方案选单
 
-`im#keymap#toggle_scheme()` 向 Rime 发送 `Ctrl+\``，打开内置的「方案选单」，与系统输入法行为一致：
+`im#keymap#toggle_scheme()` 向 Rime 发送 `` Ctrl+` ``，打开内置的「方案选单」，与系统输入法行为一致：
 
 - 选单内容来自用户数据目录里 `default.custom.yaml` 的 `schema_list`，以及 switcher 中的开关项（简繁、中英标点、emoji 等）
 - 切换后状态栏立即刷新

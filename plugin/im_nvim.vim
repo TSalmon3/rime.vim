@@ -50,6 +50,7 @@ augroup im_lifecycle
   autocmd VimLeave * call im#rime#stop()
   autocmd User RimeIMEnable  call im#hooks#on_enable()
   autocmd User RimeIMDisable call im#hooks#on_disable()
+  autocmd User RimeIMReady   call im#on_ready()
 augroup END
 
 let g:RIME_MASK = {
