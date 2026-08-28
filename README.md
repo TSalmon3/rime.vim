@@ -38,8 +38,8 @@
   - [命令](#命令)
   - [按键映射](#按键映射)
 - [集成](#集成)
-  - [Autocmd](#autocmd)
-  - [Statusline](#statusline)
+  - [事件](#事件)
+  - [状态栏](#状态栏)
 - [高级主题](#高级主题)
   - [rime-ice 配置示例](#rime-ice-配置示例)
   - [让中文编辑更加丝滑](#让中文编辑更加丝滑)
@@ -215,6 +215,8 @@ let g:im_status_full_text          = '¥'
 let g:im_status_simplified_text    = '简'
 " 繁体状态文本
 let g:im_status_traditional_text   = '繁'
+" 输入法断连状态文本
+let g:im_status_disconnect         = '断'
 " 初始标点状态（1 为半角）
 let g:im_option_ascii_punct        = 0
 " 初始简繁状态（1 为繁体）
@@ -313,14 +315,14 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 
 ### 命令
 
-| 命令          | 说明                                             |
-| ------------- | ------------------------------------------------ |
-| `:IMStart`    | 启动输入法（连接或拉起共享 `rime-query` daemon） |
-| `:IMStop`     | 停止输入法（只断开本编辑器的连接）               |
-| `:IMToggle`   | 切换输入法开关                                   |
-| `:IMDeploy`   | 重新部署 Rime（改配置后生效）                    |
-| `:IMSync`     | 同步用户词库并重新部署                           |
-| `:IMShutdown` | 关停共享 daemon（所有编辑器断开）                |
+| 命令          | 说明                                                  |
+|---------------|-------------------------------------------------------|
+| `:IMStart`    | 启动/重启输入法（连接或拉起共享 `rime-query` daemon） |
+| `:IMStop`     | 停止输入法（只断开本编辑器的连接）                    |
+| `:IMToggle`   | 切换输入法开关                                        |
+| `:IMDeploy`   | 重新部署 Rime（改配置后生效）                         |
+| `:IMSync`     | 同步用户词库并重新部署                                |
+| `:IMShutdown` | 关停共享 daemon（所有编辑器断开）                     |
 
 #### 重新部署
 
@@ -370,7 +372,7 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 
 ## 集成
 
-### Autocmd
+### 事件
 
 **`autocmd User RimeKeymapSetup {command}`**
 
@@ -422,7 +424,7 @@ augroup IMGroup
 augroup END
 ```
 
-### Statusline
+### 状态栏
 
 最简单的方式是在你的 `'statusline'` 选项中加入 `%{IM_Status()}`。开启时显示
 `[ㄓ]半|简`（图标 / 标点 / 简繁，文本可分别用 `g:im_status_*` 定制），关闭时返回空串。
