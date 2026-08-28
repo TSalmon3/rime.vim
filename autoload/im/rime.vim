@@ -3,7 +3,8 @@ let s:resp_buf   = ''
 let s:resp_ready = 0
 let s:next_id    = 0
 
-let s:connect_timer = -1
+let s:connect_timer   = -1
+let s:heartbeat_timer = -1
 
 " 当前正在等待答复的请求 id；只有回包里的 id 跟它一致才算数，
 " 迟到的旧请求答复（比如上一次超时了，但后端过一会儿还是回了）
@@ -22,6 +23,13 @@ function! s:on_line(line) abort"{{{
     let s:resp_ready = 1
     return
   endtry
+
+  " daemon shutdown 广播（其他实例 :IMShutdown 时触发）
+  if get(decoded, 'type', '') ==# 'shutdown'
+    call timer_start(0, {-> s:daemon_died()})
+    return
+  endif
+
   if get(decoded, 'id', -1) != s:pending_id
     " 迟到的旧回包（含 daemon 的 ready 广播 id=0），直接丢弃。
     return
@@ -33,6 +41,10 @@ endfunction"}}}
 " --- Neovim implementation -------------------------------------------
 
 function! s:on_stdout_nvim(chan_id, data, event) abort"{{{
+  if a:data == ['']
+    call s:daemon_died()
+    return
+  endif
   for line in a:data
     call s:on_line(line)
   endfor
@@ -69,11 +81,7 @@ function! s:conn_send_nvim(text) abort"{{{
 endfunction"}}}
 
 function! s:conn_alive_nvim() abort"{{{
-  try
-    return chansend(s:chan, '') >= 0
-  catch
-    return 0
-  endtry
+  return s:chan != v:null
 endfunction"}}}
 
 function! s:conn_close_nvim() abort"{{{
@@ -253,6 +261,7 @@ function! s:handshake_and_setup(sock) abort"{{{
     call s:conn_close()
     return 0
   endif
+  call s:start_heartbeat()
   call im#rime#apply_initial_options()
   return 1
 endfunction"}}}
@@ -260,8 +269,8 @@ endfunction"}}}
 function! s:ensure_backend() abort"{{{
   let state = im#state#get()
   if s:conn_alive()
-    let state.ready = 1
     if s:handshake_and_setup(s:endpoint()[1])
+      let state.ready = 1
       silent! doautocmd User RimeIMReady
       return 1
     endif
@@ -272,8 +281,8 @@ function! s:ensure_backend() abort"{{{
   let [transport, addr] = s:endpoint()
 
   if s:conn_open(addr, transport)
-    let state.ready = 1
     if s:handshake_and_setup(addr)
+      let state.ready = 1
       silent! doautocmd User RimeIMReady
       return 1
     endif
@@ -345,6 +354,7 @@ endfunction"}}}
 function! im#rime#stop() abort"{{{
   let state = im#state#get()
   let state.ready = 0
+  call s:stop_heartbeat()
   if s:connect_timer != -1
     call timer_stop(s:connect_timer)
     let s:connect_timer = -1
@@ -355,6 +365,7 @@ endfunction"}}}
 function! im#rime#shutdown() abort"{{{
   let state = im#state#get()
   let state.ready = 0
+  call s:stop_heartbeat()
   if s:connect_timer != -1
     call timer_stop(s:connect_timer)
     let s:connect_timer = -1
@@ -664,4 +675,47 @@ function! im#rime#toggle_full_shape() abort"{{{
   endif
   let state.full_shape = value ? 1 : 0
   redrawstatus
+endfunction"}}}
+
+" --- Heartbeat -----------------------------------------------------------
+
+function! s:daemon_died() abort"{{{
+  call s:stop_heartbeat()
+  let state = im#state#get()
+  let state.ready = 0
+  call s:conn_close()
+  echomsg '[IM] rime backend lost ...'
+  redrawstatus
+endfunction"}}}
+
+function! s:start_heartbeat() abort"{{{
+  if has("nvim")
+    return
+  endif
+  call s:stop_heartbeat()
+  let s:heartbeat_timer = timer_start(
+        \ get(g:, 'im_heartbeat_ms', 5000),
+        \ function('s:heartbeat_tick'))
+endfunction"}}}
+
+function! s:stop_heartbeat() abort"{{{
+  if has("nvim")
+    return
+  endif
+  if s:heartbeat_timer != -1
+    call timer_stop(s:heartbeat_timer)
+    let s:heartbeat_timer = -1
+  endif
+endfunction"}}}
+
+function! s:heartbeat_tick(timer_id) abort"{{{
+  if !s:conn_alive()
+    let s:heartbeat_timer = -1
+    call s:daemon_died()
+    return
+  endif
+  " 继续下一次心跳
+  let s:heartbeat_timer = timer_start(
+        \ get(g:, 'im_heartbeat_ms', 5000),
+        \ function('s:heartbeat_tick'))
 endfunction"}}}

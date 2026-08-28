@@ -351,6 +351,8 @@ static void rebuild_all_client_sessions() {// {{{
   }
 }// }}}
 
+static bool send_line_to_client(Client &c, const std::string &line);  // forward decl
+
 static json handle_request(Client &c, const json &req) {// {{{
   json resp;
   resp["id"] = req.value("id", 0);
@@ -367,6 +369,16 @@ static json handle_request(Client &c, const json &req) {// {{{
 
   // --- quit ---
   if (type == "quit") {
+    // 通知其他客户端 daemon 即将退出
+    json shutdown;
+    shutdown["id"]   = 0;
+    shutdown["ok"]   = true;
+    shutdown["type"] = "shutdown";
+    for (auto &[key, cli] : g_clients) {
+      if (cli.fd != c.fd) {
+        send_line_to_client(cli, shutdown.dump());
+      }
+    }
     resp["ok"] = true;
     g_should_exit = 1;
     return resp;

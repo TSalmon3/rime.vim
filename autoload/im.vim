@@ -278,7 +278,7 @@ endfunction"}}}
 
 function! im#start() abort"{{{
   let state = im#state#get()
-  if state.started
+  if state.started && state.ready
     return
   endif
   let state.started = 1
