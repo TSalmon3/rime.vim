@@ -149,8 +149,7 @@ cmake --build build
 
 > [!note]
 >
-> - 需要 `clang++` 与 `mingw32-make` 在 `PATH` 中；若已安装 Ninja，可省略 `-G` 参数（CMake 会优先选用）
-> - 不要使用 Visual Studio 生成器——项目的编译选项是 clang/GCC 风格，MSVC 工具链无法识别
+> 需要 `clang++` 与 `mingw32-make` 在 `PATH` 中
 
 构建完成后，请把生成的 `rime-query` 添加到 `PATH`。
 
