@@ -375,7 +375,7 @@ static json handle_request(Client &c, const json &req) {// {{{
     shutdown["ok"]   = true;
     shutdown["type"] = "shutdown";
     for (auto &[key, cli] : g_clients) {
-      if (cli.fd != c.fd) {
+      if (client_key(cli) != client_key(c)) {
         send_line_to_client(cli, shutdown.dump());
       }
     }
