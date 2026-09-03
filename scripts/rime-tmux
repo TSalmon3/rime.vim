@@ -1,0 +1,716 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import locale
+import os
+import pathlib
+import select
+import shutil
+import socket
+import subprocess
+import sys
+import termios
+import time
+import tty
+import unicodedata
+from typing import Optional
+
+KEY_BackSpace = 0xFF08
+KEY_Tab = 0xFF09
+KEY_Return = 0xFF0D
+KEY_Escape = 0xFF1B
+KEY_Left = 0xFF51
+KEY_Up = 0xFF52
+KEY_Right = 0xFF53
+KEY_Down = 0xFF54
+KEY_PageUp = 0xFF55
+KEY_PageDown = 0xFF56
+KEY_Home = 0xFF50
+KEY_End = 0xFF57
+KEY_Delete = 0xFFFF
+
+MASK_Shift = 0x01
+MASK_Control = 0x04
+MASK_Alt = 0x08
+MASK_Release = 0x40000000
+
+DEBUG_LOG = os.environ.get("RIME_TMUX_DEBUG", "/tmp/rime-tmux.log")
+
+MIN_CONTENT_WIDTH = 20
+CONTENT_WIDTH_MARGIN = 8
+
+
+def log(msg: str) -> None:
+    try:
+        p = pathlib.Path(DEBUG_LOG)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with p.open("a") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
+    except OSError:
+        pass
+
+
+def _is_cjk_ambiguous_wide() -> bool:
+    try:
+        loc = locale.getlocale(locale.LC_CTYPE)[0] or ""
+        if loc and any(k in loc.lower() for k in ("zh", "ja", "ko")):
+            return True
+    except (ValueError, TypeError) as e:
+        log(f"locale.getlocale failed: {e}")
+    for env in ("LC_ALL", "LC_CTYPE", "LANG", "LANGUAGE"):
+        v = os.environ.get(env, "").lower()
+        if any(k in v for k in ("zh", "ja", "ko", "cjk")):
+            return True
+    return False
+
+
+_CJK_AMBIG_WIDE: Optional[bool] = None
+
+
+def _char_width(ch: str) -> int:
+    global _CJK_AMBIG_WIDE
+    if _CJK_AMBIG_WIDE is None:
+        _CJK_AMBIG_WIDE = _is_cjk_ambiguous_wide()
+
+    if unicodedata.category(ch) == "Mn":
+        return 0
+    code_point = ord(ch)
+    if code_point < 32 or code_point == 127:
+        return 0
+
+    eaw = unicodedata.east_asian_width(ch)
+    if eaw in ("W", "F"):
+        return 2
+    if eaw == "A":
+        return 2 if _CJK_AMBIG_WIDE else 1
+    return 1
+
+
+def disp_width(text: str) -> int:
+    return sum(_char_width(ch) for ch in text)
+
+
+def truncate_to_width(text: str, max_w: int) -> str:
+    if max_w <= 0:
+        return ""
+    if disp_width(text) <= max_w:
+        return text
+
+    ellipsis = "…"
+    ell_w = disp_width(ellipsis)
+    if max_w <= ell_w:
+        return ellipsis
+
+    out = ""
+    cur = 0
+    for ch in text:
+        cw = _char_width(ch)
+        if cur + cw + ell_w > max_w:
+            out += ellipsis
+            break
+        out += ch
+        cur += cw
+    return out
+
+
+def resolve_socket(cli_socket: str) -> str:
+    if cli_socket:
+        return cli_socket
+    for env in ("RIME_SOCKET", "RIME_QUERY_SOCKET"):
+        v = os.environ.get(env, "")
+        if v:
+            return v
+    xdg = os.environ.get("XDG_RUNTIME_DIR", "")
+    if xdg:
+        return os.path.join(xdg, "rime-query.sock")
+    return os.path.expanduser("~/.cache/rime-query.sock")
+
+
+def find_rime_bin(cli_bin: str) -> str:
+    candidates = []
+    if cli_bin:
+        candidates.append(cli_bin)
+    env_bin = os.environ.get("RIME_BIN", "")
+    if env_bin:
+        candidates.append(env_bin)
+    candidates.append("rime-query")
+
+    for c in candidates:
+        found = shutil.which(c)
+        if found:
+            return found
+        if os.path.isfile(c) and os.access(c, os.X_OK):
+            return c
+
+    here = pathlib.Path(__file__).resolve().parent
+    build = here.parent / "cpp" / "build" / "rime-query"
+    if build.is_file() and os.access(build, os.X_OK):
+        return str(build)
+    return "rime-query"
+
+
+def probe_socket(path: str, timeout: float = 0.6) -> bool:
+    try:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(timeout)
+        s.connect(path)
+        s.settimeout(0.25)
+        s.recv(2048)
+        s.settimeout(0.6)
+        s.sendall(b'{"id":9876,"type":"ping","app":"tmux-probe"}\n')
+        data = b""
+        while b"\n" not in data:
+            chunk = s.recv(4096)
+            if not chunk:
+                break
+            data += chunk
+        s.close()
+        return b'"id":9876' in data
+    except OSError as e:
+        log(f"probe_socket connect/exchange failed path={path}: {e}")
+        return pathlib.Path(path).is_socket()
+
+def tmux_env(name: str) -> str:
+    try:
+        out = subprocess.check_output(
+            ["tmux", "show-environment", "-g", name],
+            stderr=subprocess.DEVNULL, text=True,
+        )
+        if "=" in out:
+            return out.split("=", 1)[1].strip()
+    except (subprocess.SubprocessError, OSError) as e:
+        log(f"tmux show-environment {name} failed: {e}")
+    return ""
+
+
+def _import_rime_env_from_tmux() -> None:
+    for var in ("RIME_USER_DATA_DIR", "RIME_SHARED_DATA_DIR", "RIME_LOG"):
+        if not os.environ.get(var):
+            v = tmux_env(var)
+            if v:
+                os.environ[var] = v
+                log(f"imported {var} from tmux env")
+
+
+def ensure_daemon(socket_path: str, rime_bin: str, idle_ms: int,
+                   timeout_ms: int = 30000) -> bool:
+    if probe_socket(socket_path):
+        log(f"probe ok socket={socket_path}")
+        return True
+
+    log(f"probe failed socket={socket_path} bin={rime_bin} — spawning daemon")
+    _import_rime_env_from_tmux()
+
+    is_executable = shutil.which(rime_bin) or (
+        os.path.isfile(rime_bin) and os.access(rime_bin, os.X_OK)
+    )
+    if not is_executable:
+        log(f"rime-query not found bin={rime_bin}")
+        sys.stderr.write(
+            f"rime.vim: rime-query not found (tried '{rime_bin}'); "
+            "build: cmake -S cpp -B cpp/build && cmake --build cpp/build\n"
+        )
+        return False
+
+    try:
+        pathlib.Path(socket_path).parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        log(f"mkdir for socket dir failed: {e}")
+
+    try:
+        log(f"spawning {rime_bin} --serve --socket {socket_path} "
+            f"--idle-exit-ms {idle_ms}")
+        subprocess.Popen(
+            [rime_bin, "--serve", "--socket", socket_path,
+             "--idle-exit-ms", str(idle_ms)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True, close_fds=True,
+        )
+    except OSError as e:
+        log(f"spawn failed: {e}")
+        return False
+
+    elapsed = 0
+    poll_interval_s = 0.05
+    while elapsed < timeout_ms:
+        if probe_socket(socket_path):
+            log("probe ok after spawn")
+            return True
+        time.sleep(poll_interval_s)
+        elapsed += int(poll_interval_s * 1000)
+
+    log("spawn failed, still no probe")
+    sys.stderr.write(
+        f"rime.vim: failed to start rime-query at {socket_path} "
+        f"(timeout {timeout_ms}ms)\n"
+    )
+    sys.stderr.write(f"see {DEBUG_LOG} for details\n")
+    time.sleep(2)
+    return False
+
+
+class DaemonClient:
+    def __init__(self, path: str):
+        self.path = path
+        self.sock: Optional[socket.socket] = None
+        self.pending = b""
+        self.seq = 1
+
+    def open(self) -> None:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(2.0)
+        s.connect(self.path)
+        self.sock = s
+        try:
+            s.settimeout(0.25)
+            data = s.recv(8192)
+            if data:
+                self.pending += data
+        except OSError as e:
+            log(f"DaemonClient.open initial recv skipped: {e}")
+        finally:
+            s.settimeout(2.0)
+
+    def close(self) -> None:
+        if self.sock is not None:
+            try:
+                self.sock.close()
+            except OSError as e:
+                log(f"DaemonClient.close failed: {e}")
+            self.sock = None
+
+    def _write(self, obj: dict) -> int:
+        obj = dict(obj)
+        obj["id"] = self.seq
+        self.seq += 1
+        raw = (json.dumps(obj, ensure_ascii=False) + "\n").encode("utf-8")
+        self.sock.sendall(raw)
+        return obj["id"]
+
+    def _read_until(self, want_id: int, timeout: float) -> Optional[dict]:
+        self.sock.settimeout(timeout)
+        while True:
+            if b"\n" in self.pending:
+                line, self.pending = self.pending.split(b"\n", 1)
+                if not line.strip():
+                    continue
+                try:
+                    msg = json.loads(line.decode("utf-8"))
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    log(f"dropping malformed message: {e}")
+                    continue
+                if msg.get("id") == want_id:
+                    return msg
+                continue
+            try:
+                chunk = self.sock.recv(4096)
+            except (socket.timeout, OSError):
+                return None
+            if not chunk:
+                return None
+            self.pending += chunk
+
+    def call(self, obj: dict, timeout: float = 0.8) -> Optional[dict]:
+        rid = self._write(obj)
+        return self._read_until(rid, timeout)
+
+    def ping(self) -> Optional[dict]:
+        return self.call({"type": "ping", "app": "tmux"}, timeout=0.8)
+
+    def key(self, code: int, mask: int) -> Optional[dict]:
+        return self.call({"type": "key", "keycode": code, "mask": mask}, timeout=0.8)
+
+    def reset(self) -> Optional[dict]:
+        return self.call({"type": "reset"}, timeout=0.5)
+
+
+def send_to_pane(target: str, text: str) -> None:
+    if not text:
+        return
+    if not target:
+        sys.stderr.write(text)
+        sys.stderr.flush()
+        return
+    try:
+        subprocess.run(["tmux", "send-keys", "-l", "-t", target, text], check=False)
+    except (subprocess.SubprocessError, OSError) as e:
+        log(f"send_to_pane failed target={target}: {e}")
+
+
+def _terminal_size() -> tuple[int, int]:
+    for args in ((sys.stdout.fileno(),), ()):
+        try:
+            sz = os.get_terminal_size(*args)
+            return sz.columns, sz.lines
+        except OSError:
+            continue
+    return 80, 24
+
+
+def _split_preedit(preedit: str, cursor_byte: int) -> tuple[str, str]:
+    b = preedit.encode("utf-8")
+    pos = max(0, min(cursor_byte, len(b)))
+    left = b[:pos].decode("utf-8", errors="ignore")
+    right = b[pos:].decode("utf-8", errors="ignore")
+    return left, right
+
+
+def _visible_candidate_count(rows: int) -> int:
+    return max(0, rows - 1)
+
+
+def _pad_line(text: str, width: int) -> str:
+    pad = max(0, width - disp_width(text))
+    return text + " " * pad
+
+
+def draw(preedit: str, cursor_byte: int, candidates: list, comments: list,
+         highlighted: int) -> None:
+    left, right = _split_preedit(preedit, cursor_byte)
+    cols, rows = _terminal_size()
+    max_content = max(MIN_CONTENT_WIDTH, cols - CONTENT_WIDTH_MARGIN)
+    visible = _visible_candidate_count(rows)
+
+    sys.stdout.write("\x1b[?25l\x1b[2J\x1b[3J\x1b[H")
+
+    header = truncate_to_width(f"▸ {left}▏{right}", max_content)
+    header = _pad_line(header, max_content)
+
+    if visible == 0:
+        sys.stdout.write(f"{header}\x1b[K")
+        sys.stdout.flush()
+        return
+
+    sys.stdout.write(f"{header}\x1b[K\r\n")
+    for i in range(visible):
+        is_last_row = i == visible - 1
+        if i < len(candidates):
+            label, body = _format_candidate_row(candidates[i], comments, i, max_content)
+            prefix = ">" if i == highlighted else " "
+            line = f"{prefix} {label} {_pad_line(body, max_content)}"
+        else:
+            line = ""
+        terminator = "\x1b[K" if is_last_row else "\x1b[K\r\n"
+        sys.stdout.write(f"{line}{terminator}")
+    sys.stdout.flush()
+
+
+def _format_candidate_row(word: str, comments: list, index: int, max_content: int) -> tuple[str, str]:
+    label = f"{(index + 1) % 10 if index == 9 else index + 1}."
+    comment = comments[index] if index < len(comments) and comments[index] else ""
+    body = f"{word} {comment}".strip() if comment else word
+    body = truncate_to_width(body, max_content)
+    return label, body
+
+
+_CSI_SEQUENCES = {
+    b"[A": (KEY_Up, 0),
+    b"[B": (KEY_Down, 0),
+    b"[C": (KEY_Right, 0),
+    b"[D": (KEY_Left, 0),
+    b"[H": (KEY_Home, 0),
+    b"[F": (KEY_End, 0),
+    b"[5~": (KEY_PageUp, 0),
+    b"[6~": (KEY_PageDown, 0),
+    b"[3~": (KEY_Delete, 0),
+    b"[Z": (KEY_Tab, MASK_Shift),
+    b"OH": (KEY_Home, 0),
+    b"OF": (KEY_End, 0),
+}
+
+_KEYCODE_TO_SEQUENCE = {
+    KEY_Return:    "\r",
+    KEY_BackSpace: "\x7f",
+    KEY_Tab:       "\t",
+    KEY_Escape:    "\x1b",
+    KEY_Left:      "\x1b[D",
+    KEY_Up:        "\x1b[A",
+    KEY_Right:     "\x1b[C",
+    KEY_Down:      "\x1b[B",
+    KEY_Home:      "\x1b[H",
+    KEY_End:       "\x1b[F",
+    KEY_PageUp:    "\x1b[5~",
+    KEY_PageDown:  "\x1b[6~",
+    KEY_Delete:    "\x1b[3~",
+}
+
+
+class KeyReader:
+    def __init__(self, fd: int):
+        self.fd = fd
+
+    def read_key(self):
+        try:
+            raw = os.read(self.fd, 1)
+        except OSError as e:
+            log(f"read_key: os.read failed: {e}")
+            return None, 0, True
+        if not raw:
+            return None, 0, True
+
+        b0 = raw[0]
+
+        # ESC：读后续字节判断是单独 ESC 还是转义序列
+        if b0 == 0x1B:
+            ready, _, _ = select.select([self.fd], [], [], 0.06)
+            if not ready:
+                return "ESC", 0, False
+            try:
+                seq = os.read(self.fd, 16)
+            except OSError as e:
+                log(f"read_key: os.read failed: {e}")
+                return "ESC", 0, False
+            if not seq:
+                return "ESC", 0, False
+            if seq in _CSI_SEQUENCES:
+                code, mask = _CSI_SEQUENCES[seq]
+                return code, mask, False
+            if seq.startswith(b"[") or seq.startswith(b"O"):
+                return None, 0, False
+            if len(seq) == 1:
+                ch = seq.decode("utf-8", errors="ignore")
+                if ch:
+                    return ord(ch), MASK_Alt, False
+            return None, 0, False
+
+        # 特殊按键
+        if b0 in (0x0D, 0x0A):
+            return KEY_Return, 0, False
+        if b0 == 0x09:
+            return KEY_Tab, 0, False
+        if b0 in (0x7F, 0x08):
+            return KEY_BackSpace, 0, False
+
+        # 控制字符
+        if b0 < 32:
+            ctrl_map = {
+                0x01: (KEY_Home, 0),
+                0x05: (KEY_End, 0),
+                0x15: (KEY_Escape, 0),
+                0x17: (KEY_BackSpace, MASK_Shift),
+                0x04: (KEY_Delete, MASK_Shift),
+            }
+            if b0 in ctrl_map:
+                code, mask = ctrl_map[b0]
+                return code, mask, False
+            if 1 <= b0 <= 26:
+                return ord(chr(b0 + 96)), MASK_Control, False
+            if b0 == 0:
+                return ord(" "), MASK_Control, False
+            return b0, MASK_Control, False
+
+        # 普通字符
+        try:
+            ch = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            ch = chr(b0)
+        if len(ch) == 1 and (32 <= ord(ch) <= 126 or ord(ch) >= 128):
+            return ord(ch), 0, False
+        return None, 0, False
+
+
+class PopupSession:
+    def __init__(self, client: DaemonClient, target: str):
+        self.client = client
+        self.target = target
+
+        self.tty_file = None
+        self.fd = -1
+        self._open_controlling_tty()
+
+        self.old_attr = self._save_terminal_attrs()
+
+        self.preedit = ""
+        self.cursor = 0
+        self.candidates: list = []
+        self.comments: list = []
+        self.highlighted = 0
+
+    def _open_controlling_tty(self) -> None:
+        try:
+            self.tty_file = open("/dev/tty", "r+b", buffering=0)
+            self.fd = self.tty_file.fileno()
+        except OSError as e:
+            log(f"_open_controlling_tty failed: {e}")
+            self.tty_file = None
+
+    def _save_terminal_attrs(self):
+        try:
+            return termios.tcgetattr(self.fd)
+        except (termios.error, OSError) as e:
+            log(f"[client] tcgetattr failed fd={self.fd} tty_file={self.tty_file is not None} err={e}")
+            return None
+
+    def enter_raw_mode(self) -> None:
+        try:
+            sys.stdout.write("\x1b[6 q")
+            sys.stdout.flush()
+        except OSError as e:
+            log(f"enter_raw_mode: cursor-style write failed: {e}")
+        try:
+            draw("", 0, [], [], 0)
+        except OSError as e:
+            log(f"enter_raw_mode: initial draw failed: {e}")
+        try:
+            tty.setraw(self.fd)
+        except (termios.error, OSError) as e:
+            log(f"enter_raw_mode: tty.setraw failed: {e}")
+
+    def restore_terminal(self) -> None:
+        if self.old_attr is not None:
+            try:
+                termios.tcsetattr(self.fd, termios.TCSANOW, self.old_attr)
+            except (termios.error, OSError) as e:
+                log(f"restore_terminal: tcsetattr failed: {e}")
+        try:
+            sys.stdout.write("\x1b[?25h\x1b[0 q\x1b[2J\x1b[3J\x1b[H")
+            sys.stdout.flush()
+        except OSError as e:
+            log(f"restore_terminal: cleanup write failed: {e}")
+        if self.tty_file is not None:
+            try:
+                self.tty_file.close()
+            except OSError as e:
+                log(f"restore_terminal: tty_file.close failed: {e}")
+
+    def _redraw(self) -> None:
+        draw(self.preedit, self.cursor, self.candidates, self.comments, self.highlighted)
+
+    def _forward_key(self, code: int, mask: int) -> None:
+        """Forward an unhandled key to the target pane."""
+        if mask & MASK_Control:
+            if code == 0x20:
+                send_to_pane(self.target, "\x00")
+            elif 0x41 <= code <= 0x5A or 0x61 <= code <= 0x7A:
+                send_to_pane(self.target, chr(code & 0x1F))
+            return
+        if mask & MASK_Alt:
+            send_to_pane(self.target, "\x1b" + chr(code))
+            return
+        if code in _KEYCODE_TO_SEQUENCE:
+            send_to_pane(self.target, _KEYCODE_TO_SEQUENCE[code])
+            return
+        if 32 <= code <= 126 or code >= 128:
+            send_to_pane(self.target, chr(code))
+
+    def _reset_state(self) -> None:
+        self.preedit = ""
+        self.candidates = []
+        self.comments = []
+        self.cursor = 0
+        self.highlighted = 0
+
+    def _apply_response(self, resp: dict) -> None:
+        committed = resp.get("committed", "")
+        if committed:
+            send_to_pane(self.target, committed)
+        self.preedit = resp.get("preedit", "")
+        self.candidates = resp.get("candidates", [])
+        self.comments = resp.get("comments", [])
+        self.cursor = resp.get("cursor_pos", 0)
+        self.highlighted = resp.get("highlighted_candidate_index", 0)
+
+    def _handle_escape(self) -> bool:
+        try:
+            self.client.reset()
+        except OSError as e:
+            log(f"_handle_escape: client.reset failed: {e}")
+        if not self.preedit and not self.candidates:
+            return True
+        self._reset_state()
+        self._redraw()
+        return False
+
+    def _should_quit(self, code: int, mask: int) -> bool:
+        return code == ord("c") and mask == MASK_Control
+
+    def run(self) -> None:
+        reader = KeyReader(self.fd)
+        while True:
+            code, mask, eof = reader.read_key()
+            if eof:
+                return
+            if code is None:
+                continue
+            if code == "ESC":
+                if self._handle_escape():
+                    return
+                continue
+            if self._should_quit(code, mask):
+                return
+
+            try:
+                resp = self.client.key(int(code), int(mask))
+            except OSError as e:
+                log(f"run: client.key failed, ending session: {e}")
+                return
+            if resp is None or not resp.get("ok"):
+                continue
+
+            if not resp.get("accepted", False) and not resp.get("committed", ""):
+                self._forward_key(code, mask)
+
+            self._apply_response(resp)
+            self._redraw()
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        prog="rime-tmux", description="rime.vim tmux popup (5-row vertical)"
+    )
+    p.add_argument("--socket", dest="socket", default="", help="rime-query socket path")
+    p.add_argument("--target", "-t", dest="target",
+                    default=os.environ.get("TMUX_PANE", ""), help="target tmux pane id")
+    p.add_argument("--rime-bin", dest="rime_bin", default="", help="rime-query binary")
+    p.add_argument("--idle-exit-ms", dest="idle_ms", type=int,
+                    default=int(os.environ.get("RIME_IDLE_EXIT_MS", "60000")))
+    return p.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    socket_path = resolve_socket(args.socket)
+    rime_bin = args.rime_bin or os.environ.get("RIME_BIN", "")
+
+    log(f"start target={args.target or 'none'} socket={socket_path} "
+        f"bin={rime_bin or 'auto'} pane={os.environ.get('TMUX_PANE', 'none')}")
+
+    if not ensure_daemon(socket_path, rime_bin, args.idle_ms):
+        return 1
+
+    try:
+        locale.setlocale(locale.LC_CTYPE, "")
+    except locale.Error as e:
+        log(f"main: setlocale failed: {e}")
+
+    client = DaemonClient(socket_path)
+    try:
+        client.open()
+    except OSError as e:
+        log(f"rime.vim: cannot connect to rime-query at {socket_path}: {e}\n")
+        return 1
+
+    resp = client.ping()
+    if resp is None:
+        log("main: initial ping got no response")
+
+    session = PopupSession(client, args.target)
+    session.enter_raw_mode()
+    try:
+        session.run()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        session.restore_terminal()
+        try:
+            client.close()
+        except OSError as e:
+            log(f"main: client.close failed: {e}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
