@@ -581,14 +581,7 @@ class PopupSession:
 
     def _forward_key(self, code: int, mask: int) -> None:
         """Forward an unhandled key to the target pane."""
-        if mask & MASK_Control:
-            if code == 0x20:
-                send_to_pane(self.target, "\x00")
-            elif 0x41 <= code <= 0x5A or 0x61 <= code <= 0x7A:
-                send_to_pane(self.target, chr(code & 0x1F))
-            return
-        if mask & MASK_Alt:
-            send_to_pane(self.target, "\x1b" + chr(code))
+        if mask & (MASK_Control | MASK_Alt):
             return
         if code in _KEYCODE_TO_SEQUENCE:
             send_to_pane(self.target, _KEYCODE_TO_SEQUENCE[code])
