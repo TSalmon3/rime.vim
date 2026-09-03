@@ -592,12 +592,8 @@ class PopupSession:
         """Forward an unhandled key to the target pane."""
         if mask & (MASK_Control | MASK_Alt):
             return
-        if code in _KEYCODE_TO_SEQUENCE:
-            send_to_pane(self.target, _KEYCODE_TO_SEQUENCE[code])
-            return
-        if 32 <= code <= 126 or code >= 128:
+        if 32 <= code <= 126:
             send_to_pane(self.target, chr(code))
-
     def _reset_state(self) -> None:
         self.preedit = ""
         self.candidates = []
