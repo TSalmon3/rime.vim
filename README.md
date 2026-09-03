@@ -850,6 +850,8 @@ run-shell '/path/to/rime.vim/rime.tmux'
 | `Ctrl-w`            | 删除一个音节        |
 | `Ctrl-d`            | 删除自造词          |
 | `Ctrl-a` / `Ctrl-e` | 光标到拼音首 / 尾   |
+| `Ctrl+p`            | 切换半角/全角标点    |
+| `Ctrl+f`            | 切换简体/繁体       |
 | `Esc`               | 取消组合 / 关闭弹窗 |
 | `Ctrl-c`            | 退出弹窗            |
 
@@ -857,12 +859,14 @@ run-shell '/path/to/rime.vim/rime.tmux'
 
 通过 tmux 选项设置（在 `.tmux.conf` 中 `run-shell` 之前）：
 
-| 选项              | 默认值       | 说明                               |
-| ----------------- | ------------ | ---------------------------------- |
-| `@rime_key`       | `;`          | 绑定的前缀键                       |
-| `@rime_bin`       | `rime-query` | `rime-query` 可执行文件路径        |
-| `@rime_socket`    | 空           | Unix socket 路径，留空自动检测     |
-| `@rime_popup`     | 空           | 自定义 `display-popup` 参数        |
+| 选项                        | 默认值       | 说明                               |
+| --------------------------- | ------------ | ---------------------------------- |
+| `@rime_key`                 | `;`          | 绑定的前缀键                       |
+| `@rime_bin`                 | `rime-query` | `rime-query` 可执行文件路径        |
+| `@rime_socket`              | 空           | Unix socket 路径，留空自动检测     |
+| `@rime_popup`               | 空           | 自定义 `display-popup` 参数        |
+| `@rime_option_ascii_punct`  | 空           | 初始标点状态（0=全角，1=半角）     |
+| `@rime_option_traditional`  | 空           | 初始简繁状态（0=简体，1=繁体）     |
 
 ```tmux
 set -g @rime_key ";"
@@ -873,6 +877,13 @@ set -g @rime_bin "rime-query"
 
 ```tmux
 set -g @rime_popup "-w80% -h10 -xC -yC -E -T ㄓ"
+```
+
+设置初始状态：
+
+```tmux
+set -g @rime_option_ascii_punct 1      # 初始半角标点
+set -g @rime_option_traditional 0      # 初始简体
 ```
 
 #### 环境变量

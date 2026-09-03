@@ -41,8 +41,11 @@ escape_bind_key() {
 
 build_popup_command() {
   local bin="$1" socket="$2" wrapper="$3"
+  local ascii_punct="$4" traditional="$5"
   printf "RIME_BIN='%s' RIME_SOCKET='%s' '%s' --target #{pane_id}" \
     "$(shell_escape "$bin")" "$(shell_escape "$socket")" "$(shell_escape "$wrapper")"
+  [ -n "$ascii_punct" ] && printf " --ascii-punct %s" "$ascii_punct"
+  [ -n "$traditional" ] && printf " --traditional %s" "$traditional"
 }
 
 bind_with_popup() {
@@ -63,13 +66,16 @@ main() {
   wrapper="$(resolve_wrapper)" || return 0
 
   local key bin socket popup_opts bind_key popup_cmd
+  local ascii_punct traditional
   key="$(tmux_option "@rime_key" ";")"
   bin="$(tmux_option "@rime_bin" "rime-query")"
   socket="$(tmux_option "@rime_socket" "")"
   popup_opts="$(tmux_option "@rime_popup" "")"
+  ascii_punct="$(tmux_option "@rime_option_ascii_punct" "")"
+  traditional="$(tmux_option "@rime_option_traditional" "")"
 
   bind_key="$(escape_bind_key "$key")"
-  popup_cmd="$(build_popup_command "$bin" "$socket" "$wrapper")"
+  popup_cmd="$(build_popup_command "$bin" "$socket" "$wrapper" "$ascii_punct" "$traditional")"
 
   bind_with_popup "$bind_key" "$popup_opts" "$popup_cmd"
 }

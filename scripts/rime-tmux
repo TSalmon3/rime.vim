@@ -326,6 +326,12 @@ class DaemonClient:
     def reset(self) -> Optional[dict]:
         return self.call({"type": "reset"}, timeout=0.5)
 
+    def set_option(self, name: str, value: bool) -> Optional[dict]:
+        return self.call({"type": "set_option", "option": name, "value": value}, timeout=0.8)
+
+    def toggle_option(self, name: str) -> Optional[dict]:
+        return self.call({"type": "toggle_option", "option": name}, timeout=0.8)
+
 
 def send_to_pane(target: str, text: str) -> None:
     if not text:
@@ -529,6 +535,9 @@ class PopupSession:
         self.comments: list = []
         self.highlighted = 0
 
+        self.ascii_punct: Optional[int] = None
+        self.traditional: Optional[int] = None
+
     def _open_controlling_tty(self) -> None:
         try:
             self.tty_file = open("/dev/tty", "r+b", buffering=0)
@@ -620,6 +629,27 @@ class PopupSession:
     def _should_quit(self, code: int, mask: int) -> bool:
         return code == ord("c") and mask == MASK_Control
 
+    def _apply_initial_options(self) -> None:
+        if self.ascii_punct is not None:
+            self.client.set_option("ascii_punct", bool(self.ascii_punct))
+        if self.traditional is not None:
+            self.client.set_option("traditionalization", bool(self.traditional))
+
+    def _is_ctrl_key(self, code: int, mask: int, target_char: str) -> bool:
+        return code == ord(target_char) and (mask & MASK_Control) and mask == MASK_Control
+
+    def _handle_toggle_punct(self) -> bool:
+        resp = self.client.toggle_option("ascii_punct")
+        if resp and resp.get("ok"):
+            self._redraw()
+        return True
+
+    def _handle_toggle_traditional(self) -> bool:
+        resp = self.client.toggle_option("traditionalization")
+        if resp and resp.get("ok"):
+            self._redraw()
+        return True
+
     def run(self) -> None:
         reader = KeyReader(self.fd)
         while True:
@@ -634,6 +664,14 @@ class PopupSession:
                 continue
             if self._should_quit(code, mask):
                 return
+
+            # Handle Ctrl+P to toggle ascii_punct, Ctrl+F to toggle traditional
+            if self._is_ctrl_key(code, mask, 'p'):
+                self._handle_toggle_punct()
+                continue
+            if self._is_ctrl_key(code, mask, 'f'):
+                self._handle_toggle_traditional()
+                continue
 
             try:
                 resp = self.client.key(int(code), int(mask))
@@ -660,6 +698,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--rime-bin", dest="rime_bin", default="", help="rime-query binary")
     p.add_argument("--idle-exit-ms", dest="idle_ms", type=int,
                     default=int(os.environ.get("RIME_IDLE_EXIT_MS", "60000")))
+    p.add_argument("--ascii-punct", dest="ascii_punct", type=int, default=None,
+                   help="Initial ascii_punct (0=full-width, 1=half-width)")
+    p.add_argument("--traditional", dest="traditional", type=int, default=None,
+                   help="Initial traditional (0=simplified, 1=traditional)")
     return p.parse_args()
 
 
@@ -691,6 +733,9 @@ def main() -> int:
         log("main: initial ping got no response")
 
     session = PopupSession(client, args.target)
+    session.ascii_punct = args.ascii_punct
+    session.traditional = args.traditional
+    session._apply_initial_options()
     session.enter_raw_mode()
     try:
         session.run()
