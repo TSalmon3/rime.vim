@@ -227,14 +227,15 @@ function! s:find_rime_bin() abort"{{{
     echomsg '[IM]: g:im_rime_bin=' . g:im_rime_bin . ' not found, trying fallback'
     echohl None
   endif
-  if executable('rime-query')
-    return 'rime-query'
+  let name = has('win32') || has('win64') ? 'rime-query.exe' : 'rime-query'
+  if executable(name)
+    return name
   endif
-  let bin = s:plugin_root . '/cpp/build/rime-query'
+  let bin = s:plugin_root . '/cpp/build/' . name
   if executable(bin)
     return bin
   endif
-  return 'rime-query'
+  return name
 endfunction"}}}
 
 function! im#rime#init() abort"{{{
