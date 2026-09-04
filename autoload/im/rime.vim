@@ -6,9 +6,9 @@ let s:next_id    = 0
 let s:connect_timer   = -1
 let s:heartbeat_timer = -1
 
-" 当前正在等待答复的请求 id；只有回包里的 id 跟它一致才算数，
-" 迟到的旧请求答复（比如上一次超时了，但后端过一会儿还是回了）
-" 会被直接丢弃，避免污染下一次请求的状态。
+let s:plugin_root = fnamemodify(resolve(expand('<sfile>:p')), ':h:h:h')
+
+" 当前正在等待答复的请求 id；
 let s:pending_id = -1
 
 function! s:on_line(line) abort"{{{
@@ -218,8 +218,27 @@ function! s:endpoint() abort"{{{
   return s:endpoint_unix()
 endfunction"}}}
 
+function! s:find_rime_bin() abort"{{{
+  if exists('g:im_rime_bin')
+    if executable(g:im_rime_bin)
+      return g:im_rime_bin
+    endif
+    echohl WarningMsg
+    echomsg '[IM]: g:im_rime_bin=' . g:im_rime_bin . ' not found, trying fallback'
+    echohl None
+  endif
+  if executable('rime-query')
+    return 'rime-query'
+  endif
+  let bin = s:plugin_root . '/cpp/build/rime-query'
+  if executable(bin)
+    return bin
+  endif
+  return 'rime-query'
+endfunction"}}}
+
 function! im#rime#init() abort"{{{
-  let g:im_rime_bin = get(g:, 'im_rime_bin', 'rime-query')
+  let g:im_rime_bin = s:find_rime_bin()
   let $RIME_LOG = expand(get(g:, 'im_log_file', '~/.local/state/log/vim/rime.log'))
 
   if has('mac')
