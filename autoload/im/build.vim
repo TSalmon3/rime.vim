@@ -1,6 +1,10 @@
 let s:plugin_root = fnamemodify(resolve(expand('<sfile>:p')), ':h:h:h')
 let s:build_output = []
 
+function! s:norm(path) abort
+  return (has('win32') || has('win64')) ? substitute(a:path, '/', '\', 'g') : a:path
+endfunction
+
 function! s:finish_build(output, exit_code) abort"{{{
   let qf_items = []
   for line in a:output
@@ -38,21 +42,21 @@ function! im#build#check() abort"{{{
 
   let lines = ['[OK] 编译器: ' . get(g:, 'im_build_compiler', 'clang++'),
         \ '[OK] 编译参数: ' . get(g:, 'im_build_flags', '-std=c++17 -O2 -Wall')]
-  call add(lines, empty(inc) ? '[FAIL] g:im_build_rime_include 未配置' : '[OK] g:im_build_rime_include: ' . inc)
-  call add(lines, empty(lib) ? '[FAIL] g:im_build_rime_lib 未配置' : '[OK] g:im_build_rime_lib: ' . lib)
-  call add(lines, (filereadable(bin) ? '[OK] 已编译: ' : '[INFO] 未编译: ') . bin)
+  call add(lines, empty(inc) ? '[FAIL] g:im_build_rime_include 未配置' : '[OK] g:im_build_rime_include: ' . s:norm(inc))
+  call add(lines, empty(lib) ? '[FAIL] g:im_build_rime_lib 未配置' : '[OK] g:im_build_rime_lib: ' . s:norm(lib))
+  call add(lines, (filereadable(bin) ? '[OK] 已编译: ' : '[INFO] 未编译: ') . s:norm(bin))
 
   if has('win32') || has('win64')
     let dll = expand(get(g:, 'im_build_rime_dll', ''))
     if empty(dll)
       call add(lines, '[FAIL] g:im_build_rime_dll 未配置（Windows 必需）')
     elseif !filereadable(dll)
-      call add(lines, '[FAIL] rime.dll 不存在: ' . dll)
+      call add(lines, '[FAIL] rime.dll 不存在: ' . s:norm(dll))
     else
-      call add(lines, '[OK] g:im_build_rime_dll: ' . dll)
+      call add(lines, '[OK] g:im_build_rime_dll: ' . s:norm(dll))
     endif
     let dll_target = fnamemodify(bin, ':h') . '/rime.dll'
-    call add(lines, (filereadable(dll_target) ? '[OK] 已就位: ' : '[FAIL] 未拷贝: ') . dll_target)
+    call add(lines, (filereadable(dll_target) ? '[OK] 已就位: ' : '[FAIL] 未拷贝: ') . s:norm(dll_target))
   endif
 
   if exists('s:check_bufnr') && bufexists(s:check_bufnr)
@@ -90,7 +94,7 @@ function! im#build#build() abort"{{{
       return
     endif
     if !filereadable(dll)
-      echohl ErrorMsg | echo '[IMBuild] rime.dll 不存在: ' . dll | echohl None
+      echohl ErrorMsg | echo '[IMBuild] rime.dll 不存在: ' . s:norm(dll) | echohl None
       return
     endif
   endif
@@ -101,12 +105,18 @@ function! im#build#build() abort"{{{
   endif
 
   if has('win32') || has('win64')
-    let cmd = ['powershell', '-ExecutionPolicy', 'Bypass', '-File', s:plugin_root . '/scripts/build-query.ps1']
+    let cmd = ['powershell', '-ExecutionPolicy', 'Bypass', '-File',
+          \ s:plugin_root . '/scripts/build-query.ps1',
+          \ '-Compiler', get(g:, 'im_build_compiler', 'clang++'),
+          \ '-Flags', get(g:, 'im_build_flags', '-std=c++17 -O2 -Wall'),
+          \ '-IncludeDir', inc, '-LibDir', lib, '-OutputDir', out_dir,
+          \ '-DllPath', dll]
   else
-    let cmd = [s:plugin_root . '/scripts/build-query.sh']
+    let cmd = [s:plugin_root . '/scripts/build-query.sh',
+          \ get(g:, 'im_build_compiler', 'clang++'),
+          \ get(g:, 'im_build_flags', '-std=c++17 -O2 -Wall'),
+          \ inc, lib, out_dir, dll]
   endif
-  call extend(cmd, [get(g:, 'im_build_compiler', 'clang++'),
-        \ get(g:, 'im_build_flags', '-std=c++17 -O2 -Wall'), inc, lib, out_dir, dll])
   let s:build_output = []
 
   if has('nvim')
@@ -121,7 +131,7 @@ function! im#build#build() abort"{{{
     call job_start(cmd, {
           \ 'out_cb': {ch, data -> extend(s:build_output, [data])},
           \ 'err_cb': {ch, data -> extend(s:build_output, [data])},
-          \ 'exit_cb': {j, status -> s:finish_build(s:build_output, status)},
+          \ 'exit_cb': {ch, status -> s:finish_build(s:build_output, status)},
           \ })
   endif
 endfunction"}}}
@@ -135,13 +145,13 @@ function! im#build#clean() abort"{{{
   endif
 
   if has('win32') || has('win64')
-    call system(['cmd', '/c', 'rmdir', '/s', '/q', dir])
+    call system(['cmd', '/c', 'rmdir', '/s', '/q', substitute(dir, '/', '\', 'g')])
   else
     call system(['rm', '-rf', dir])
   endif
 
   if v:shell_error == 0
-    echohl Title | echo '[IMBuild] 已清理: ' . dir | echohl None
+    echohl Title | echo '[IMBuild] 已清理: ' . s:norm(dir) | echohl None
   else
     echohl ErrorMsg | echo '[IMBuild] 清理失败' | echohl None
   endif

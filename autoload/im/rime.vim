@@ -222,9 +222,9 @@ function! s:find_rime_bin() abort"{{{
     if executable(g:im_rime_bin)
       return g:im_rime_bin
     endif
-    echohl WarningMsg
-    echomsg '[IM]: g:im_rime_bin=' . g:im_rime_bin . ' not found, trying fallback'
-    echohl None
+    " echohl WarningMsg
+    " echomsg '[IM]: g:im_rime_bin=' . g:im_rime_bin . ' not found, trying fallback'
+    " echohl None
   endif
   let name = has('win32') || has('win64') ? 'rime-query.exe' : 'rime-query'
   if executable(name)
