@@ -154,6 +154,31 @@ cmake --build build
 
 构建完成后，请把生成的 `rime-query` 添加到 `PATH`。
 
+#### 在编辑器内编译
+
+配好 librime 路径后也可在 Vim 内完成编译，无需切终端：
+
+```vim
+let g:im_build_rime_include = '/opt/homebrew/include'
+let g:im_build_rime_lib     = '/opt/homebrew/lib'
+let g:im_build_compiler     = 'clang++'              " 可省略，默认值
+let g:im_build_flags        = '-std=c++17 -O2 -Wall' " 可省略，默认值
+```
+
+Windows 下需指定 `rime.dll` 路径：
+
+```vim
+let g:im_build_rime_dll     = 'D:/Library/librime/lib/rime.dll'
+```
+
+| 命令       | 说明                              |
+|------------|-----------------------------------|
+| `:IMCheck` | 自检：编译器/参数/路径/是否已编译 |
+| `:IMBuild` | 后台异步编译                      |
+| `:IMClean` | 清理编译结果                      |
+
+流程：配置 → `:IMCheck` 验证 → `:IMBuild`。
+
 ## 配置
 
 ### 选项
@@ -205,6 +230,8 @@ let g:im_toggle_traditional_key    = ';f'
 let g:im_toggle_emoji_key          = ';e'
 " :IMDeploy / :IMSync 的后端等待超时（毫秒）
 let g:im_deploy_timeout            = 60000
+" :IMSchemeDownload 的下载根目录
+let g:im_scheme_dir                = '~/.local/share/rime-schemes'
 " 状态栏图标
 let g:im_status_text               = 'ㄓ'
 " 半角标点状态文本
@@ -315,14 +342,15 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 
 ### 命令
 
-| 命令          | 说明                                                  |
-|---------------|-------------------------------------------------------|
-| `:IMStart`    | 启动/重启输入法（连接或拉起共享 `rime-query` daemon） |
-| `:IMStop`     | 停止输入法（只断开本编辑器的连接）                    |
-| `:IMToggle`   | 切换输入法开关                                        |
-| `:IMDeploy`   | 重新部署 Rime（改配置后生效）                         |
-| `:IMSync`     | 同步用户词库并重新部署                                |
-| `:IMShutdown` | 关停共享 daemon（所有编辑器断开）                     |
+| 命令                           | 说明                                                  |
+|--------------------------------|-------------------------------------------------------|
+| `:IMStart`                     | 启动/重启输入法（连接或拉起共享 `rime-query` daemon） |
+| `:IMStop`                      | 停止输入法（只断开本编辑器的连接）                    |
+| `:IMToggle`                    | 切换输入法开关                                        |
+| `:IMDeploy`                    | 重新部署 Rime（改配置后生效）                         |
+| `:IMSync`                      | 同步用户词库并重新部署                                |
+| `:IMShutdown`                  | 关停共享 daemon（所有编辑器断开）                     |
+| `:IMSchemeDownload <git-url>`  | 下载输入方案到 `g:im_scheme_dir`                      |
 
 #### 重新部署
 
@@ -331,6 +359,10 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 #### 同步词库
 
 `:IMSync` 先将用户词库（`*.userdb/`）与 `sync/<installation_id>/*.userdb.txt` 备份双向合并，再重新部署。便于跨设备、多平台同步个人词频；多台设备建议将 `installation.yaml` 中的 `installation_id` 设为同一值，否则可能合并失败。
+
+#### 下载方案
+
+`:IMSchemeDownload <git-url>` 用 `git clone --depth 1` 把输入方案下载到 `g:im_scheme_dir`（默认 `~/.local/share/rime-schemes`），目录名取自 URL 最后一段（自动去 `.git` 后缀）。目标已存在则跳过，不覆盖。
 
 ### 按键映射
 

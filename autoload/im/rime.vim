@@ -8,7 +8,6 @@ let s:heartbeat_timer = -1
 
 let s:plugin_root = fnamemodify(resolve(expand('<sfile>:p')), ':h:h:h')
 
-" 当前正在等待答复的请求 id；
 let s:pending_id = -1
 
 function! s:on_line(line) abort"{{{
@@ -223,9 +222,9 @@ function! s:find_rime_bin() abort"{{{
     if executable(g:im_rime_bin)
       return g:im_rime_bin
     endif
-    echohl WarningMsg
-    echomsg '[IM]: g:im_rime_bin=' . g:im_rime_bin . ' not found, trying fallback'
-    echohl None
+    " echohl WarningMsg
+    " echomsg '[IM]: g:im_rime_bin=' . g:im_rime_bin . ' not found, trying fallback'
+    " echohl None
   endif
   let name = has('win32') || has('win64') ? 'rime-query.exe' : 'rime-query'
   if executable(name)
