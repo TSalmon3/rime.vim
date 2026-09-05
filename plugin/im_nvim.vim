@@ -17,6 +17,10 @@ command! IMDeploy             call im#deploy()
 command! IMSync               call im#sync()
 command! IMShutdown           call im#rime#shutdown()
 
+command! IMBuild              call im#build#build()
+command! IMClean              call im#build#clean()
+command! IMCheck              call im#build#check()
+
 if !get(g:, 'im_no_default_mappings', 0)
   let s:toggle_key = get(g:, 'im_toggle_key', ';;')
   let s:toggle_ascii_punct_key   = get(g:, 'im_toggle_ascii_punct_key', ';a')

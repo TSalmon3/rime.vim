@@ -154,6 +154,31 @@ cmake --build build
 
 构建完成后，请把生成的 `rime-query` 添加到 `PATH`。
 
+#### 在编辑器内编译
+
+配好 librime 路径后也可在 Vim 内完成编译，无需切终端：
+
+```vim
+let g:im_build_rime_include = '/opt/homebrew/include'
+let g:im_build_rime_lib     = '/opt/homebrew/lib'
+let g:im_build_compiler     = 'clang++'              " 可省略，默认值
+let g:im_build_flags        = '-std=c++17 -O2 -Wall' " 可省略，默认值
+```
+
+Windows 下需指定 `rime.dll` 路径：
+
+```vim
+let g:im_build_rime_dll     = 'D:/Library/librime/lib/rime.dll'
+```
+
+| 命令       | 说明                              |
+|------------|-----------------------------------|
+| `:IMCheck` | 自检：编译器/参数/路径/是否已编译 |
+| `:IMBuild` | 后台异步编译                      |
+| `:IMClean` | 清理编译结果                      |
+
+流程：配置 → `:IMCheck` 验证 → `:IMBuild`。
+
 ## 配置
 
 ### 选项

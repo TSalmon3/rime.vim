@@ -8,7 +8,6 @@ let s:heartbeat_timer = -1
 
 let s:plugin_root = fnamemodify(resolve(expand('<sfile>:p')), ':h:h:h')
 
-" 当前正在等待答复的请求 id；
 let s:pending_id = -1
 
 function! s:on_line(line) abort"{{{
