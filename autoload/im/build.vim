@@ -5,6 +5,12 @@ function! s:norm(path) abort
   return (has('win32') || has('win64')) ? substitute(a:path, '/', '\', 'g') : a:path
 endfunction
 
+function! s:kill_daemon() abort
+  if has('win32') || has('win64')
+    call system(['taskkill', '/F', '/IM', 'rime-query.exe'])
+  endif
+endfunction
+
 function! s:finish_build(output, exit_code) abort"{{{
   let qf_items = []
   for line in a:output
@@ -100,6 +106,9 @@ function! im#build#build() abort"{{{
   endif
 
   let out_dir = s:plugin_root . '/cpp/build'
+
+  call s:kill_daemon()
+
   if !isdirectory(out_dir)
     call mkdir(out_dir, 'p')
   endif
@@ -137,6 +146,8 @@ function! im#build#build() abort"{{{
 endfunction"}}}
 
 function! im#build#clean() abort"{{{
+  call s:kill_daemon()
+
   let dir = s:plugin_root . '/cpp/build'
 
   if !isdirectory(dir)
