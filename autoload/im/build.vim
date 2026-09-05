@@ -140,7 +140,7 @@ function! im#build#clean() abort"{{{
   let dir = s:plugin_root . '/cpp/build'
 
   if !isdirectory(dir)
-    echo '[IMBuild] 无需清理，build 目录不存在'
+    echo '[IMClean] 无需清理，build 目录不存在'
     return
   endif
 
@@ -151,8 +151,8 @@ function! im#build#clean() abort"{{{
   endif
 
   if v:shell_error == 0
-    echohl Title | echo '[IMBuild] 已清理: ' . s:norm(dir) | echohl None
+    echohl Title | echo '[IMClean] 已清理: ' . s:norm(dir) | echohl None
   else
-    echohl ErrorMsg | echo '[IMBuild] 清理失败' | echohl None
+    echohl ErrorMsg | echo '[IMClean] 清理失败' | echohl None
   endif
 endfunction"}}}
