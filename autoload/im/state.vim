@@ -72,6 +72,7 @@ function! im#state#init() abort
   let s:state.ascii_mode = im#rime#get_option('ascii_mode')
   let s:state.ascii_punct = im#rime#get_option('ascii_punct')
   let s:state.traditional = im#rime#get_option('traditionalization')
+  let s:state.emoji = im#rime#get_option('emoji')
 endfunction
 
 " Reset per-composition fields; called whenever the current composition

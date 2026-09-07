@@ -248,6 +248,10 @@ let g:im_status_disconnect         = '断'
 let g:im_option_ascii_punct        = 0
 " 初始简繁状态（1 为繁体）
 let g:im_option_traditional        = 0
+" 初始中英文状态（1 为英文）
+let g:im_option_ascii_mode         = 0
+" 初始 emoji 状态（1 为打开）
+let g:im_option_emoji              = 0
 
 
 " 在 Cmdline 中使用

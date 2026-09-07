@@ -612,6 +612,10 @@ function! im#rime#apply_initial_options() abort"{{{
     let value = im#rime#set_option('traditionalization', get(g:, 'im_option_traditional', 0))
   endif
 
+  if exists('g:im_option_emoji')
+    let value = im#rime#set_option('emoji', get(g:, 'im_option_emoji', 0))
+  endif
+
   call im#rime#warmup()
 endfunction"}}}
 
