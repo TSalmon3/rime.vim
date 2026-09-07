@@ -281,7 +281,6 @@ function! s:handshake_and_setup(sock) abort"{{{
     return 0
   endif
   call s:start_heartbeat()
-  call im#rime#apply_initial_options()
   return 1
 endfunction"}}}
 
@@ -290,6 +289,7 @@ function! s:ensure_backend() abort"{{{
   if s:conn_alive()
     if s:handshake_and_setup(s:endpoint()[1])
       let state.ready = 1
+      call im#rime#apply_initial_options()
       silent! doautocmd User RimeIMReady
       return 1
     endif
