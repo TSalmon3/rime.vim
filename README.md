@@ -13,12 +13,12 @@
 <summary>写在最前面</summary>
 
 <br>
-对于常见的问题的统一回答。
+对常见问题的统一说明。
 
-- 是否会跟系统的 rime 输入法 产生冲突？
+- 是否会跟系统的 Rime 输入法产生冲突？
 
   ```answer
-  会产生冲突，建议新建一个目录，存放你的拼音方案，也就是你的「用户数据目录」最好不要跟系统输入法的是同一目录。
+  会产生冲突。建议新建一个独立目录存放你的拼音方案，即你的「用户数据目录」，最好不要与系统输入法共用同一目录。
   ```
 </details>
 
@@ -46,6 +46,7 @@
   - [定制中英切换与方案选单](#定制中英切换与方案选单)
   - [Replace Mode 替换模式](#replace-mode-替换模式)
   - [Auto Pair 自动成对](#auto-pair-自动成对)
+  - [Context 自动切换](#context-自动切换)
   - [Tmux 弹窗输入](#tmux-弹窗输入)
   - [其他搭配插件](#其他搭配插件)
 - [致谢](#致谢)
@@ -55,7 +56,7 @@
 
 Rime（中州韵）输入法在 Vim / Neovim 中的集成方案，基于 [rime-ice](https://github.com/iDvel/rime-ice) 词库，同时支持 Vim（>= 8.2.1978）与 Neovim。
 
-**用法**：进入插入模式后直接键入拼音，候选词浮窗出现；数字键或 `Up` / `Down` 选择候选，`Enter` / `Space` 上屏，`Esc` 取消本次组合。
+**用法**：进入插入模式后直接键入拼音，即可弹出候选词浮窗；用数字键或 `Up` / `Down` 选择候选，`Enter` / `Space` 上屏，`Esc` 取消本次输入。
 
 ![demo](https://github.com/user-attachments/assets/20978d66-c198-426f-97f1-0ba7322cf656)
 ![demo2](https://github.com/user-attachments/assets/820db16b-b76b-4b15-a5f4-a8a6a58306bd)
@@ -64,7 +65,7 @@ Rime（中州韵）输入法在 Vim / Neovim 中的集成方案，基于 [rime-i
 
 - 支持全拼、双拼、九宫格等输入方案
 - 支持简繁、中英文标点、emoji 切换
-- 候选词浮窗，下划线渲染，状态栏可显示当前输入状
+- 候选词浮窗，下划线渲染，状态栏可显示当前输入状态
 - 支持括号、引号等自动补全
 - 支持多实例共享词频学习，甚至 Vim 和 Neovim 混合多实例
 - 提供命令行和终端输入解决方案
@@ -95,7 +96,7 @@ Plug 'TSalmon3/rime.vim'
 
 ### 编译后端
 
-构建的 `rime-query` 可执行文件需能被找到（默认查找 `PATH`，也可通过 `g:im_rime_bin` 指定路径），否则 `:IMStart` 会失败。
+构建出的 `rime-query` 可执行文件需能被找到（默认查找 `PATH`，也可通过 `g:im_rime_bin` 指定路径），否则 `:IMStart` 会失败。
 
 > 以下命令中的仓库路径 `/path/to/rime.vim` 请替换为你的实际路径。
 
@@ -138,9 +139,9 @@ clang++ -std=c++17 -O2 -I./3rd -I/path/to/librime/include -c rime-query.cc -o bu
 clang++ build/rime-query.o -L/path/to/librime/lib -lrime -lws2_32 -o build/rime-query.exe
 ```
 
-其中 `-lws2_32` 链接 Windows Sockets，为后端 TCP 监听所必需；它是系统自带组件（System32），无需额外安装。
+其中 `-lws2_32` 用于链接 Windows Sockets，是后端 TCP 监听所必需的；它是系统自带组件（System32），无需额外安装。
 
-或者使用 CMake（必要时修改 `CMakeLists.txt` 中的编译器与 librime include / lib 路径）：
+也可以使用 CMake（必要时修改 `CMakeLists.txt` 中的编译器与 librime include / lib 路径）：
 
 ```bash
 cd /path/to/rime.vim/cpp
@@ -152,11 +153,11 @@ cmake --build build
 >
 > 需要 `clang++` 与 `mingw32-make` 在 `PATH` 中
 
-构建完成后，请把生成的 `rime-query` 添加到 `PATH`。
+构建完成后，请把生成的 `rime-query` 加入 `PATH`。
 
 #### 在编辑器内编译
 
-配好 librime 路径后也可在 Vim 内完成编译，无需切终端：
+配好 librime 路径后，也可以直接在 Vim 内完成编译，无需切换到终端：
 
 ```vim
 let g:im_build_rime_include = '/opt/homebrew/include'
@@ -165,7 +166,7 @@ let g:im_build_compiler     = 'clang++'              " 可省略，默认值
 let g:im_build_flags        = '-std=c++17 -O2 -Wall' " 可省略，默认值
 ```
 
-Windows 下需指定 `rime.dll` 路径：
+Windows 下需要额外指定 `rime.dll` 路径：
 
 ```vim
 let g:im_build_rime_dll     = 'D:/Library/librime/lib/rime.dll'
@@ -184,56 +185,52 @@ let g:im_build_rime_dll     = 'D:/Library/librime/lib/rime.dll'
 ### 选项
 
 > [!Tip]
-> 以雾凇拼音（rime-ice） 为例，如果你系统中已安装了「鼠须管」或者「小狼毫」，用户数据目录可以新建一个，避免产生冲突。
+> 以雾凇拼音（rime-ice）为例，如果你的系统中已安装了「鼠须管」或「小狼毫」，建议新建一个用户数据目录，避免产生冲突。
 
 以下均为常用 `g:` 变量，可省略（使用默认值）。请在 vimrc 中、插件加载**之前**设置：
 
 ```vim
-" rime-query 可执行文件路径（需在 PATH 中）
+" rime-query 可执行文件路径（需在 PATH 中可找到）
 let g:im_rime_bin                  = 'rime-query'
-" 用户数据目录，也就是你的拼音方案安装的目录（$RIME_USER_DATA_DIR）
+" 用户数据目录，即拼音方案的安装目录（$RIME_USER_DATA_DIR）
 let g:im_user_data_dir             = '/path/to/rime'
 " 共享数据目录（$RIME_SHARED_DATA_DIR）
 let g:im_shared_data_dir           = '/usr/share/rime-data'
-" 后端日志路径（$RIME_LOG）
+" 后端日志文件路径（$RIME_LOG）
 let g:im_log_file                  = '~/.local/state/log/vim/rime.log'
 
 
-" Unix：socket 文件路径，为空时默认为 ~/.cache/rime-query.sock
+" Unix：socket 文件路径，留空则默认为 ~/.cache/rime-query.sock
 let g:im_unix_socket                = '~/.cache/rime-query.sock'
-" Windows：TCP 回环端点，Vim 与 Neovim 共用同一条通道，为空时默认为 127.0.0.1:18666
+" Windows：TCP 回环地址，Vim 与 Neovim 共用同一通道，留空则默认为 127.0.0.1:18666
 let g:im_tcp_addr                   = '127.0.0.1:18666'
-" 最后一个客户端离开后 daemon 的空闲存活时间（毫秒，0 为常驻）
+" 最后一个客户端断开后，daemon 的空闲存活时长（毫秒，设为 0 表示常驻不退出）
 let g:im_idle_exit_ms               = 60000
-" 拉起 daemon 后等待其就绪的超时（毫秒）
+" 拉起 daemon 后，等待其就绪的超时时长（毫秒）
 let g:im_connect_timeout_ms         = 30000
 
 
-" 候选词弹窗高度
+" 候选词弹窗的显示行数
 let g:im_pumheight                 = 9
-" 设为 1 关闭下划线渲染
+" 设为 1 可关闭下划线渲染
 let g:im_underline_disable         = 0
-" 设为 1 不创建默认按键映射
+" 设为 1 则不创建默认按键映射
 let g:im_no_default_mappings       = 0
-" 设为 1 在 R/gR 替换模式下启用 Rime（默认关闭）
-let g:im_replace_mode              = 0
-" 切换输入法开关
+" 输入法切换快捷键
 let g:im_toggle_key                = ';;'
-" 切换中文/英文模式切换开关
+" 中文/英文模式切换快捷键
 let g:im_toggle_ascii_mode_key     = ';,'
-" 切换 Rime 接管/原生直通（&iminsert）
-let g:im_toggle_iminsert_key       = '<c-;>'
-" 切换中英文标点
+" 中英文标点切换快捷键
 let g:im_toggle_ascii_punct_key    = ';a'
-" 切换简繁体
+" 简体/繁体切换快捷键
 let g:im_toggle_traditional_key    = ';f'
-" 切换 emoji
+" emoji 开关快捷键
 let g:im_toggle_emoji_key          = ';e'
-" :IMDeploy / :IMSync 的后端等待超时（毫秒）
+" :IMDeploy / :IMSync 等待后端响应的超时时长（毫秒）
 let g:im_deploy_timeout            = 60000
-" :IMSchemeDownload 的下载根目录
+" :IMSchemeDownload 方案下载的根目录
 let g:im_scheme_dir                = '~/.local/share/rime-schemes'
-" 状态栏图标
+" 状态栏输入法图标
 let g:im_status_text               = 'ㄓ'
 " 半角标点状态文本
 let g:im_status_half_text          = '$'
@@ -243,19 +240,19 @@ let g:im_status_full_text          = '¥'
 let g:im_status_simplified_text    = '简'
 " 繁体状态文本
 let g:im_status_traditional_text   = '繁'
-" Rime 接管指示文本（lmap，&iminsert=1）
+" Rime 接管输入时的指示文本
 let g:im_status_lmap_text          = 'L'
-" 原生直通指示文本（imap，&iminsert=0）
+" 原生直通（未接管）时的指示文本
 let g:im_status_imap_text          = 'I'
-" 输入法断连状态文本
+" 输入法断开连接时的状态文本
 let g:im_status_disconnect         = '断'
-" 初始标点状态（1 为半角）
+" 标点初始状态（1 表示启动时为半角标点）
 let g:im_option_ascii_punct        = 0
-" 初始简繁状态（1 为繁体）
+" 简繁初始状态（1 表示启动时为繁体）
 let g:im_option_traditional        = 0
-" 初始中英文状态（1 为英文）
+" 中英文初始状态（1 表示启动时为英文模式）
 let g:im_option_ascii_mode         = 0
-" 初始 emoji 状态（1 为打开）
+" emoji 初始状态（1 表示启动时开启）
 let g:im_option_emoji              = 0
 
 
@@ -310,8 +307,8 @@ tnoremap ;; <c-\><c-n><cmd>call im#start()<cr>q:a:PassToTerm<space>
 | Windows       | Vim    | TCP 回环    | —        | `g:im_tcp_addr` / 环境变量 `RIME_QUERY_TCP` |
 
 > [!Note]
-> Windows 上 daemon 只监听单条 TCP 通道（Vim 与 Neovim 共用），
-> 自定义 `g:im_tcp_addr` 时 vimrc 与 Neovim 配置需保持一致。
+> Windows 上 daemon 只监听单条 TCP 通道（Vim 与 Neovim 共用）。
+> 如自定义了 `g:im_tcp_addr`，vimrc 与 Neovim 配置需保持一致。
 
 ### 环境变量
 
@@ -343,7 +340,7 @@ export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 ```
 
 Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 `127.0.0.1:18666`；
-与 `g:im_tcp_addr` 同义，`g:im_tcp_addr` 优先）。
+与 `g:im_tcp_addr` 同义，二者同时设置时以 `g:im_tcp_addr` 优先）。
 
 > 注意：在 Vim 中设置 `g:im_user_data_dir` / `g:im_shared_data_dir` / `g:im_log_file` 会覆盖同名环境变量。
 
@@ -363,15 +360,15 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 
 #### 重新部署
 
-修改用户数据目录中的配置（如 `default.custom.yaml` 的 `schema_list` / `page_size`）后，执行 `:IMDeploy` 使改动生效。部署期间编辑器会短暂阻塞，超时可用 `g:im_deploy_timeout`（毫秒）调整。
+修改用户数据目录中的配置（如 `default.custom.yaml` 的 `schema_list` / `page_size`）后，需执行 `:IMDeploy` 使改动生效。部署期间编辑器会短暂阻塞，超时时间可用 `g:im_deploy_timeout`（毫秒）调整。
 
 #### 同步词库
 
-`:IMSync` 先将用户词库（`*.userdb/`）与 `sync/<installation_id>/*.userdb.txt` 备份双向合并，再重新部署。便于跨设备、多平台同步个人词频；多台设备建议将 `installation.yaml` 中的 `installation_id` 设为同一值，否则可能合并失败。
+`:IMSync` 会先将用户词库（`*.userdb/`）与 `sync/<installation_id>/*.userdb.txt` 备份双向合并，再重新部署，便于跨设备、跨平台同步个人词频。多台设备之间建议将 `installation.yaml` 中的 `installation_id` 设为同一值，否则合并可能失败。
 
 #### 下载方案
 
-`:IMSchemeDownload <git-url>` 用 `git clone --depth 1` 把输入方案下载到 `g:im_scheme_dir`（默认 `~/.local/share/rime-schemes`），目录名取自 URL 最后一段（自动去 `.git` 后缀）。目标已存在则跳过，不覆盖。
+`:IMSchemeDownload <git-url>` 会用 `git clone --depth 1` 把输入方案下载到 `g:im_scheme_dir`（默认 `~/.local/share/rime-schemes`），目录名取自 URL 最后一段（自动去掉 `.git` 后缀）。若目标目录已存在则跳过，不会覆盖。
 
 ### 按键映射
 
@@ -381,12 +378,11 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 |---------|--------------------------------------|-------------------------|
 | `;;`    | normal / insert / command / terminal | 切换输入法开关          |
 | `;,`    | normal / insert                      | 切换中/英模式           |
-| `<c-;>` | insert                               | 切换 Rime 接管/原生直通 |
 | `;a`    | normal / insert                      | 切换中英文标点          |
 | `;f`    | normal / insert                      | 切换简/繁体             |
 | `;e`    | normal / insert                      | 切换 emoji              |
 
-按键和组合键基本兼容系统级输入法
+组词过程中的按键和组合键基本兼容系统级输入法：
 
 | 按键         | 功能               |
 | ------------ | ------------------ |
@@ -426,23 +422,11 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 
 **`autocmd User RimeIMEnable {command}`**
 
-输入法使能后触发，可用于关闭其他插件补全。
+输入法启用后触发，可用于关闭其他插件的补全。
 
 **`autocmd User RimeIMDisable {command}`**
 
-输入法禁用后触发，可用于使能其他插件补全。
-
-**`autocmd User RimeContextChinese {command}`**
-
-进入 Rime 接管（`&iminsert=1`，lmap）后触发，关闭第三方补全。
-
-**`autocmd User RimeContextEnglish {command}`**
-
-回到原生直通（`&iminsert=0`，imap）后触发，恢复第三方补全。
-
-**`autocmd User RimeContextChanged {command}`**
-
-接管状态变化（任一方向）后触发。
+输入法禁用后触发，可用于恢复其他插件的补全。
 
 示例：
 
@@ -476,15 +460,13 @@ augroup IMGroup
   autocmd!
   autocmd User RimeIMEnable  call im#hooks#suppress_completion()
   autocmd User RimeIMDisable call im#hooks#restore_completion()
-  autocmd User RimeContextChinese  call im#hooks#suppress_completion()
-  autocmd User RimeContextEnglish call im#hooks#restore_completion()
 augroup END
 ```
 
 ### 状态栏
 
 最简单的方式是在你的 `'statusline'` 选项中加入 `%{IM_Status()}`。开启时显示
-`[ㄓ]半|简`（图标 / 标点 / 简繁，文本可分别用 `g:im_status_*` 定制），关闭时返回空串。
+`[ㄓ]半|简`（图标 / 标点 / 简繁，文本均可用对应的 `g:im_status_*` 定制），关闭时返回空串。
 
 ```vim
 let statusline^=%{IM_Status()}
@@ -607,7 +589,7 @@ patch:
 
 ### 让中文编辑更加丝滑
 
-如果你安装了 [ultisnips](https://github.com/SirVer/ultisnips) 和 [bullets.vim](https://github.com/bullets-vim/bullets.vim)，你可以这样使用。
+如果你安装了 [ultisnips](https://github.com/SirVer/ultisnips) 和 [bullets.vim](https://github.com/bullets-vim/bullets.vim)，可以这样配置：
 
 ```vim
 function RimeKeymapRemap()
@@ -659,7 +641,7 @@ augroup END
 
 ![demo3](https://github.com/user-attachments/assets/093e5089-0b8c-4528-854f-5d4aee85328d)
 
-如果你安装了 [jieba.vim](https://github.com/kkew3/jieba.vim)，你可以对 `<c-w>` 进行增强。
+如果你安装了 [jieba.vim](https://github.com/kkew3/jieba.vim)，还可以对 `<c-w>` 进行增强：
 
 ```vim
 function RimeKeymapRemap()
@@ -685,16 +667,16 @@ augroup END
 
 #### 方案选单
 
-`im#keymap#toggle_scheme()` 向 Rime 发送 `` Ctrl+` ``，打开内置的「方案选单」，与系统输入法行为一致：
+`im#keymap#toggle_scheme()` 会向 Rime 发送 `` Ctrl+` ``，打开内置的「方案选单」，与系统输入法行为一致：
 
 - 选单内容来自用户数据目录里 `default.custom.yaml` 的 `schema_list`，以及 switcher 中的开关项（简繁、中英标点、emoji 等）
-- 切换后状态栏立即刷新
+- 切换后状态栏会立即刷新
 
 #### 中英切换
 
-`im#keymap#toggle_ascii_mode()` 不带参数时模拟一次左 Shift 按下 + 释放，与系统输入法一致，组词时的处理方式由 rime 配置的 `ascii_composer/switch_key` 决定。
+`im#keymap#toggle_ascii_mode()` 不带参数时，模拟一次左 Shift 按下 + 释放，与系统输入法一致；组词过程中的处理方式由 Rime 配置里的 `ascii_composer/switch_key` 决定。
 
-带参数时可指定「正在组词时切换」的处理风格：
+带参数时可以指定「正在组词时切换」的处理风格：
 
 | 参数                 | 组词时切换的行为                                         |
 | -------------------- | -------------------------------------------------------- |
@@ -706,7 +688,7 @@ augroup END
 | `'unset_ascii_mode'` | 强制切回中文；已是英文态时为空操作                       |
 
 > [!Note]
-> 这些参数只影响「正在组词时」的切换；空闲时按下都只是单纯在中/英之间切换。
+> 这些参数只影响「正在组词时」的切换行为；空闲状态下按下都只是单纯在中/英之间切换。
 
 示例：
 
@@ -742,30 +724,31 @@ augroup END
 
 ### Replace Mode 替换模式
 
-以下功能还处于实验性阶段。
+> 以下功能还处于实验性阶段。
 
 ![demo4](https://github.com/user-attachments/assets/f2fba3e1-d7dc-4b1c-bd5a-779b4e725a45)
 
-开启后，Rime 可以在替换模式（`R` / `gR`）中工作：上屏内容从光标处开始**覆盖**而非插入，并支持像原生 Replace 一样还原。
+开启该功能后，Rime 可以在替换模式（`R` / `gR`）下工作：上屏内容将从光标处**覆盖**原有字符（而非插入），且支持像原生 Replace 一样撤销还原。
 
 ```vim
 " 设为 1：在 R/gR 替换模式下启用 Rime
 let g:im_replace_mode = 1
 ```
 
-`g:im_replace_mode` 默认为 `0`：替换模式下的按键不会被 Rime 拦截，完全回退到 Vim 原生行为，不弹候选窗。
+`g:im_replace_mode` 默认值为 `0`，此时替换模式下的按键不会被 Rime 拦截，完全遵循 Vim 原生行为，也不会弹出候选窗口。
 
-设为 `1` 后，进入 `R` / `gR` 即开始替换会话，上屏内容以原生 Replace 的方式还原：
+设为 `1` 后，进入 `R` / `gR` 即开启一个替换会话，期间上屏的内容可按原生 Replace 的方式撤销还原：
 
-| 按键    | 功能                             |
-| ------- | -------------------------------- |
-| `<bs>`  | 还原上一步覆盖的字符             |
-| `<c-w>` | 还原上一个空白分隔的词覆盖的字符 |
-| `<c-u>` | 还原本会话内覆盖的全部字符       |
+| 按键    | 功能                               |
+| ------- | ---------------------------------- |
+| `<bs>`  | 撤销上一步覆盖的字符               |
+| `<c-w>` | 撤销上一个空格分隔词所覆盖的字符   |
+| `<c-u>` | 撤销本次会话中覆盖的全部字符       |
 
-移动光标会放弃该会话的还原能力（对齐原生 Replace），之后从新位置继续覆盖。
 
-- 重映射 `r`，支持半角和全角切换。
+移动光标会终止当前会话的撤销能力（与原生 Replace 行为一致），此后将从新位置重新开始覆盖。
+
+- 重新映射 `r`，以支持半角/全角切换：
 
 ```vim
 nnoremap r <Cmd>call im#keymap#r()<CR>
@@ -774,28 +757,27 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 ### Auto Pair 自动成对
 
 > [!Tip]
-> 替换模式下自动成对关闭
+> 替换模式下会自动关闭成对功能
 
-| 功能     | 按键         | 效果                       | 说明                                             |
-| -------- | ------------ | -------------------------- | ------------------------------------------------ |
-| 成对补全 | `(` `「` `"` | (\|)　「\|」　"\|"         | 输入开符自动补闭符并回移光标                     |
-| 闭符跳出 | `)` `」` `"` | ()\|　「」\|　""\|         | 光标右侧已有相同闭符/引号则直接跳出，不重复插入  |
-| 空对删除 | `<BS>`       | (\|) → 删除 → \|           | 在空对（开符紧邻闭符）内一次删除成对             |
-| 只删开符 | `<s-bs>`     | (\|) → 删除 → \|)          | 在空对（开符紧邻闭符）内只删开符，保留闭符       |
-| 手动跳过 | `<c-tab>`    | (\|) → 越过一个 → ()\|     | 跳过右侧一个闭符/引号（`im#pair#jump_any`）      |
-| 手动连跳 | `<c-g>`      | (\|))) → 越过全部 → ()))\| | 跳过右侧连续一串闭符/引号（`im#pair#jump_many`） |
+| 功能     | 按键         | 效果                       | 说明                                               |
+| -------- | ------------ | -------------------------- | --------------------------------------------------- |
+| 成对补全 | `(` `「` `"` | (\|)　「\|」　"\|"         | 输入开符时自动补全闭符，并将光标移回中间             |
+| 闭符跳出 | `)` `」` `"` | ()\|　「」\|　""\|         | 光标右侧已有相同闭符/引号时直接跳出，不重复插入      |
+| 空对删除 | `<BS>`       | (\|) → 删除 → \|           | 在空对（开符紧邻闭符）中一次性删除整对               |
+| 只删开符 | `<s-bs>`     | (\|) → 删除 → \|)          | 在空对（开符紧邻闭符）中只删除开符，保留闭符         |
+| 手动跳过 | `<c-tab>`    | (\|) → 越过一个 → ()\|     | 跳过右侧一个闭符/引号（`im#pair#jump_any`）          |
+| 手动连跳 | `<c-g>`      | (\|))) → 越过全部 → ()))\| | 跳过右侧连续多个闭符/引号（`im#pair#jump_many`）     |
 
-- 默认配对：`()` `[]` `{}` `<>` `"` `'` 与全角 `（）` `【】` `「」` `『』` `《》` `“”` `‘’`
-- 半角标点直接上屏、全角标点经 Rime 上屏，两种情况都能正确处理成对
-- 配置优先级：`b:im_pair_rules` > `g:im_pair_rules` > 默认值（仅 `im_pair_rules` 支持 `b:`，其余选项为全局 `g:`）
-- 高亮黑名单：光标位于名单内的高亮组（如注释、字符串）时自动成对关闭，离开后恢复。**默认关闭**，未设置或为空列表时不生效：
+- 默认配对：`()` `[]` `{}` `<>` `"` `'`，以及全角 `（）` `【】` `「」` `『』` `《》` `“”` `‘’`
+- 无论半角标点直接上屏，还是全角标点经 Rime 上屏，两种情况均可正确识别配对
+- 配置优先级：`b:im_pair_rules` > `g:im_pair_rules` > 默认值（仅 `im_pair_rules` 支持 `b:` 局部配置，其余选项均为全局 `g:`）
+- 高亮黑名单：当光标位于名单内的高亮组（如注释、字符串）时，自动成对会临时关闭，离开后自动恢复。**默认关闭**，未设置或设为空列表时不生效：
+
 
 ```vim
 " 自动成对开关（默认 0）
 let g:im_pair_enabled = 0
-" 切换自动成对
-let g:im_toggle_pair_key = ';p'
-" 配对规则列表，每条含 open/close 与 kind（'delim' 开闭不同符、'quote' 开=闭同符）
+" 配对规则列表，每条包含 open/close 与 kind（'delim' 表示开闭符不同，'quote' 表示开闭符相同）
 let g:im_pair_rules = [
       \ {'open': '(',  'close': ')',  'kind': 'delim'},
       \ {'open': '[',  'close': ']',  'kind': 'delim'},
@@ -812,19 +794,19 @@ let g:im_pair_rules = [
       \ {'open': "'",  'close': "'",  'kind': 'quote'},
       \ ]
 
-" 或者
+" 也可以直接使用默认规则
 let g:im_pair_rules = im#pair#default_rules()
 
-" 按 highlight 关闭自动成对，高亮组名为正则列表（大小写不敏感），命中即关闭自动成对（默认 []，即关闭）
+" 按 highlight 关闭自动成对：高亮组名支持正则列表（大小写不敏感），命中任一项即关闭自动成对（默认 []，不启用）
 let g:im_pair_blacklist_highlight = ['comment', 'doc', 'string']
 " 按 filetype 关闭自动成对
 let g:im_pair_blacklist_filetypes = ['vim']
 
-" 以下配置仅在 neovim 中生效（需要 Treesitter 支持），默认 vim 中高亮使用的是正则匹配。
-" 优先级为 `g:im_pair_blacklist_filetypes` > `g:im_pair_ts_config` > `g:im_pair_blacklist_highlight`
+" 以下配置仅在 Neovim 中生效（需要 Treesitter 支持）；Vim 中高亮判断始终使用正则匹配
+" 优先级：g:im_pair_blacklist_filetypes > g:im_pair_ts_config > g:im_pair_blacklist_highlight
 let g:im_pair_ts_check  = 0
 
-" '*' 为全局通配，具体 filetype 会覆盖全局（显式定义为 [] 表示该 filetype 关闭检查）
+" '*' 表示全局通配规则，具体 filetype 的配置会覆盖全局配置（显式设为 [] 表示该 filetype 关闭检查）
 let g:im_pair_ts_config = {
       \ '*':      ['comment', 'string'],
       \ 'lua':    ['comment', 'string'],
@@ -832,9 +814,14 @@ let g:im_pair_ts_config = {
       \ }
 ```
 
-或者修改默认按键映射
+#### 快捷键
+
 
 ```vim
+自动成对切换快捷键
+inoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
+nnoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
+
 function RimeKeymapRemap()
   lnoremap <expr> <c-g> im#pair#jump_any()   " 跳过右侧一个闭符/引号
   lnoremap <expr> <c-tab> im#pair#jump_many()  " 跳过右侧连续一串闭符/引号
@@ -863,9 +850,76 @@ augroup RimeGroup
 augroup END
 ```
 
+### Context 自动切换
+
+根据光标所在的高亮（语法作用域）自动切换【Rime 接管】与【原生直通】模式。
+
+> [!note]
+> - 仅在光标跨越高亮区域边界时才会触发切换判断
+> - 进入插入模式时强制校准一次；离开插入模式后状态复位；组词过程中不会切换
+> - 插入模式下用 `;;` 重启输入法时，同样会强制校准一次
+
+```vim
+" 上下文自动切换总开关（默认关闭）
+let g:im_context_enabled = 1
+
+" 是否启用 treesitter 检测（仅 Neovim 生效；Vim 只能用 syntax 高亮判断）
+let g:im_context_ts_check = 1
+
+" '*' 为全局默认规则，具体 filetype 的配置优先级更高
+let g:im_context_config = {
+      \ '*':        {'mode': 'blacklist'},
+      \ 'vim':      {'mode': 'whitelist', 'ts': ['comment', 'string'], 'syntax': ['comment', 'string']},
+      \ 'markdown': {'mode': 'blacklist', 'syntax': ['math', 'code']},
+      \ }
+```
+
+- `mode` 为 `whitelist` 时，仅在列出的高亮区域内接管为 Rime，其余区域保持直通；为 `blacklist` 时反之。
+- `ts` 对应 treesitter capture 名称。
+- `syntax` 对应 vim syntax 高亮组名称。
+- `ts` 与 `syntax` 之间为「或」的关系，命中任一即生效；两者同时配置时 `ts` 优先级更高。
+
+#### 事件
+
+状态变化时会触发以下 `autocmd`，可用于联动第三方插件（如补全、AI 续写等）：
+
+| 事件                 | 触发时机                                          |
+|----------------------|---------------------------------------------------|
+| `RimeContextChinese` | 进入【Rime 接管】模式时触发，常用于关闭第三方补全 |
+| `RimeContextEnglish` | 回到【原生直通】模式时触发，常用于恢复第三方补全  |
+| `RimeContextChanged` | 接管状态发生变化时触发（不区分方向）              |
+
+```vim
+function! im#hooks#suppress_completion() abort
+  if exists('*coc#config')
+    call coc#config('suggest.autoTrigger', 'none')
+  endif
+  if exists(':Codeium')
+    Codeium Disable
+  endif
+  if exists('g:blink_cmp_enabled')
+    let g:blink_cmp_enabled = v:false
+  endif
+endfunction
+
+augroup IMGroup
+  autocmd!
+  autocmd User RimeContextChinese  call im#hooks#suppress_completion()
+  autocmd User RimeContextEnglish call im#hooks#restore_completion()
+augroup END
+```
+
+#### 快捷键
+
+手动切换【Rime 接管】与【原生直通】模式：
+
+```
+inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
+```
+
 ### Tmux 弹窗输入
 
-在 tmux 中通过 `display-popup` 弹窗使用 Rime 输入法，复用 `rime-query` daemon
+在 tmux 中通过 `display-popup` 弹窗使用 Rime 输入法，复用同一个 `rime-query` daemon。
 
 ![tmux](https://github.com/user-attachments/assets/fb715949-57d0-4337-870a-5273e3bc1d6c)
 
@@ -930,7 +984,7 @@ set -g @rime_key ";"
 set -g @rime_bin "rime-query"
 ```
 
-自定义 `@rime_popup` 时会覆盖默认的弹窗尺寸与位置：
+自定义 `@rime_popup` 会覆盖默认的弹窗尺寸与位置：
 
 ```tmux
 set -g @rime_popup "-w80% -h10 -xC -yC -E -T ㄓ"
@@ -954,7 +1008,7 @@ RIME_LOG             # 后端日志路径
 RIME_TMUX_LOG        # tmux 前端日志路径
 ```
 
-或在 `.tmux.conf` 中通过 `set-environment -g` 进行设置：
+也可以在 `.tmux.conf` 中通过 `set-environment -g` 设置：
 
 ```
 set-environment -g RIME_USER_DATA_DIR "/path/to/rime"
@@ -962,7 +1016,6 @@ set-environment -g RIME_SHARED_DATA_DIR "/usr/share/rime-data"
 set-environment -g RIME_LOG "$HOME/.local/state/log/vim/rime.log"
 set-environment -g RIME_TMUX_LOG "$HOME/.local/state/log/tmux/rime.log"
 ```
-
 
 ### 其他搭配插件
 
@@ -981,3 +1034,4 @@ set-environment -g RIME_TMUX_LOG "$HOME/.local/state/log/tmux/rime.log"
 ## License
 
 MIT
+

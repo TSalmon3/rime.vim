@@ -29,8 +29,6 @@ if !get(g:, 'im_no_default_mappings', 0)
   let s:toggle_ascii_mode_key   = get(g:, 'im_toggle_ascii_mode_key', ';,')
   let s:toggle_traditional_key   = get(g:, 'im_toggle_traditional_key', ';f')
   let s:toggle_emoji_key   = get(g:, 'im_toggle_emoji_key', ';e')
-  let s:toggle_pair_key   = get(g:, 'im_toggle_pair_key', ';p')
-  let s:toggle_iminsert_key = get(g:, 'im_toggle_iminsert_key', '<c-;>')
   execute 'nnoremap <silent> ' . s:toggle_key . ' <cmd>call im#toggle()<cr>'
   execute 'inoremap <silent><expr> ' . s:toggle_key . ' im#toggle_insert()'
   execute 'inoremap <silent> ' . s:toggle_ascii_punct_key . ' <cmd>call im#rime#toggle_ascii_punct()<cr>'
@@ -41,9 +39,6 @@ if !get(g:, 'im_no_default_mappings', 0)
   execute 'nnoremap <silent> ' . s:toggle_emoji_key . ' <cmd>call im#rime#toggle_emoji()<cr>'
   execute 'inoremap <silent> ' . s:toggle_traditional_key . ' <cmd>call im#rime#toggle_traditional()<cr>'
   execute 'nnoremap <silent> ' . s:toggle_traditional_key . ' <cmd>call im#rime#toggle_traditional()<cr>'
-  execute 'inoremap <silent> ' . s:toggle_pair_key . ' <cmd>call im#pair#toggle()<cr>'
-  execute 'nnoremap <silent> ' . s:toggle_pair_key . ' <cmd>call im#pair#toggle()<cr>'
-  execute 'inoremap <silent> ' . s:toggle_iminsert_key . ' <cmd>call im#context#toggle()<cr>'
 endif
 
 let g:im_underline_disable = get(g:, 'im_underline_disable', 0)

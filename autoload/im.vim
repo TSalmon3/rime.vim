@@ -17,9 +17,6 @@ endfunction"}}}
 function! s:vimrc_restore() abort"{{{
   let &completeopt = s:save_completeopt
   let &pumheight   = s:save_pumheight
-  " let &keymap      = s:save_keymap
-  " let &iminsert    = s:save_iminsert
-  " let &imsearch    = s:save_imsearch
   let &keymap = s:save_keymap
   let &iminsert = s:save_iminsert
   let &imsearch = s:save_imsearch
@@ -32,6 +29,10 @@ function! s:setup_im_autocmd() abort"{{{
     autocmd InsertChange * call im#on_insert_change()
     autocmd InsertLeave * call im#on_insert_leave()
     autocmd CursorMovedI * call im#replace#on_cursor_moved()
+
+    autocmd InsertEnter * call im#context#on_enter()
+    autocmd CursorMovedI * call im#context#update()
+    autocmd InsertLeave * call im#context#on_leave()
   augroup END
 endfunction"}}}
 
@@ -300,9 +301,11 @@ function! im#on_ready() abort"{{{
 
   if mode() == "i"
     call im#enable()
+    call im#context#on_enter()
   elseif mode() =~# '^R'
     call im#enable()
     call im#replace#enter()
+    call im#context#on_enter()
   endif
 
   echo '[IM] on'
@@ -399,7 +402,7 @@ endfunction"}}}
 
 function! im#on_insert_enter() abort"{{{
   let state = im#state#get()
-  if state.started && !state.enabled
+  if state.started && state.ready && !state.enabled
     call im#enable()
   endif
 
