@@ -199,16 +199,15 @@ let g:im_shared_data_dir           = '/usr/share/rime-data'
 let g:im_log_file                  = '~/.local/state/log/vim/rime.log'
 
 
-" Unix：socket 文件路径
-" 留空时依 $XDG_RUNTIME_DIR，其次 ~/.cache/rime-query.sock
-let g:im_unix_socket                = ''
-" Windows：TCP 回环端点，Vim 与 Neovim 共用同一条通道
-" 留空时默认 127.0.0.1:18666
-let g:im_tcp_addr                   = ''
+" Unix：socket 文件路径，为空时默认为 ~/.cache/rime-query.sock
+let g:im_unix_socket                = '~/.cache/rime-query.sock'
+" Windows：TCP 回环端点，Vim 与 Neovim 共用同一条通道，为空时默认为 127.0.0.1:18666
+let g:im_tcp_addr                   = '127.0.0.1:18666'
 " 最后一个客户端离开后 daemon 的空闲存活时间（毫秒，0 为常驻）
-let g:im_idle_exit_ms              = 60000
+let g:im_idle_exit_ms               = 60000
 " 拉起 daemon 后等待其就绪的超时（毫秒）
-let g:im_connect_timeout_ms        = 30000
+let g:im_connect_timeout_ms         = 30000
+
 
 " 候选词弹窗高度
 let g:im_pumheight                 = 9
@@ -221,7 +220,9 @@ let g:im_replace_mode              = 0
 " 切换输入法开关
 let g:im_toggle_key                = ';;'
 " 切换中文/英文模式切换开关
-let g:im_toggle_ascii_mode_key     = '<c-;>'
+let g:im_toggle_ascii_mode_key     = ';,'
+" 切换 Rime 接管/原生直通（&iminsert）
+let g:im_toggle_iminsert_key       = '<c-;>'
 " 切换中英文标点
 let g:im_toggle_ascii_punct_key    = ';a'
 " 切换简繁体
@@ -242,6 +243,10 @@ let g:im_status_full_text          = '¥'
 let g:im_status_simplified_text    = '简'
 " 繁体状态文本
 let g:im_status_traditional_text   = '繁'
+" Rime 接管指示文本（lmap，&iminsert=1）
+let g:im_status_lmap_text          = 'L'
+" 原生直通指示文本（imap，&iminsert=0）
+let g:im_status_imap_text          = 'I'
 " 输入法断连状态文本
 let g:im_status_disconnect         = '断'
 " 初始标点状态（1 为半角）
@@ -372,13 +377,14 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 
 默认按键映射（可设 `g:im_no_default_mappings=1` 关闭，用对应的 `g:im_*_key` 修改）：
 
-| 按键    | 模式                                 | 功能           |
-| ------- | ------------------------------------ | -------------- |
-| `;;`    | normal / insert / command / terminal | 切换输入法开关 |
-| `<c-;>` | normal / insert                      | 切换中/英模式  |
-| `;a`    | normal / insert                      | 切换中英文标点 |
-| `;f`    | normal / insert                      | 切换简/繁体    |
-| `;e`    | normal / insert                      | 切换 emoji     |
+| 按键    | 模式                                 | 功能                    |
+|---------|--------------------------------------|-------------------------|
+| `;;`    | normal / insert / command / terminal | 切换输入法开关          |
+| `;,`    | normal / insert                      | 切换中/英模式           |
+| `<c-;>` | insert                               | 切换 Rime 接管/原生直通 |
+| `;a`    | normal / insert                      | 切换中英文标点          |
+| `;f`    | normal / insert                      | 切换简/繁体             |
+| `;e`    | normal / insert                      | 切换 emoji              |
 
 按键和组合键基本兼容系统级输入法
 
@@ -426,10 +432,22 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 
 输入法禁用后触发，可用于使能其他插件补全。
 
+**`autocmd User RimeContextChinese {command}`**
+
+进入 Rime 接管（`&iminsert=1`，lmap）后触发，关闭第三方补全。
+
+**`autocmd User RimeContextEnglish {command}`**
+
+回到原生直通（`&iminsert=0`，imap）后触发，恢复第三方补全。
+
+**`autocmd User RimeContextChanged {command}`**
+
+接管状态变化（任一方向）后触发。
+
 示例：
 
 ```vim
-function! im_nvim#hooks#on_enable() abort
+function! im#hooks#suppress_completion() abort
   if exists('*coc#config')
     call coc#config('suggest.autoTrigger', 'none')
   endif
@@ -441,7 +459,7 @@ function! im_nvim#hooks#on_enable() abort
   endif
 endfunction
 
-function! im_nvim#hooks#on_disable() abort
+function! im#hooks#restore_completion() abort
   if exists('*coc#config')
     call coc#config('suggest.autoTrigger', 'always')
   endif
@@ -453,10 +471,13 @@ function! im_nvim#hooks#on_disable() abort
   endif
 endfunction
 
+
 augroup IMGroup
   autocmd!
-  autocmd User RimeIMEnable  call im_nvim#hooks#on_enable()
-  autocmd User RimeIMDisable call im_nvim#hooks#on_disable()
+  autocmd User RimeIMEnable  call im#hooks#suppress_completion()
+  autocmd User RimeIMDisable call im#hooks#restore_completion()
+  autocmd User RimeContextChinese  call im#hooks#suppress_completion()
+  autocmd User RimeContextEnglish call im#hooks#restore_completion()
 augroup END
 ```
 
@@ -692,7 +713,7 @@ augroup END
 ```vim
 function RimeKeymapRemap()
   lnoremap <silent><expr> ;` im#keymap#toggle_scheme()
-  lnoremap <nowait><expr> <c-;> im#keymap#toggle_ascii_mode()
+  lnoremap <nowait><expr> ;: im#keymap#toggle_ascii_mode()
   lnoremap <nowait><expr> ;1 im#keymap#toggle_ascii_mode('commit_code')
   lnoremap <nowait><expr> ;2 im#keymap#toggle_ascii_mode('commit_text')
   lnoremap <nowait><expr> ;3 im#keymap#toggle_ascii_mode('clear')
@@ -703,7 +724,7 @@ endfunction
 
 function RimeKeymapClear()
   silent! lunmap ;`
-  silent! lunmap <c-;>
+  silent! lunmap ;:
   silent! lunmap ;1
   silent! lunmap ;2
   silent! lunmap ;3

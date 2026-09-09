@@ -1,4 +1,4 @@
-function! im#hooks#on_enable() abort
+function! im#hooks#suppress_completion() abort
   if exists('*coc#config')
     call coc#config('suggest.autoTrigger', 'none')
   endif
@@ -10,7 +10,7 @@ function! im#hooks#on_enable() abort
   endif
 endfunction
 
-function! im#hooks#on_disable() abort
+function! im#hooks#restore_completion() abort
   if exists('*coc#config')
     call coc#config('suggest.autoTrigger', 'always')
   endif

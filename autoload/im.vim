@@ -432,6 +432,8 @@ function! im#status() abort"{{{
   let icon_traditional = get(g:, 'im_status_traditional_text', '繁')
   let icon_chinese = get(g:, 'im_status_chinese_text', '中')
   let icon_english = get(g:, 'im_status_english_text', '英')
+  let icon_lmap = get(g:, 'im_status_lmap_text', 'L')
+  let icon_imap = get(g:, 'im_status_imap_text', 'I')
   let icon_disconnect = get(g:, 'im_status_disconnect', '断')
   " let icon_lock = get(g:, 'im_status_lock_text', '锁')
 
@@ -439,8 +441,9 @@ function! im#status() abort"{{{
   let mode = state.ascii_mode ? icon_english : icon_chinese
   let punct = state.ascii_punct ? icon_half : icon_full
   let trad = state.traditional ? icon_traditional : icon_simplified
+  let lang = &iminsert ? icon_lmap : icon_imap
   let connect = state.ready ? "" : icon_disconnect
-  return state.started ? connect . "[" . icon . "]" . mode . '|' . punct . '|' . trad  : ''
+  return state.started ? connect . "[" . icon . "]" . mode . '|' . punct . '|' . trad . '|' . lang : ''
 endfunction"}}}
 
 function! im#schema() abort"{{{
