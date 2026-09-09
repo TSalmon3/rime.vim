@@ -818,7 +818,7 @@ let g:im_pair_ts_config = {
 
 
 ```vim
-自动成对切换快捷键
+" 自动成对切换快捷键
 inoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
 nnoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
 
