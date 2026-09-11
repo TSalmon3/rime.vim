@@ -48,6 +48,9 @@ Answers to common questions.
   - [Customizing Chinese/English switching and the scheme menu](#customizing-chineseenglish-switching-and-the-scheme-menu)
   - [Replace Mode](#replace-mode)
   - [Auto Pair](#auto-pair)
+  - [Surround](#surround)
+  - [Context auto-switching](#context-auto-switching)
+  - [Tmux popup input](#tmux-popup-input)
   - [Complementary plugins](#complementary-plugins)
 - [Acknowledgments](#acknowledgments)
 - [License](#license)
@@ -57,7 +60,7 @@ Answers to common questions.
 ## Introduction
 
 Rime (Zhongzhouyun) input method integration for Vim / Neovim, based on the
-[rime-ice](https://github.com/iDvelve/rime-ice) dictionary, supporting both Vim
+[rime-ice](https://github.com/iDvel/rime-ice) dictionary, supporting both Vim
 (>= 8.2.1978) and Neovim.
 
 **Usage**: enter Insert mode and type pinyin directly; a candidate popup
@@ -84,7 +87,7 @@ Key features:
 
 - Vim >= 8.2.1978 or Neovim
 - librime (required to build the backend)
-- Rime shared data directory and a user data directory (e.g. [rime-ice](https://github.com/iDvelve/rime-ice))
+- Rime shared data directory and a user data directory (e.g. [rime-ice](https://github.com/iDvel/rime-ice))
 
 ### Installation
 
@@ -127,13 +130,6 @@ cmake -S . -B build
 cmake --build build
 ```
 
-Alternatively, use emake (edit the librime include / lib paths in `main.mak` if needed):
-
-```bash
-cd /path/to/rime.vim/cpp
-emake --ini=emake/darwin.ini main.mak
-```
-
 #### Linux
 
 Compile librime manually, then point at its header include path and dynamic
@@ -144,33 +140,69 @@ cd /path/to/rime.vim/cpp
 clang++ -std=c++17 -I./3rd -I/path/to/librime/include -L/path/to/librime/lib -lstdc++ -lrime -o build/rime-query rime-query.cc
 ```
 
-Alternatively, use emake (edit the librime include / lib paths in `main.mak` if needed):
-
-```bash
-cd /path/to/rime.vim/cpp
-emake --ini=emake/linux.ini main.mak
-```
+---
 
 #### Windows
 
-1. Download a librime prebuilt release archive.
-2. Provide librime's header include path and dynamic library lib path, then compile.
+1. Download a librime prebuilt release archive and extract it to a directory
+   containing `include/` and `lib/` (`/path/to/librime` in the commands below
+   points at that directory).
+2. Compile `rime-query`.
 3. Copy `rime.dll` into the same directory as the executable.
-4. Add the executable to `PATH`.
+4. Add the executable's directory to `PATH`, or point at it directly in vimrc
+   with `let g:im_rime_bin = 'full/path'`.
 
 ```bash
 cd /path/to/rime.vim/cpp
-clang++ -std=c++17 -I./3rd -I/path/to/librime/include -L/path/to/librime/lib -lstdc++ -lrime -lws2_32 -o build/rime-query.exe rime-query.cc
+mkdir build
+clang++ -std=c++17 -O2 -I./3rd -I/path/to/librime/include -c rime-query.cc -o build/rime-query.o
+clang++ build/rime-query.o -L/path/to/librime/lib -lrime -lws2_32 -o build/rime-query.exe
 ```
 
-Alternatively, use emake (edit the librime include / lib paths in `main.mak` if needed):
+`-lws2_32` links Windows Sockets, which the backend TCP listener requires; it is
+a stock system component (System32) and needs no extra installation.
+
+Alternatively, use CMake (edit the compiler and the librime include / lib paths
+in `CMakeLists.txt` if needed):
 
 ```bash
 cd /path/to/rime.vim/cpp
-emake --ini=emake/llm.ini main.mak
+cmake -S . -B build -G "MinGW Makefiles"
+cmake --build build
 ```
+
+> [!note]
+>
+> `clang++` and `mingw32-make` must be on `PATH`
 
 After building, add the generated `rime-query` to `PATH`.
+
+---
+
+#### Building inside the editor
+
+Once the librime paths are configured, you can also build without leaving Vim:
+
+```vim
+let g:im_build_rime_include = '/opt/homebrew/include'
+let g:im_build_rime_lib     = '/opt/homebrew/lib'
+let g:im_build_compiler     = 'clang++'              " optional, default
+let g:im_build_flags        = '-std=c++17 -O2 -Wall' " optional, default
+```
+
+On Windows you also need the `rime.dll` path:
+
+```vim
+let g:im_build_rime_dll     = 'D:/Library/librime/lib/rime.dll'
+```
+
+| Command    | Description                                              |
+|------------|----------------------------------------------------------|
+| `:IMCheck` | Self-check: compiler/flags/paths/whether already built  |
+| `:IMBuild` | Build asynchronously in the background                   |
+| `:IMClean` | Clean build artifacts                                    |
+
+Flow: configure → `:IMCheck` to verify → `:IMBuild`.
 
 ---
 
@@ -188,7 +220,7 @@ your vimrc **before** the plugin is loaded:
 ```vim
 " rime-query executable path (must be on PATH)
 let g:im_rime_bin                  = 'rime-query'
-" User data directory ($RIME_USER_DATA_DIR)
+" User data directory, i.e. where your pinyin schemes live ($RIME_USER_DATA_DIR)
 let g:im_user_data_dir             = '/path/to/rime'
 " Shared data directory ($RIME_SHARED_DATA_DIR)
 let g:im_shared_data_dir           = '/usr/share/rime-data'
@@ -196,16 +228,15 @@ let g:im_shared_data_dir           = '/usr/share/rime-data'
 let g:im_log_file                  = '~/.local/state/log/vim/rime.log'
 
 
-" Unix: socket file path
-" Falls back to $XDG_RUNTIME_DIR, then ~/.cache/rime-query.sock
-let g:im_unix_socket                = ''
-" Windows: TCP loopback endpoint, shared between Vim and Neovim
-" Falls back to 127.0.0.1:18666
-let g:im_tcp_addr                   = ''
+" Unix: socket file path, empty defaults to ~/.cache/rime-query.sock
+let g:im_unix_socket                = '~/.cache/rime-query.sock'
+" Windows: TCP loopback endpoint, shared between Vim and Neovim, empty defaults to 127.0.0.1:18666
+let g:im_tcp_addr                   = '127.0.0.1:18666'
 " Daemon idle lifetime after the last client leaves (ms; 0 = stay resident)
-let g:im_idle_exit_ms              = 60000
-" Timeout for connecting to / starting the daemon (ms)
-let g:im_connect_timeout_ms        = 30000
+let g:im_idle_exit_ms               = 60000
+" Timeout waiting for the daemon to become ready after launch (ms)
+let g:im_connect_timeout_ms         = 30000
+
 
 " Candidate popup height
 let g:im_pumheight                 = 9
@@ -213,12 +244,10 @@ let g:im_pumheight                 = 9
 let g:im_underline_disable         = 0
 " Set to 1 to skip creating default key mappings
 let g:im_no_default_mappings       = 0
-" Set to 1 to enable Rime in R/gR replace mode (default off)
-let g:im_replace_mode              = 0
 " Toggle input method on/off
 let g:im_toggle_key                = ';;'
 " Toggle Chinese/English mode
-let g:im_toggle_ascii_mode_key     = '<c-;>'
+let g:im_toggle_ascii_mode_key     = ';,'
 " Toggle Chinese/English punctuation
 let g:im_toggle_ascii_punct_key    = ';a'
 " Toggle simplified/traditional
@@ -227,6 +256,8 @@ let g:im_toggle_traditional_key    = ';f'
 let g:im_toggle_emoji_key          = ';e'
 " Backend wait timeout for :IMDeploy / :IMSync (ms)
 let g:im_deploy_timeout            = 60000
+" Root directory for :IMSchemeDownload downloads
+let g:im_scheme_dir                = '~/.local/share/rime-schemes'
 " Statusline icon
 let g:im_status_text               = 'ㄓ'
 " Half-width punctuation status text
@@ -237,12 +268,20 @@ let g:im_status_full_text          = '¥'
 let g:im_status_simplified_text    = '简'
 " Traditional status text
 let g:im_status_traditional_text   = '繁'
+" Indicator text when Rime owns the input
+let g:im_status_lmap_text          = 'L'
+" Indicator text for native passthrough (not owned)
+let g:im_status_imap_text          = 'I'
 " Input method disconnected status text
 let g:im_status_disconnect         = '断'
-" Initial punctuation state (1 = half-width)
+" Initial punctuation state (1 = half-width at startup)
 let g:im_option_ascii_punct        = 0
-" Initial simplified/traditional state (1 = traditional)
+" Initial simplified/traditional state (1 = traditional at startup)
 let g:im_option_traditional        = 0
+" Initial Chinese/English state (1 = English mode at startup)
+let g:im_option_ascii_mode         = 0
+" Initial emoji state (1 = enabled at startup)
+let g:im_option_emoji              = 0
 
 
 " Use in the command line
@@ -333,8 +372,8 @@ export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 ```
 
 On Windows, `RIME_QUERY_TCP` overrides the backend's TCP listen endpoint
-(default `127.0.0.1:18666`, `none` disables TCP; same meaning as
-`g:im_tcp_addr`, which takes precedence).
+(default `127.0.0.1:18666`; same meaning as `g:im_tcp_addr`, which takes
+precedence).
 
 > Note: setting `g:im_user_data_dir`, `g:im_shared_data_dir` or `g:im_log_file`
 > in Vim overrides the corresponding environment variable.
@@ -353,6 +392,7 @@ On Windows, `RIME_QUERY_TCP` overrides the backend's TCP listen endpoint
 | `:IMDeploy` | Redeploy Rime (takes effect after editing config)  |
 | `:IMSync`   | Sync the user dictionary, then redeploy            |
 | `:IMShutdown` | Shut down the shared daemon (all editors disconnect) |
+| `:IMSchemeDownload <git-url>` | Download an input scheme into `g:im_scheme_dir` |
 
 #### Redeploying
 
@@ -369,6 +409,14 @@ redeploys. This makes it easy to sync personal word frequency across devices
 and platforms; on multiple devices it is recommended to set the same
 `installation_id` in `installation.yaml`, otherwise the merge may fail.
 
+#### Downloading schemes
+
+`:IMSchemeDownload <git-url>` clones an input scheme with
+`git clone --depth 1` into `g:im_scheme_dir`
+(default `~/.local/share/rime-schemes`); the directory name comes from the last
+URL segment (with a trailing `.git` stripped). Existing directories are skipped,
+never overwritten.
+
 ### Key mappings
 
 Default key mappings (disable by setting `g:im_no_default_mappings=1`, and
@@ -377,7 +425,7 @@ customize via the corresponding `g:im_*_key`):
 | Key       | Mode                                 | Function                           |
 | --------- | ------------------------------------ | ---------------------------------- |
 | `;;`      | normal / insert / command / terminal | Toggle input method                |
-| `<c-;>`   | normal / insert                      | Toggle Chinese/English mode        |
+| `;,`      | normal / insert                      | Toggle Chinese/English mode        |
 | `;a`      | normal / insert                      | Toggle Chinese/English punctuation |
 | `;f`      | normal / insert                      | Toggle simplified/traditional      |
 | `;e`      | normal / insert                      | Toggle emoji                       |
@@ -436,7 +484,7 @@ other plugins.
 Example:
 
 ```vim
-function! im_nvim#hooks#on_enable() abort
+function! im#hooks#suppress_completion() abort
   if exists('*coc#config')
     call coc#config('suggest.autoTrigger', 'none')
   endif
@@ -448,7 +496,7 @@ function! im_nvim#hooks#on_enable() abort
   endif
 endfunction
 
-function! im_nvim#hooks#on_disable() abort
+function! im#hooks#restore_completion() abort
   if exists('*coc#config')
     call coc#config('suggest.autoTrigger', 'always')
   endif
@@ -460,10 +508,11 @@ function! im_nvim#hooks#on_disable() abort
   endif
 endfunction
 
+
 augroup IMGroup
   autocmd!
-  autocmd User RimeIMEnable  call im_nvim#hooks#on_enable()
-  autocmd User RimeIMDisable call im_nvim#hooks#on_disable()
+  autocmd User RimeIMEnable  call im#hooks#suppress_completion()
+  autocmd User RimeIMDisable call im#hooks#restore_completion()
 augroup END
 ```
 
@@ -606,26 +655,37 @@ them like this.
 ```vim
 function RimeKeymapRemap()
   if &filetype ==# 'markdown'
-    lnoremap <silent><expr> <tab> im#state#composing() ? "\<cmd>call im#key( 0xff09, 0)\<CR>" :
+    lnoremap <silent><expr> <tab> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \ UltiSnips#CanJumpForwards() ?
           \"\<c-r>=UltiSnips#JumpForwards()\<cr>" :  bullet#is_bullet() ?
           \ "\<C-o>\<Plug>(bullets-demote)\<C-o>$" :  "\<tab>"
 
-    lnoremap <silent><expr> <s-tab> im#state#composing() ? "\<cmd>call im#key( 0xff09, 1)\<CR>" :
+    lnoremap <silent><expr> <s-tab> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ UltiSnips#CanJumpBackwards() ?
           \ "\<c-r>=UltiSnips#JumpBackwards()\<cr>" : bullet#is_bullet()?
           \ "\<C-o>\<Plug>(bullets-promote)\<C-o>$" : "\<s-tab>"
 
-    lnoremap <silent><expr> <cr> im#state#composing() ? "\<cmd>call im#key( 0xff0d, 0)\<cr>" :
-          \ "\<Plug>(bullets-newline)"
+    lnoremap <silent><expr> <cr> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
+          \ delimitMate#WithinEmptyPair() ?
+          \ "\<c-r>=delimitMate#ExpandReturn()\<cr>" : "\<Plug>(bullets-newline)"
   else
-    lnoremap <silent><expr> <tab> im#state#composing() ? "\<cmd>call im#key( 0xff09, 0)\<CR>" :
+    lnoremap <silent><expr> <tab> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \ UltiSnips#CanJumpForwards() ?
           \"\<c-r>=UltiSnips#JumpForwards()\<cr>" : "\<tab>"
 
-    lnoremap <silent><expr> <s-tab> im#state#composing() ? "\<cmd>call im#key( 0xff09, 1)\<CR>" :
+    lnoremap <silent><expr> <s-tab> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ UltiSnips#CanJumpBackwards() ?
           \ "\<c-r>=UltiSnips#JumpBackwards()\<cr>" : "\<s-tab>"
+
+    lnoremap <silent><expr> <cr> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
+          \ delimitMate#WithinEmptyPair() ?
+          \ "\<c-r>=delimitMate#ExpandReturn()\<cr>" : "\<cr>"
   endif
 endfunction
 
@@ -646,7 +706,7 @@ If you have [jieba.vim](https://github.com/kkew3/jieba.vim) installed, you can e
 ```vim
 function RimeKeymapRemap()
   lnoremap <silent><expr> <c-w> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
+        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#ctrl_w()\<cr>" :
         \ "<Plug>(Jieba_C_w)"
 endfunction
@@ -701,7 +761,7 @@ Example:
 ```vim
 function RimeKeymapRemap()
   lnoremap <silent><expr> ;` im#keymap#toggle_scheme()
-  lnoremap <nowait><expr> <c-;> im#keymap#toggle_ascii_mode()
+  lnoremap <nowait><expr> ;: im#keymap#toggle_ascii_mode()
   lnoremap <nowait><expr> ;1 im#keymap#toggle_ascii_mode('commit_code')
   lnoremap <nowait><expr> ;2 im#keymap#toggle_ascii_mode('commit_text')
   lnoremap <nowait><expr> ;3 im#keymap#toggle_ascii_mode('clear')
@@ -712,7 +772,7 @@ endfunction
 
 function RimeKeymapClear()
   silent! lunmap ;`
-  silent! lunmap <c-;>
+  silent! lunmap ;:
   silent! lunmap ;1
   silent! lunmap ;2
   silent! lunmap ;3
@@ -730,7 +790,7 @@ augroup END
 
 ### Replace Mode
 
-The following feature is experimental.
+> Still experimental.
 
 ![demo4](https://github.com/user-attachments/assets/f2fba3e1-d7dc-4b1c-bd5a-779b4e725a45)
 
@@ -778,18 +838,17 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 | Manual jump    | `<c-tab>`     | (\|) → jump one → ()\|     | Skip one close delimiter/quote to the right (`im#pair#jump_any`) |
 | Manual multi-jump | `<c-g>`   | (\|))) → jump all → ()))\| | Skip a run of close delimiters/quotes to the right (`im#pair#jump_many`) |
 
-- Default pairs: `()` `[]` `{}` `<>` and full-width `（）` `【】` `「」` `『』` `《》`, plus quotes `"` `'`
+- Default pairs: `()` `[]` `{}` `<>` `"` `'`, plus full-width `（）` `【】` `「」` `『』` `《》` `“”` `‘’`
 - Half-width punctuation goes straight to the screen; full-width punctuation goes through Rime. Pairing is handled correctly in both cases
-- Configuration priority: `b:im_pair_rules` > `g:im_pair_rules` > default (only `im_pair_rules` supports `b:`, other options are global `g:`)
-- Highlight blacklist: auto-pair is disabled when the cursor is inside a highlight group listed below (e.g. comments, strings), and re-enabled when the cursor leaves. **Disabled by default**; takes no effect when unset or empty:
-- You can manually map keys to skip close delimiters/quotes to the right:
+- Configuration priority: `b:im_pair_rules` > `g:im_pair_rules` > default (only `im_pair_rules` supports `b:`-local config, the rest are global `g:`)
+- Highlight blacklist: when the cursor is inside a listed highlight group (e.g. comments, strings), auto pair pauses and resumes after leaving. **Disabled by default**; unset or empty means no effect:
+
+#### Configuration
 
 ```vim
-" Auto pair toggle (default 0)
+" Auto pair switch (default 0)
 let g:im_pair_enabled = 0
-" Toggle auto pair
-let g:im_toggle_pair_key = ';p'
-" Pair rules list; each entry has open/close and kind ('delim' open != close, 'quote' open = close)
+" Pair rules; each entry has open/close and kind ('delim' open != close, 'quote' open == close)
 let g:im_pair_rules = [
       \ {'open': '(',  'close': ')',  'kind': 'delim'},
       \ {'open': '[',  'close': ']',  'kind': 'delim'},
@@ -800,25 +859,25 @@ let g:im_pair_rules = [
       \ {'open': '「', 'close': '」', 'kind': 'delim'},
       \ {'open': '『', 'close': '』', 'kind': 'delim'},
       \ {'open': '《', 'close': '》', 'kind': 'delim'},
-      \ {'open': "'",  'close': "'",  'kind': 'delim'},
+      \ {'open': "‘",  'close': "’",  'kind': 'delim'},
       \ {'open': "“",  'close': "”",  'kind': 'delim'},
       \ {'open': '"',  'close': '"',  'kind': 'quote'},
       \ {'open': "'",  'close': "'",  'kind': 'quote'},
       \ ]
 
-" Or
+" Or just use the default rules
 let g:im_pair_rules = im#pair#default_rules()
 
-" Disable auto pair by highlight group name (case-insensitive regex list; disabled by default [])
+" Disable by highlight: regex list of highlight group names (case-insensitive); hitting any disables auto pair (default [], disabled)
 let g:im_pair_blacklist_highlight = ['comment', 'doc', 'string']
-" Disable auto pair by filetype
+" Disable by filetype
 let g:im_pair_blacklist_filetypes = ['vim']
 
-" The following options only take effect in Neovim (requires Treesitter support); in Vim, highlight checking uses regex matching.
-" Priority: `g:im_pair_blacklist_filetypes` > `g:im_pair_ts_config` > `g:im_pair_blacklist_highlight`
+" The following only take effect in Neovim (requires Treesitter support); in Vim highlight checking always uses regex matching
+" Priority: g:im_pair_blacklist_filetypes > g:im_pair_ts_config > g:im_pair_blacklist_highlight
 let g:im_pair_ts_check  = 0
 
-" '*' is a global wildcard; specific filetypes override the global setting (explicitly define [] to disable checking for that filetype)
+" '*' is a global wildcard; specific filetypes override it (explicit [] disables checking for that filetype)
 let g:im_pair_ts_config = {
       \ '*':      ['comment', 'string'],
       \ 'lua':    ['comment', 'string'],
@@ -826,18 +885,25 @@ let g:im_pair_ts_config = {
       \ }
 ```
 
-Or modify the default key mappings:
+#### Key mappings
+
 
 ```vim
+" Auto pair toggle mappings
+inoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
+nnoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
+
 function RimeKeymapRemap()
   lnoremap <expr> <c-g> im#pair#jump_any()   " skip one close delimiter/quote to the right
   lnoremap <expr> <c-tab> im#pair#jump_many()  " skip a run of close delimiters/quotes to the right
 
-  lnoremap <silent><expr> <bs> im#state#composing() ? "\<cmd>call im#key( 0xff08, 0)\<CR>" :
+  lnoremap <silent><expr> <bs> im#state#composing() ?
+        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs_pair() ? im#pair#bs() : "\<bs>"
 
-  lnoremap <silent><expr> <s-bs> im#state#composing() ? "\<cmd>call im#key( 0xff08, 1)\<CR>" :
+  lnoremap <silent><expr> <s-bs> im#state#composing() ?
+        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs_pair() ? "\<bs>" : "\<s-bs>"
 
@@ -855,6 +921,439 @@ augroup RimeGroup
 augroup END
 ```
 
+### Surround
+
+Add, delete, and replace paired delimiters (brackets, quotes, HTML tags, function
+calls, and more) for selections, text objects, or whole lines, with extra
+full-width symbol support.
+
+Default key mappings (all customizable via the corresponding `g:im_surround_*_key`):
+
+| Key                | Mode   | Description                          |
+|--------------------|--------|--------------------------------------|
+| `ys{motion}{char}`  | normal | Add surrounds around the motion      |
+| `yS{motion}{char}`  | normal | Same, but on their own first/last lines |
+| `yss` / `ySS`       | normal | Add surrounds for the whole line (`ySS` uses newlines) |
+| `ds{char}`          | normal | Delete the nearest surround pair     |
+| `cs{old}{new}`      | normal | Replace the old pair with a new one  |
+| `cS{old}{new}`      | normal | Same, new pair on its own lines      |
+| `S` / `gS`          | visual | Wrap the selection (`gS` uses newlines) |
+| `<c-g>s` / `<c-g>S` | insert | Insert a pair and put the cursor inside |
+
+Common examples (`*` is the cursor):
+
+| Old text                       | Keys    | New text                |
+|:-------------------------------|:--------|:------------------------|
+| `surr*ound_words`            | `ysiw)` | `(surr*ound_words)`   |
+| `surr*ound_words`            | `ysiw(` | `( surr*ound_words )` |
+| `*make strings`              | `ys$"`  | `"*make strings"`     |
+| `[delete ar*ound me!]`       | `ds]`   | `delete ar*ound me!`  |
+| `remove \<b>HTML t*ags\</b>` | `dst`   | `remove HTML t*ags`   |
+| `'change quot*es'`           | `cs'"`  | `"change quot*es"`    |
+| `delete(functi*on calls)`    | `dsf`   | `functi*on calls`     |
+
+#### Configuration
+
+```vim
+" Surround switch (default 0)
+let g:im_surround_enable = 1
+
+" Custom keys
+let g:im_surround_add_key           = 'ys'      " add surround (normal)
+let g:im_surround_add_cur_key       = 'yss'     " add surround for current line (normal)
+let g:im_surround_add_line_key      = 'yS'      " add surround with newlines (normal)
+let g:im_surround_add_cur_line_key  = 'ySS'     " add surround for current line with newlines (normal)
+let g:im_surround_delete_key        = 'ds'      " delete surround (normal)
+let g:im_surround_change_key        = 'cs'      " change surround (normal)
+let g:im_surround_change_line_key   = 'cS'      " change surround with newlines (normal)
+let g:im_surround_visual_key        = 'S'       " visual wrap (visual)
+let g:im_surround_visual_line_key   = 'gS'      " visual wrap with newlines (visual)
+let g:im_surround_insert_key        = '<C-g>s'  " insert pair (insert)
+let g:im_surround_insert_line_key   = '<C-g>S'  " insert pair with newlines (insert)
+
+" Flash highlight duration when ds / cs lands on a pair (ms, 0 disables)
+let g:im_surround_flash_ms          = 120
+
+" Custom surround rules
+let g:im_surround_surrounds = im#surround#config#default_surrounds()
+" Equivalent to
+let g:im_surround_surrounds = [
+      \ {'key': '(',  'add': ['( ', ' )'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': ')',  'add': ['(', ')'],   'find': function('im#surround#find#asymmetry')},
+      \ {'key': '[',  'add': ['[ ', ' ]'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': ']',  'add': ['[', ']'],   'find': function('im#surround#find#asymmetry')},
+      \ {'key': '{',  'add': ['{ ', ' }'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '}',  'add': ['{', '}'],   'find': function('im#surround#find#asymmetry')},
+      \ {'key': '<',  'add': ['< ', ' >'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '>',  'add': ['<', '>'],   'find': function('im#surround#find#asymmetry')},
+      \ {"key": "'",  'add': ["'", "'"],   'find': function('im#surround#find#quote')},
+      \ {'key': '"',  'add': ['"', '"'],   'find': function('im#surround#find#quote')},
+      \ {'key': '`',  'add': ['`', '`'],   'find': function('im#surround#find#quote')},
+      \ {'key': 't',  'add': function('im#surround#add#tag'),     'find': function('im#surround#find#tag'),       'replace': function('im#surround#change#tag')},
+      \ {'key': 'T',  'add': function('im#surround#add#tag'),     'find': function('im#surround#find#tag'),       'replace': function('im#surround#change#tag_full')},
+      \ {'key': 'f',  'add': function('im#surround#add#func'),    'find': function('im#surround#find#func'),      'replace': function('im#surround#change#func')},
+      \ {'key': 'i',  'add': function('im#surround#add#input')},
+      \ {'key': '‘', 'add': ['‘', '’'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '’', 'add': ['‘', '’'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '“', 'add': ['“', '”'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '”', 'add': ['“', '”'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '（', 'add': ['（', '）'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '）', 'add': ['（', '）'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '【', 'add': ['【', '】'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '】', 'add': ['【', '】'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '「', 'add': ['「', '」'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '」', 'add': ['「', '」'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '『', 'add': ['『', '』'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '』', 'add': ['『', '』'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '《', 'add': ['《', '》'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '》', 'add': ['《', '》'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '＜', 'add': ['＜', '＞'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '＞', 'add': ['＜', '＞'], 'find': function('im#surround#find#asymmetry')},
+      \ ]
+
+
+" Custom aliases (replace the default table as a whole)
+let g:im_surround_aliases = im#surround#config#default_aliases()
+let g:im_surround_aliases += [
+      \ {'key': ')', 'targets' : [')', '）']},
+      \ {'key': '(', 'targets' : ['(', '（']},
+      \ {'key': '）', 'targets' : ['）', ')']},
+      \ {'key': '（', 'targets' : ['（', '(']},
+      \ {'key': ']', 'targets' : [']', '」', '』', '】']},
+      \ {'key': '[', 'targets' : ['[', '「', '『', '【']},
+      \ {'key': '}', 'targets' : [']', '」', '』', '】']},
+      \ {'key': '{', 'targets' : ['[', '「', '『', '【']},
+      \ {'key': '「', 'targets' : ['[', '「', '『', '【']},
+      \ {'key': '」', 'targets' : [']', '」', '』', '】']},
+      \ {'key': '『', 'targets' : ['[', '「', '『', '【']},
+      \ {'key': '』', 'targets' : [']', '」', '』', '】']},
+      \ {'key': '【', 'targets' : ['[', '「', '『', '【']},
+      \ {'key': '】', 'targets' : [']', '」', '』', '】']},
+      \ {'key': '<', 'targets' : ['<',  '《']},
+      \ {'key': '>', 'targets' : ['>', '》' ]},
+      \ {'key': '《', 'targets' : ['《',  '<']},
+      \ {'key': '》', 'targets' : ['》', '>' ]}
+      \ ]
+```
+
+#### g:im_surround_surrounds
+
+This is a `List`; extending `im#surround#config#default_surrounds()` is recommended.
+
+Each entry is a Dict with these core fields:
+
+| Field     | Requirement                  | Description |
+| --------- | ---------------------------- | ----------- |
+| `key`     | Char (required, CJK allowed) | Trigger char typed after `ys` / `ds` / `cs`; the entry is ignored when empty or mistyped |
+| `add`     | List<String> or Funcref      | Where the delimiters come from when adding, see below |
+| `find`    | Funcref                      | Locate the pair under the cursor for `ds` / `cs`, see below |
+| `replace` | Funcref (optional)           | Build the new pair for `cs`, see below; when missing, highlight the old pair and wait for a new key |
+
+
+> [!note]
+> - `add` is only used when **adding**
+> - `find` is only used to **locate the old pair** for `ds` / `cs`
+> - `replace` is only used to **build the new pair** for `cs`.
+
+1. `add` (build delimiters)
+
+- **List<String>**: left/right pair `[left, right]`
+- **Funcref**:
+  - Input: `char`, the trigger char just typed.
+  - Output: `[left, right]` (two-string list); empty list aborts.
+
+2. `find` (locate the pair)
+
+- Input: `char`, the trigger char just typed.
+- Output: the surround Dict on hit, `{}` on miss; keys are:
+
+| Key         | Type               | Required | Meaning |
+| ----------- | ------------------ | -------- | ------- |
+| `first_pos` | `[Number, Number]` | yes      | Outer start: first byte of the open delimiter, `[line, byte-col]` |
+| `last_pos`  | `[Number, Number]` | yes      | Outer end: last byte of the close delimiter, `[line, byte-col]` |
+| `open_len`  | `Number`           | no       | Bytes of the open delimiter, recommended |
+| `close_len` | `Number`           | no       | Bytes of the close delimiter, recommended |
+
+3. `replace` (replace delimiters)
+
+- Output: `[left, right]` (the new pair); empty list aborts the replacement.
+- Example: `function('im#surround#change#tag')`.
+
+
+#### g:im_surround_aliases
+
+A List; start from `im#surround#config#default_aliases()` before changing it.
+
+| Field     | Requirement              | Description |
+| --------- | ------------------------ | ----------- |
+| `key`     | Char (required, CJK allowed) | Alias trigger |
+| `targets` | List<String> (required)  | Target `key` list |
+
+Typing an alias for `ds` / `cs` picks the **innermost** pair among all `targets`
+under the cursor.
+
+Default aliases:
+
+```vim
+let s:default_aliases = [
+      \ {'key': 'q', 'targets': ['"', "'"]},
+      \ {'key': 'r', 'targets': [']']},
+      \ {'key': 'b', 'targets': [')']},
+      \ {'key': 'B', 'targets': ['}']},
+      \ ]
+```
+
+> [!NOTE]
+> All g:im_surround_* options support b: (buffer-local) overrides with priority: b: > g: > default.
+> surrounds and aliases use whole-table replacement: once customized, the defaults are fully replaced, so fetch-then-append via the helper functions to keep them.
+
+
+#### Built-in functions
+
+Built-in `add` / `replace` functions:
+
+| Function                        | Input → Output         | Purpose |
+| ------------------------------- | ---------------------- | ------- |
+| `im#surround#add#tag`         | `ch` → `[left, right]` | Ask for a tag name plus attributes, build `<tag ...>` / `</tag>` |
+| `im#surround#add#func`        | `ch` → `[left, right]` | Ask for a function name, build `name(...)` |
+| `im#surround#add#input`       | `ch` → `[left, right]` | Ask for left and right delimiters separately |
+| `im#surround#add#invalid`     | `ch` → `[left, right]` | Use the typed char directly as both sides |
+| `im#surround#change#tag`      | none → `[left, right]` | Replace the tag name, keep attributes |
+| `im#surround#change#tag_full` | none → `[left, right]` | Replace the tag name, drop attributes |
+| `im#surround#change#func`     | none → `[left, right]` | Replace the function name |
+
+Built-in `find` functions:
+
+| Function                        | Use case |
+| ------------------------------- | -------- |
+| `im#surround#find#asymmetry`  | Asymmetric delimiters (`()` `[]` `{}` `<>` and full-width brackets, ...) |
+| `im#surround#find#quote`      | Symmetric quotes |
+| `im#surround#find#tag`        | HTML / XML tags (reuses native `at`) |
+| `im#surround#find#func`       | Function calls |
+| `im#surround#find#invalid`    | Fallback: nearest identical chars around the cursor |
+| `im#surround#find#pattern`    | Custom regex with signature `fun(ch, opt)`, see below |
+
+
+Custom regex surrounds with `im#surround#find#pattern` (works for `add` / `ds` / `cs`):
+
+```vim
+let b:im_surround_surrounds = [
+      \ {'key': 'b', 'add': ['**', '**'],
+      \  'find': {ch -> im#surround#find#pattern(ch,
+      \    {'open_pat': '\V**', 'close_pat': '\V**', 'scope': 'line'})}},
+      \ ]
+```
+
+- The `opt` Dict takes:
+  - `open_pat` / `close_pat`: Vim regexes for the two sides; prefix literals with `\V`.
+  - `scope`: `'line'` (default) matches only on the current line; `'buffer'` allows multi-line matches.
+
+
+#### Advanced example: Markdown-local mappings
+
+You can extend the rules per filetype (e.g. Markdown) with FileType autocmds:
+
+```vim
+augroup RimeGroup
+  autocmd!
+  autocmd FileType markdown call IMSurroundMarkdown()
+augroup END
+
+function! IMSurroundMarkdown() abort
+  let b:im_surround_surrounds = g:im_surround_surrounds + [
+        \ {'key': 'i', 'add': ['*', '*'],     'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V*', 'close_pat': '\V*', 'scope': 'line'})}},
+        \ {'key': 'b', 'add': ['**', '**'],   'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V**', 'close_pat': '\V**', 'scope': 'line'})}},
+        \ {'key': 'h', 'add': ['==', '=='],   'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V==', 'close_pat': '\V==', 'scope': 'line'})}},
+        \ {'key': 'c', 'add': ['`', '`'],     'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V`', 'close_pat': '\V`', 'scope': 'line'})}},
+        \ {'key': 'C', 'add': ['```', '```'], 'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V```\.\*', 'close_pat': '\V```', 'scope': 'buffer'})}},
+        \ {'key': 'm', 'add': ['$', '$'],     'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V$', 'close_pat': '\V$', 'scope': 'line'})}},
+        \ {'key': 'M', 'add': ['$$', '$$'],   'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V$$', 'close_pat': '\V$$', 'scope': 'buffer'})}},
+        \ {'key': 'l', 'add': ['[', ']()'],   'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V[', 'close_pat': '\V](\.\{-})', 'scope': 'line'})}},
+        \ {'key': 'L', 'add': ['![', ']()'],  'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V![', 'close_pat': '\V](\.\{-})', 'scope': 'line'})}},
+        \ {'key': 'w', 'add': ['[[', ']]'],   'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V[[', 'close_pat': '\V]]', 'scope': 'line'})}},
+        \ {'key': 'W', 'add': ['![[', ']]'],  'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V![[', 'close_pat': '\V]]', 'scope': 'line'})}},
+      \ ]
+endfunction
+
+```
+
+
+### Context auto-switching
+
+Automatically switch between [Rime owned] and [native passthrough] modes based on
+the highlight (syntax scope) under the cursor.
+
+> [!note]
+> - Switching is only evaluated when the cursor crosses a highlight boundary
+> - Recalibrates once on entering Insert mode; resets after leaving it; never switches mid-composition
+> - Restarting the input method with `;;` in Insert mode also recalibrates once
+
+
+#### Configuration
+
+```vim
+" Master switch for context auto-switching (off by default)
+let g:im_context_enabled = 1
+
+" Whether to use treesitter detection (Neovim only; Vim falls back to syntax highlighting)
+let g:im_context_ts_check = 1
+
+" '*' is the global default; specific filetypes take higher priority
+let g:im_context_config = {
+      \ '*':        {'mode': 'blacklist'},
+      \ 'vim':      {'mode': 'whitelist', 'ts': ['comment', 'string'], 'syntax': ['comment', 'string']},
+      \ 'markdown': {'mode': 'blacklist', 'syntax': ['math', 'code']},
+      \ }
+```
+
+- With `mode` set to `whitelist`, Rime only owns the listed highlight areas and
+  passes everything else through; `blacklist` does the opposite.
+- `ts` is a treesitter capture name.
+- `syntax` is a vim syntax highlight group name.
+- `ts` and `syntax` are OR-ed; hitting either one counts; when both are set `ts` wins.
+
+#### Autocmd
+
+The following `autocmd`s fire on state changes for third-party plugins
+(completion, AI continuation, ...):
+
+| Event                | When |
+|----------------------|------|
+| `RimeContextChinese` | Fired on entering [Rime owned] mode, typically to disable third-party completion |
+| `RimeContextEnglish` | Fired on returning to [native passthrough] mode, typically to restore third-party completion |
+| `RimeContextChanged` | Fired whenever the owned state flips (either direction) |
+
+```vim
+function! im#hooks#suppress_completion() abort
+  if exists('*coc#config')
+    call coc#config('suggest.autoTrigger', 'none')
+  endif
+  if exists(':Codeium')
+    Codeium Disable
+  endif
+  if exists('g:blink_cmp_enabled')
+    let g:blink_cmp_enabled = v:false
+  endif
+endfunction
+
+augroup IMGroup
+  autocmd!
+  autocmd User RimeContextChinese  call im#hooks#suppress_completion()
+  autocmd User RimeContextEnglish call im#hooks#restore_completion()
+augroup END
+```
+
+#### Key mappings
+
+Manually toggle [Rime owned] vs [native passthrough]:
+
+```
+inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
+```
+
+
+### Tmux popup input
+
+Use the Rime input method in a tmux `display-popup`, sharing the same
+`rime-query` daemon.
+
+![tmux](https://github.com/user-attachments/assets/fb715949-57d0-4337-870a-5273e3bc1d6c)
+
+#### Requirements
+
+- tmux >= 3.3
+- Python 3
+- a `rime-query` executable (see [Building the backend](#building-the-backend))
+
+#### Installation
+
+With [TPM](https://github.com/tmux-plugins/tpm):
+
+```tmux
+set -g @plugin 'TSalmon3/rime.vim'
+```
+
+Or manually add to `.tmux.conf`:
+
+```tmux
+run-shell '/path/to/rime.vim/rime.tmux'
+```
+
+After installing, press `prefix + ;` to pop the Rime input window.
+
+#### Keys
+
+| Key                 | Function |
+|---------------------|----------|
+| `prefix + ;`        | Open / close the popup |
+| `Space`             | Select candidate |
+| `Enter`             | Commit pinyin |
+| `Number` (1-5)      | Select the Nth candidate |
+| `Up` / `Down`       | Previous / next candidate |
+| `PageUp`/`PageDown` | Previous / next page |
+| `Tab` / `S-Tab`     | Next / previous syllable |
+| `Backspace`         | Delete one char |
+| `Ctrl-u`            | Clear pinyin |
+| `Ctrl-w`            | Delete one syllable |
+| `Ctrl-d`            | Delete a self-made word |
+| `Ctrl-a` / `Ctrl-e` | To pinyin start / end |
+| `Ctrl+p`            | Toggle half/full-width punctuation |
+| `Ctrl+f`            | Toggle simplified/traditional |
+| `Esc`               | Cancel composition / close the popup |
+| `Ctrl-c`            | Quit the popup |
+
+#### Configuration
+
+Set via tmux options (before `run-shell` in `.tmux.conf`):
+
+| Option                      | Default      | Description |
+| --------------------------- | ------------ | ----------- |
+| `@rime_key`                 | `;`          | Bound prefix key |
+| `@rime_bin`                 | `rime-query` | `rime-query` executable path |
+| `@rime_socket`              | empty        | Unix socket path, auto-detected when empty |
+| `@rime_popup`               | empty        | Custom `display-popup` args |
+| `@rime_option_ascii_punct`  | empty        | Initial punctuation (0=full, 1=half) |
+| `@rime_option_traditional`  | empty        | Initial script (0=simplified, 1=traditional) |
+
+```tmux
+set -g @rime_key ";"
+set -g @rime_bin "rime-query"
+```
+
+Custom `@rime_popup` overrides the default popup size and position:
+
+```tmux
+set -g @rime_popup "-w80% -h10 -xC -yC -E -T ㄓ"
+```
+
+Set the initial states:
+
+```tmux
+set -g @rime_option_ascii_punct 1      # initial half-width punctuation
+set -g @rime_option_traditional 0      # initial simplified
+```
+
+#### Environment variables
+
+The tmux popup imports these three from the global environment:
+
+```
+RIME_USER_DATA_DIR   # user data directory
+RIME_SHARED_DATA_DIR # shared data directory
+RIME_LOG             # backend log path
+RIME_TMUX_LOG        # tmux frontend log path
+```
+
+Or set them in `.tmux.conf` via `set-environment -g`:
+
+```
+set-environment -g RIME_USER_DATA_DIR "/path/to/rime"
+set-environment -g RIME_SHARED_DATA_DIR "/usr/share/rime-data"
+set-environment -g RIME_LOG "$HOME/.local/state/log/vim/rime.log"
+set-environment -g RIME_TMUX_LOG "$HOME/.local/state/log/tmux/rime.log"
+```
+
+
 ### Complementary plugins
 
 - [jieba.vim](https://github.com/kkew3/jieba.vim) - word-wise navigation of jieba in Vim/Nvim
@@ -867,8 +1366,12 @@ augroup END
 
 - [ZFVimIM](https://github.com/ZSaberLv0/ZFVimIM) - Vim input method by pure vim script (user words, dynamic word priority, cloud db files)
 - [rime-ls](https://github.com/wlh320/rime-ls) - a language server that provides input method functionality using librime, so you can use Rime via LSP completion
-- [rime.nvim](https://github.com/rimeinn/rime.nvim) - Rime for Neovim
+- [rime.nvim](https://github.com/rimeinn/rime.nvim) - ㄓ rime for neovim
 - [delimitMate](https://github.com/Raimondi/delimitMate) - Vim plugin, provides insert mode auto-completion for quotes, parens, brackets, etc.
+- [nvim-surround](https://github.com/kylechui/nvim-surround) - Add/change/delete surrounding delimiter pairs with ease. Written with ❤️ in Lua.
+- [vim-surround](https://github.com/tpope/vim-surround) - surround.vim: Delete/change/add parentheses/quotes/XML-tags/much more with ease
+- [vim-sandwich](https://github.com/machakann/vim-sandwich) - Set of operators and textobjects to search/select/edit sandwiched texts.
+- [tmux-rime](https://github.com/rimeinn/tmux-rime) - ㄓ rime for tmux
 
 ## License
 

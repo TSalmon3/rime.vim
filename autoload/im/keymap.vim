@@ -234,7 +234,7 @@ function! im#keymap#r() abort"{{{
     return
   endif
 
-  let char = type(c) == type(0) ? nr2char(c) : c
+  let char = type(c) == v:t_number ? nr2char(c) : c
 
   if index(s:mapped_keys.symbols, char) < 0
     call feedkeys('r' . char, 'ni')

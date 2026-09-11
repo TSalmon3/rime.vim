@@ -56,6 +56,8 @@ augroup im_lifecycle
   autocmd User RimeIMReady   call im#on_ready()
   autocmd User RimeContextChinese  call im#hooks#suppress_completion()
   autocmd User RimeContextEnglish call im#hooks#restore_completion()
+  autocmd User RimeIMEnable  call im#surround#enable()
+  autocmd User RimeIMDisable call im#surround#disable()
 augroup END
 
 let g:RIME_MASK = {
