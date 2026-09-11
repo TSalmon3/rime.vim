@@ -1181,6 +1181,13 @@ augroup END
 inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
 ```
 
+开关整个自动切换功能：
+
+```
+nnoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
+inoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
+```
+
 ### Tmux 弹窗输入
 
 在 tmux 中通过 `display-popup` 弹窗使用 Rime 输入法，复用同一个 `rime-query` daemon。

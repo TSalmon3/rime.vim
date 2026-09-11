@@ -165,3 +165,14 @@ function! im#context#toggle() abort"{{{
   silent! doautocmd User RimeContextChanged
   redrawstatus
 endfunction"}}}
+
+function! im#context#auto_toggle() abort"{{{
+  let to_auto = !get(g:, 'im_context_enabled', 0)
+  let g:im_context_enabled = to_auto
+  let state = im#state#get()
+  if !state.started || !state.enabled || im#state#composing()
+    return to_auto ? 1 : 0
+  endif
+  call s:force(to_auto ? s:current_zone() : 'chinese')
+  return to_auto ? 1 : 0
+endfunction"}}}

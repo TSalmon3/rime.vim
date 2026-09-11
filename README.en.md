@@ -1251,6 +1251,14 @@ Manually toggle [Rime owned] vs [native passthrough]:
 inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
 ```
 
+Toggle the whole auto-switching:
+
+```
+nnoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
+inoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
+```
+
+
 
 ### Tmux popup input
 
