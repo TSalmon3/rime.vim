@@ -8,7 +8,7 @@ function! s:finish(first, last, open_len, close_len) abort"{{{
   return s:pos_le(a:first, pos) && s:pos_le(pos, a:last) ? t : {}
 endfunction"}}}
 
-function! im#surround#find#asymmetry(ch) abort"{{{
+function! im#surround#find#matchpair(ch) abort"{{{
   let cfg = im#surround#config#lookup(a:ch)
   let Add = empty(cfg) ? v:null : cfg.add
   if type(Add) != v:t_list || len(Add) != 2

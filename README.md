@@ -785,19 +785,19 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 ```vim
 " 自动成对开关（默认 0）
 let g:im_pair_enabled = 0
-" 配对规则列表，每条包含 open/close 与 kind（'delim' 表示开闭符不同，'quote' 表示开闭符相同）
+" 配对规则列表，每条包含 open/close 与 kind（'matchpair' 表示开闭符不同，'quote' 表示开闭符相同）
 let g:im_pair_rules = [
-      \ {'open': '(',  'close': ')',  'kind': 'delim'},
-      \ {'open': '[',  'close': ']',  'kind': 'delim'},
-      \ {'open': '{',  'close': '}',  'kind': 'delim'},
-      \ {'open': '<',  'close': '>',  'kind': 'delim'},
-      \ {'open': '（', 'close': '）', 'kind': 'delim'},
-      \ {'open': '【', 'close': '】', 'kind': 'delim'},
-      \ {'open': '「', 'close': '」', 'kind': 'delim'},
-      \ {'open': '『', 'close': '』', 'kind': 'delim'},
-      \ {'open': '《', 'close': '》', 'kind': 'delim'},
-      \ {'open': "‘",  'close': "’",  'kind': 'delim'},
-      \ {'open': "“",  'close': "”",  'kind': 'delim'},
+      \ {'open': '(',  'close': ')',  'kind': 'matchpair'},
+      \ {'open': '[',  'close': ']',  'kind': 'matchpair'},
+      \ {'open': '{',  'close': '}',  'kind': 'matchpair'},
+      \ {'open': '<',  'close': '>',  'kind': 'matchpair'},
+      \ {'open': '（', 'close': '）', 'kind': 'matchpair'},
+      \ {'open': '【', 'close': '】', 'kind': 'matchpair'},
+      \ {'open': '「', 'close': '」', 'kind': 'matchpair'},
+      \ {'open': '『', 'close': '』', 'kind': 'matchpair'},
+      \ {'open': '《', 'close': '》', 'kind': 'matchpair'},
+      \ {'open': "‘",  'close': "’",  'kind': 'matchpair'},
+      \ {'open': "“",  'close': "”",  'kind': 'matchpair'},
       \ {'open': '"',  'close': '"',  'kind': 'quote'},
       \ {'open': "'",  'close': "'",  'kind': 'quote'},
       \ ]
@@ -912,14 +912,14 @@ let g:im_surround_flash_ms          = 120
 let g:im_surround_surrounds = im#surround#config#default_surrounds()
 " 等价于
 let g:im_surround_surrounds = [
-      \ {'key': '(',  'add': ['( ', ' )'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': ')',  'add': ['(', ')'],   'find': function('im#surround#find#asymmetry')},
-      \ {'key': '[',  'add': ['[ ', ' ]'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': ']',  'add': ['[', ']'],   'find': function('im#surround#find#asymmetry')},
-      \ {'key': '{',  'add': ['{ ', ' }'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '}',  'add': ['{', '}'],   'find': function('im#surround#find#asymmetry')},
-      \ {'key': '<',  'add': ['< ', ' >'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '>',  'add': ['<', '>'],   'find': function('im#surround#find#asymmetry')},
+      \ {'key': '(',  'add': ['( ', ' )'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': ')',  'add': ['(', ')'],   'find': function('im#surround#find#matchpair')},
+      \ {'key': '[',  'add': ['[ ', ' ]'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': ']',  'add': ['[', ']'],   'find': function('im#surround#find#matchpair')},
+      \ {'key': '{',  'add': ['{ ', ' }'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '}',  'add': ['{', '}'],   'find': function('im#surround#find#matchpair')},
+      \ {'key': '<',  'add': ['< ', ' >'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '>',  'add': ['<', '>'],   'find': function('im#surround#find#matchpair')},
       \ {"key": "'",  'add': ["'", "'"],   'find': function('im#surround#find#quote')},
       \ {'key': '"',  'add': ['"', '"'],   'find': function('im#surround#find#quote')},
       \ {'key': '`',  'add': ['`', '`'],   'find': function('im#surround#find#quote')},
@@ -927,22 +927,22 @@ let g:im_surround_surrounds = [
       \ {'key': 'T',  'add': function('im#surround#add#tag'),     'find': function('im#surround#find#tag'),       'replace': function('im#surround#change#tag_full')},
       \ {'key': 'f',  'add': function('im#surround#add#func'),    'find': function('im#surround#find#func'),      'replace': function('im#surround#change#func')},
       \ {'key': 'i',  'add': function('im#surround#add#input')},
-      \ {'key': '‘', 'add': ['‘', '’'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '’', 'add': ['‘', '’'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '“', 'add': ['“', '”'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '”', 'add': ['“', '”'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '（', 'add': ['（', '）'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '）', 'add': ['（', '）'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '【', 'add': ['【', '】'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '】', 'add': ['【', '】'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '「', 'add': ['「', '」'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '」', 'add': ['「', '」'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '『', 'add': ['『', '』'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '』', 'add': ['『', '』'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '《', 'add': ['《', '》'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '》', 'add': ['《', '》'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '＜', 'add': ['＜', '＞'], 'find': function('im#surround#find#asymmetry')},
-      \ {'key': '＞', 'add': ['＜', '＞'], 'find': function('im#surround#find#asymmetry')},
+      \ {'key': '‘', 'add': ['‘', '’'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '’', 'add': ['‘', '’'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '“', 'add': ['“', '”'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '”', 'add': ['“', '”'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '（', 'add': ['（', '）'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '）', 'add': ['（', '）'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '【', 'add': ['【', '】'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '】', 'add': ['【', '】'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '「', 'add': ['「', '」'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '」', 'add': ['「', '」'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '『', 'add': ['『', '』'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '』', 'add': ['『', '』'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '《', 'add': ['《', '》'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '》', 'add': ['《', '》'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '＜', 'add': ['＜', '＞'], 'find': function('im#surround#find#matchpair')},
+      \ {'key': '＞', 'add': ['＜', '＞'], 'find': function('im#surround#find#matchpair')},
       \ ]
 
 
@@ -1059,7 +1059,7 @@ let s:default_aliases = [
 
 | 函数                          | 适用场景                                             |
 | ----------------------------- | ---------------------------------------------------- |
-| `im#surround#find#asymmetry`  | 左右不同的定界符（`()` `[]` `{}` `<>` 及全角括号等） |
+| `im#surround#find#matchpair`  | 左右不同的定界符（`()` `[]` `{}` `<>` 及全角括号等） |
 | `im#surround#find#quote`      | 左右相同的引号                                       |
 | `im#surround#find#tag`        | HTML / XML 标签（复用原生 `at`）                     |
 | `im#surround#find#func`       | 函数调用                                             |
