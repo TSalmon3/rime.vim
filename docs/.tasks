@@ -1,0 +1,16 @@
+[project-dep-install]
+command=pnpm install
+ouput=terminal
+pos=bottom
+
+[project-build]
+command=pnpm docs:build
+ouput=terminal
+pos=bottom
+
+[project-deploy]
+command=pnpm docs:dev --open
+ouput=terminal
+pos=bottom
+
+

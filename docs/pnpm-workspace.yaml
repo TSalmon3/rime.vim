@@ -1,0 +1,3 @@
+# 允许 esbuild 的 postinstall（VitePress 构建前自检 pnpm install 所需）
+allowBuilds:
+  esbuild: true
