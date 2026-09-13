@@ -1,5 +1,5 @@
 *rime.txt*
-                             For NVIM v0.8.0    Last change: 2026 September 12
+                             For NVIM v0.8.0    Last change: 2026 September 13
 
 ==============================================================================
 Table of Contents                                     *rime-table-of-contents*
@@ -34,28 +34,28 @@ TABLE OF CONTENTS                                     *rime-table-of-contents*
 
 - |rime-introduction|
 - |rime-quick-start|
-    - |rime-requirements|
-    - |rime-installation|
-    - |rime-building-the-backend|
+    - Requirements
+    - Installation
+    - Building the backend
 - |rime-configuration|
-    - |rime-options|
-    - |rime-environment-variables|
+    - Options
+    - Environment variables
 - |rime-usage|
-    - |rime-commands|
-    - |rime-key-mappings|
+    - Commands
+    - Key mappings
 - |rime-integration|
-    - |rime-autocmd|
-    - |rime-statusline|
+    - Autocmd
+    - Statusline
 - |rime-advanced-topics|
-    - |rime-rime-ice-configuration-examples|
-    - |rime-making-chinese-editing-smoother|
-    - |rime-customizing-chinese/english-switching-and-the-scheme-menu|
-    - |rime-replace-mode|
-    - |rime-auto-pair|
-    - |rime-surround|
-    - |rime-context-auto-switching|
-    - |rime-tmux-popup-input|
-    - |rime-complementary-plugins|
+    - rime-ice configuration examples
+    - Making Chinese editing smoother
+    - Customizing Chinese/English switching and the scheme menu
+    - Replace Mode
+    - Auto Pair
+    - Surround
+    - Context auto-switching
+    - Tmux popup input
+    - Complementary plugins
 - |rime-acknowledgments|
 - |rime-license|
 
@@ -1457,7 +1457,7 @@ REQUIREMENTS
 
 - tmux >= 3.3
 - Python 3
-- a `rime-query` executable (see |rime-building-the-backend|)
+- a `rime-query` executable (see Building the backend)
 
 
 INSTALLATION
