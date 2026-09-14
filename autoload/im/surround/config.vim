@@ -142,3 +142,8 @@ function! im#surround#config#alias_targets(char) abort"{{{
   endfor
   return []
 endfunction"}}}
+
+function! im#surround#config#candidate_keys(char) abort"{{{
+  let targets = im#surround#config#alias_targets(a:char)
+  return !empty(targets) ? targets : [a:char]
+endfunction"}}}
