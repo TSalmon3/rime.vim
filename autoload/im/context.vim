@@ -68,7 +68,7 @@ function! s:ts_hit(pats) abort"{{{
   if empty(a:pats)
     return 0
   endif
-  if !has('nvim') || !get(g:, 'im_context_ts_check', 0)
+  if !has('nvim')
     return 0
   endif
   try

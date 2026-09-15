@@ -1128,9 +1128,6 @@ endfunction
 " 上下文自动切换总开关（默认关闭）
 let g:im_context_enabled = 1
 
-" 是否启用 treesitter 检测（仅 Neovim 生效；Vim 只能用 syntax 高亮判断）
-let g:im_context_ts_check = 1
-
 " '*' 为全局默认规则，具体 filetype 的配置优先级更高
 let g:im_context_config = {
       \ '*':        {'mode': 'blacklist'},
