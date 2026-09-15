@@ -1179,6 +1179,8 @@ augroup END
 手动切换【Rime 接管】与【原生直通】模式：
 
 ```
+inoremap <silent> ;u <cmd>call im#context#set('chinese')<cr>
+inoremap <silent> ;n <cmd>call im#context#set('english')<cr>
 inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
 ```
 
