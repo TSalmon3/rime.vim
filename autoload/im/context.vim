@@ -146,7 +146,7 @@ endfunction"}}}
 function! im#context#toggle() abort"{{{
   let state = im#state#get()
   if !state.started || !state.enabled
-    return
+    return 0
   endif
   if im#state#composing()
     call im#cancel()
@@ -164,6 +164,41 @@ function! im#context#toggle() abort"{{{
   endif
   silent! doautocmd User RimeContextChanged
   redrawstatus
+  return 1
+endfunction"}}}
+
+function! im#context#set(zone) abort"{{{
+  let zone = tolower(a:zone)
+  if zone !=# 'chinese' && zone !=# 'english'
+    echohl WarningMsg
+    echom '[IM] context: zone must be chinese/english'
+    echohl None
+    return 0
+  endif
+  let state = im#state#get()
+  if !state.started || !state.enabled
+    return 0
+  endif
+  if im#state#composing()
+    call im#cancel()
+  endif
+  let to_chinese = zone ==# 'chinese'
+  if !!&iminsert == to_chinese
+    return 0
+  endif
+  if mode(1) =~# '^[iR]'
+    call feedkeys(nr2char(30), 'ni')
+  else
+    let &iminsert = to_chinese
+  endif
+  if to_chinese
+    silent! doautocmd User RimeContextChinese
+  else
+    silent! doautocmd User RimeContextEnglish
+  endif
+  silent! doautocmd User RimeContextChanged
+  redrawstatus
+  return 1
 endfunction"}}}
 
 function! im#context#auto_toggle() abort"{{{
