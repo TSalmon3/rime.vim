@@ -67,7 +67,7 @@ export default defineConfig({
 
     socialLinks: [{ icon: 'github', link: 'https://github.com/TSalmon3/rime.vim' }],
     editLink: {
-      pattern: 'https://github.com/TSalmon3/rime.vim/edit/main/docs/:path',
+      pattern: 'https://github.com/TSalmon3/rime.vim/edit/master/docs/:path',
       text: '在 GitHub 上编辑此页',
     },
     lastUpdated: { text: '最后更新于', formatOptions: { dateStyle: 'short', timeStyle: 'short' } },
