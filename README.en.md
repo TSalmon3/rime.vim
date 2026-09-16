@@ -4,6 +4,8 @@
   <p align="center">
     <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square"></a>
     <a href="https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity"><img alt="Maintenance" src="https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=flat-square"></a>
+    <a href="https://www.vim.org"><img alt="Vim" src="https://img.shields.io/badge/Vim-8.2+-green.svg?style=flat-square&logo=vim"></a>
+    <a href="https://neovim.io"><img alt="NeoVim" src="https://img.shields.io/badge/NeoVim-0.4+-green.svg?style=flat-square&logo=neovim"></a>
   </p>
 </p>
 
@@ -59,9 +61,8 @@ Answers to common questions.
 
 ## Introduction
 
-Rime (Zhongzhouyun) input method integration for Vim / Neovim, based on the
-[rime-ice](https://github.com/iDvel/rime-ice) dictionary, supporting both Vim
-(>= 8.2.1978) and Neovim.
+Rime (Zhongzhouyun) input method integration for Vim / Neovim, supporting
+both Vim (>= 8.2.1978) and Neovim.
 
 **Usage**: enter Insert mode and type pinyin directly; a candidate popup
 appears. Use the number keys or `Up` / `Down` to select a candidate,
@@ -76,6 +77,7 @@ Key features:
 - Toggle between simplified / traditional, half/full-width punctuation, and emoji
 - Candidate popup / underline rendering; the statusline can show the current input state
 - Supports auto-completion for brackets, quotes, and other delimiters
+- Supports automatic switching between Chinese and English
 - Supports shared word-frequency learning across multiple instances, including mixed Vim and Neovim sessions
 - Provides command-line and terminal input solutions
 
@@ -835,13 +837,13 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 | Jump close     | `)` `」` `"`  | ()\|　「」\|　""\|          | When the same close delimiter/quote is already right of the cursor, jump over it instead of inserting |
 | Delete pair    | `<BS>`        | (\|) → delete → \|         | In an empty pair (open immediately followed by close), delete the whole pair at once |
 | Delete open only | `<s-bs>`    | (\|) → delete → \|)        | In an empty pair, delete only the open delimiter, keeping the close |
-| Manual jump    | `<c-tab>`     | (\|) → jump one → ()\|     | Skip one close delimiter/quote to the right (`im#pair#jump_any`) |
-| Manual multi-jump | `<c-g>`   | (\|))) → jump all → ()))\| | Skip a run of close delimiters/quotes to the right (`im#pair#jump_many`) |
+| Manual jump    | `;j`         | (\|) → jump one → ()\|     | Skip one close delimiter/quote to the right (`im#pair#jump_any`) |
+| Manual multi-jump | `;J`     | (\|))) → jump all → ()))\| | Skip a run of close delimiters/quotes to the right (`im#pair#jump_many`) |
 
 - Default pairs: `()` `[]` `{}` `<>` `"` `'`, plus full-width `（）` `【】` `「」` `『』` `《》` `“”` `‘’`
 - Half-width punctuation goes straight to the screen; full-width punctuation goes through Rime. Pairing is handled correctly in both cases
 - Configuration priority: `b:im_pair_rules` > `g:im_pair_rules` > default (only `im_pair_rules` supports `b:`-local config, the rest are global `g:`)
-- Highlight blacklist: when the cursor is inside a listed highlight group (e.g. comments, strings), auto pair pauses and resumes after leaving. **Disabled by default**; unset or empty means no effect:
+- Scope blacklist: when the cursor is inside a listed highlight group (e.g. comments, strings), auto pair pauses and resumes after leaving. **Disabled by default**; unset or empty means no effect:
 
 #### Configuration
 
@@ -868,22 +870,43 @@ let g:im_pair_rules = [
 " Or just use the default rules
 let g:im_pair_rules = im#pair#default_rules()
 
-" Disable by highlight: regex list of highlight group names (case-insensitive); hitting any disables auto pair (default [], disabled)
-let g:im_pair_blacklist_highlight = ['comment', 'doc', 'string']
-" Disable by filetype
-let g:im_pair_blacklist_filetypes = ['vim']
 
-" The following only take effect in Neovim (requires Treesitter support); in Vim highlight checking always uses regex matching
-" Priority: g:im_pair_blacklist_filetypes > g:im_pair_ts_config > g:im_pair_blacklist_highlight
-let g:im_pair_ts_check  = 0
-
-" '*' is a global wildcard; specific filetypes override it (explicit [] disables checking for that filetype)
-let g:im_pair_ts_config = {
-      \ '*':      ['comment', 'string'],
-      \ 'lua':    ['comment', 'string'],
-      \ 'python': ['comment', 'string'],
+" Scope blacklist
+" Keys are &filetype, '*' is the global default; a matching filetype entry is used as-is, not merged with '*'
+" Value fields:
+"   disabled: 1 disables auto pair for that filetype entirely
+"   syntax: regex list of vim highlight group names (case-insensitive, e.g. 'comment' matches Comment/vimCommentTitle)
+"   ts: substring list of treesitter node types (case-insensitive, Neovim only, ignored in Vim)
+" syntax and ts are OR-ed; hitting either one pauses; when both are empty nothing happens
+let g:im_pair_config = {
+      \ '*': {'syntax': ['comment', 'string'], 'ts': ['comment', 'string']},
+      \ 'txt': {'disabled': 1}
       \ }
+
 ```
+
+#### `g:im_pair_rules`
+
+- `open`: open delimiter
+- `close`: close delimiter
+- `kind`: `matchpair` means open != close, `quote` means open == close
+
+> [!Note]:
+> Priority `b:im_pair_rules` > `g:im_pair_rules` > default
+
+
+#### `g:im_pair_config`
+
+Disable auto pair by scope. Keys are concrete `filetype`s or `*` (global wildcard); a specific `filetype` entry fully overrides the `*` settings.
+
+Available fields:
+
+- `disabled`: boolean. 1 disables auto pair for that filetype and short-circuits the remaining fields.
+- `syntax`: list. Case-insensitively matches the highlight group name (Syntax Group) under the cursor.
+- `ts`: list. Matches Tree-sitter node types (Neovim only).
+
+> [!note]
+> `ts` and `syntax` are OR-ed; hitting either one pauses; when both are set `ts` is checked first.
 
 #### Key mappings
 
@@ -894,8 +917,8 @@ inoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
 nnoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
 
 function RimeKeymapRemap()
-  lnoremap <expr> <c-g> im#pair#jump_any()   " skip one close delimiter/quote to the right
-  lnoremap <expr> <c-tab> im#pair#jump_many()  " skip a run of close delimiters/quotes to the right
+  inoremap <expr> ;j im#pair#jump_any()   " skip one close delimiter/quote to the right
+  inoremap <expr> ;J im#pair#jump_many()  " skip a run of close delimiters/quotes to the right
 
   lnoremap <silent><expr> <bs> im#state#composing() ?
         \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
@@ -910,8 +933,8 @@ function RimeKeymapRemap()
 endfunction
 
 function RimeKeymapClear()
-  silent! lunmap <c-g>
-  silent! lunmap <c-tab>
+  silent! iunmap ;j
+  silent! iunmap ;J
 endfunction
 
 augroup RimeGroup
@@ -1195,9 +1218,6 @@ the highlight (syntax scope) under the cursor.
 " Master switch for context auto-switching (off by default)
 let g:im_context_enabled = 1
 
-" Whether to use treesitter detection (Neovim only; Vim falls back to syntax highlighting)
-let g:im_context_ts_check = 1
-
 " '*' is the global default; specific filetypes take higher priority
 let g:im_context_config = {
       \ '*':        {'mode': 'blacklist'},
@@ -1236,6 +1256,18 @@ function! im#hooks#suppress_completion() abort
   endif
 endfunction
 
+function! im#hooks#restore_completion() abort
+  if exists('*coc#config')
+    call coc#config('suggest.autoTrigger', 'always')
+  endif
+  if exists(':Codeium')
+    Codeium Enable
+  endif
+  if exists('g:blink_cmp_enabled')
+    let g:blink_cmp_enabled = v:true
+  endif
+endfunction
+
 augroup IMGroup
   autocmd!
   autocmd User RimeContextChinese  call im#hooks#suppress_completion()
@@ -1248,6 +1280,8 @@ augroup END
 Manually toggle [Rime owned] vs [native passthrough]:
 
 ```
+inoremap <silent> ;u <cmd>call im#context#set('chinese')<cr>
+inoremap <silent> ;n <cmd>call im#context#set('english')<cr>
 inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
 ```
 

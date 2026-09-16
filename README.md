@@ -4,6 +4,8 @@
   <p align="center">
     <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square"></a>
     <a href="https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity"><img alt="Maintenance" src="https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=flat-square"></a>
+    <a href="https://www.vim.org"><img alt="Vim" src="https://img.shields.io/badge/Vim-8.2+-green.svg?style=flat-square&logo=vim"></a>
+    <a href="https://neovim.io"><img alt="NeoVim" src="https://img.shields.io/badge/NeoVim-0.4+-green.svg?style=flat-square&logo=neovim"></a>
   </p>
 </p>
 

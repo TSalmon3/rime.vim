@@ -22,9 +22,6 @@ description: 按高亮作用域自动切换中英
 " 上下文自动切换总开关（默认关闭）
 let g:im_context_enabled = 1
 
-" 是否启用 treesitter 检测（仅 Neovim 生效；Vim 只能用 syntax 高亮判断）
-let g:im_context_ts_check = 1
-
 " '*' 为全局默认规则，具体 filetype 的配置优先级更高
 let g:im_context_config = {
       \ '*':        {'mode': 'blacklist'},
@@ -61,6 +58,18 @@ function! im#hooks#suppress_completion() abort
   endif
 endfunction
 
+function! im#hooks#restore_completion() abort
+  if exists('*coc#config')
+    call coc#config('suggest.autoTrigger', 'always')
+  endif
+  if exists(':Codeium')
+    Codeium Enable
+  endif
+  if exists('g:blink_cmp_enabled')
+    let g:blink_cmp_enabled = v:true
+  endif
+endfunction
+
 augroup IMGroup
   autocmd!
   autocmd User RimeContextChinese  call im#hooks#suppress_completion()
@@ -73,6 +82,8 @@ augroup END
 手动切换【Rime 接管】与【原生直通】模式：
 
 ```
+inoremap <silent> ;u <cmd>call im#context#set('chinese')<cr>
+inoremap <silent> ;n <cmd>call im#context#set('english')<cr>
 inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
 ```
 

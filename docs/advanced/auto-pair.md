@@ -17,8 +17,8 @@ description: 括号引号自动成对配置
 | 闭符跳出 | `)` `」` `"` | ()\|　「」\|　""\|         | 光标右侧已有相同闭符/引号时直接跳出，不重复插入      |
 | 空对删除 | `<BS>`       | (\|) → 删除 → \|           | 在空对（开符紧邻闭符）中一次性删除整对               |
 | 只删开符 | `<s-bs>`     | (\|) → 删除 → \|)          | 在空对（开符紧邻闭符）中只删除开符，保留闭符         |
-| 手动跳过 | `<c-tab>`    | (\|) → 越过一个 → ()\|     | 跳过右侧一个闭符/引号（`im#pair#jump_any`）          |
-| 手动连跳 | `<c-g>`      | (\|))) → 越过全部 → ()))\| | 跳过右侧连续多个闭符/引号（`im#pair#jump_many`）     |
+| 手动跳过 | `;j`         | (\|) → 越过一个 → ()\|     | 跳过右侧一个闭符/引号（`im#pair#jump_any`）          |
+| 手动连跳 | `;J`         | (\|))) → 越过全部 → ()))\| | 跳过右侧连续多个闭符/引号（`im#pair#jump_many`）     |
 
 - 默认配对：`()` `[]` `{}` `<>` `"` `'`，以及全角 `（）` `【】` `「」` `『』` `《》` `“”` `‘’`
 - 无论半角标点直接上屏，还是全角标点经 Rime 上屏，两种情况均可正确识别配对
@@ -47,25 +47,49 @@ let g:im_pair_rules = [
       \ {'open': "'",  'close': "'",  'kind': 'quote'},
       \ ]
 
-" 也可以直接使用默认规则
+" 等价于
 let g:im_pair_rules = im#pair#default_rules()
 
-" 按 highlight 关闭自动成对：高亮组名支持正则列表（大小写不敏感），命中任一项即关闭自动成对（默认 []，不启用）
-let g:im_pair_blacklist_highlight = ['comment', 'doc', 'string']
-" 按 filetype 关闭自动成对
-let g:im_pair_blacklist_filetypes = ['vim']
 
-" 以下配置仅在 Neovim 中生效（需要 Treesitter 支持）；Vim 中高亮判断始终使用正则匹配
-" 优先级：g:im_pair_blacklist_filetypes > g:im_pair_ts_config > g:im_pair_blacklist_highlight
-let g:im_pair_ts_check  = 0
-
-" '*' 表示全局通配规则，具体 filetype 的配置会覆盖全局配置（显式设为 [] 表示该 filetype 关闭检查）
-let g:im_pair_ts_config = {
-      \ '*':      ['comment', 'string'],
-      \ 'lua':    ['comment', 'string'],
-      \ 'python': ['comment', 'string'],
+" 作用域黑名单
+" 键为 &filetype，'*' 为全局默认；命中具体 filetype 则只用该条，不与 '*' 合并
+" 值字段：
+"   disabled: 1 则该 filetype 下完全关闭自动成对
+"   syntax: vim 高亮组名的正则列表（大小写不敏感，如 'comment' 可命中 Comment/vimCommentTitle）
+"   ts: treesitter 节点类型的子串列表（大小写不敏感，仅 Neovim 生效，Vim 下忽略）
+" syntax 与 ts 为“或”关系，命中任一即暂停；两者皆空则不生效
+let g:im_pair_config = {
+      \ '*': {'syntax': ['comment', 'string'], 'ts': ['comment', 'string']},
+      \ 'txt': {'disabled': 1}
       \ }
+
 ```
+
+## `g:im_pair_rules`
+
+- `open` : 开符
+- `close` : 闭符
+- `kind` : `matchpair` 表示开闭符不同，`quote` 表示开闭符相同
+
+::: info
+优先级 `b:im_pair_rules` > `g:im_pair_rules` > 默认
+:::
+
+
+## `g:im_pair_config`
+
+按作用域关闭自动成对。键名可为具体 `filetype` 或 `*`（表示全局通配）；特定 `filetype` 的配置会整体覆盖 `*` 的设置。
+
+可用字段：
+
+- `disabled`：布尔值。设为 1 时直接关闭该 filetype 下的自动成对，并短路其余字段。
+- `syntax`：列表。大小写不敏感地匹配光标处的高亮组名（Syntax Group）。
+- `ts`：列表。匹配 Tree-sitter 节点类型（仅 Neovim 生效）。
+
+::: info
+`ts` 与 `syntax` 之间为「或」的关系，命中任一即可触发关闭；两者同时配置时优先判定 ts。
+:::
+
 
 ## 快捷键
 
@@ -76,8 +100,8 @@ inoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
 nnoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
 
 function RimeKeymapRemap()
-  lnoremap <expr> <c-g> im#pair#jump_any()   " 跳过右侧一个闭符/引号
-  lnoremap <expr> <c-tab> im#pair#jump_many()  " 跳过右侧连续一串闭符/引号
+  inoremap <expr> ;j im#pair#jump_any()   " 跳过右侧一个闭符/引号
+  inoremap <expr> ;J im#pair#jump_many()  " 跳过右侧连续一串闭符/引号
 
   lnoremap <silent><expr> <bs> im#state#composing() ?
         \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
@@ -92,8 +116,8 @@ function RimeKeymapRemap()
 endfunction
 
 function RimeKeymapClear()
-  silent! lunmap <c-g>
-  silent! lunmap <c-tab>
+  silent! iunmap ;j
+  silent! iunmap ;J
 endfunction
 
 augroup RimeGroup
