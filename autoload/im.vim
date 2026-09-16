@@ -35,6 +35,8 @@ function! s:setup_im_autocmd() abort"{{{
     autocmd InsertLeave * call im#context#on_leave()
     autocmd InsertEnter * call im#pair#on_enter()
     autocmd InsertLeave * call im#pair#on_leave()
+    autocmd InsertEnter * call im#pair#imap_enter()
+    autocmd InsertLeave * call im#pair#imap_leave()
   augroup END
 endfunction"}}}
 

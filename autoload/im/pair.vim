@@ -25,11 +25,29 @@ function! s:opt_g(name, default) abort"{{{
   return a:default
 endfunction"}}}
 
+function! s:single(raw) abort"{{{
+  return type(a:raw) == v:t_string && strchars(a:raw) == 1 ? a:raw : ''
+endfunction"}}}
+
 function! s:rules() abort"{{{
-  if has_key(b:, 'im_pair_rules')
-    return b:im_pair_rules
+  let raw = has_key(b:, 'im_pair_rules') ? b:im_pair_rules
+        \ : s:opt_g('rules', s:default_rules)
+  if type(raw) != v:t_list
+    return []
   endif
-  return s:opt_g('rules', s:default_rules)
+  let ok = []
+  for r in raw
+    if type(r) != v:t_dict
+      continue
+    endif
+    let open = s:single(get(r, 'open', ''))
+    let close = s:single(get(r, 'close', ''))
+    if empty(open) || empty(close)
+      continue
+    endif
+    call add(ok, {'open': open, 'close': close, 'kind': get(r, 'kind', '')})
+  endfor
+  return ok
 endfunction"}}}
 
 function! im#pair#on_enter() abort"{{{
@@ -279,4 +297,168 @@ endfunction"}}}
 
 function! im#pair#default_rules() abort"{{{
   return deepcopy(s:default_rules)
+endfunction"}}}
+
+let s:imap_session = 0
+let s:imap_saved = {}
+
+function! im#pair#imap_keys() abort"{{{
+  let seen = {}
+  let keys = []
+  for r in s:rules()
+    if type(r) != v:t_dict
+      continue
+    endif
+    for k in [get(r, 'open', ''), get(r, 'close', '')]
+      if !empty(k) && !has_key(seen, k)
+        if strchars(k) != 1 || char2nr(k) < 0x20 || char2nr(k) > 0x7E
+          continue
+        endif
+        let seen[k] = 1
+        call add(keys, k)
+      endif
+    endfor
+  endfor
+  return keys
+endfunction"}}}
+
+function! im#pair#imap_is_active() abort"{{{
+  return s:imap_session
+endfunction"}}}
+
+function! s:imap_lhs(key) abort"{{{
+  return substitute(a:key, '|', '<bar>', 'g')
+endfunction"}}}
+
+function! s:imap_rhs(key) abort"{{{
+  return 'im#pair#imap_complete(' . string(a:key) . ')'
+endfunction"}}}
+
+function! s:imap_restore(key, mdict) abort"{{{
+  if exists('*mapset')
+    call mapset('i', 0, a:mdict)
+    return
+  endif
+  if !has_key(a:mdict, 'rhs') || type(a:mdict.rhs) != v:t_string
+    echohl WarningMsg
+    echom '[IM] imap restore skipped, unrestorable mapping: ' . a:key
+    echohl None
+    return
+  endif
+  let cmd = 'i'
+  if get(a:mdict, 'noremap', 1)
+    let cmd .= 'noremap'
+  else
+    let cmd .= 'map'
+  endif
+  if get(a:mdict, 'buffer', 0) | let cmd .= ' <buffer>' | endif
+  if get(a:mdict, 'nowait', 0) | let cmd .= ' <nowait>' | endif
+  if get(a:mdict, 'silent', 0) | let cmd .= ' <silent>' | endif
+  if get(a:mdict, 'expr', 0)   | let cmd .= ' <expr>'   | endif
+  let rhs = substitute(a:mdict.rhs, "\n", '\\<NL>', 'g')
+  execute 'silent! ' . cmd . ' ' . s:imap_lhs(a:key) . ' ' . rhs
+endfunction"}}}
+
+function! s:imap_prune() abort"{{{
+  for b in keys(s:imap_saved)
+    if !bufexists(str2nr(b))
+      call remove(s:imap_saved, b)
+    endif
+  endfor
+endfunction"}}}
+
+function! im#pair#imap_enable() abort"{{{
+  if !s:opt_g('enabled', 0)
+    return
+  endif
+  if !s:opt_g('imap_enabled', 1)
+    return
+  endif
+  let s:imap_session = 1
+  if mode(1) =~# '^[iR]'
+    call im#pair#imap_enter()
+  endif
+endfunction"}}}
+
+function! im#pair#imap_disable() abort"{{{
+  let s:imap_session = 0
+  call im#pair#imap_leave()
+endfunction"}}}
+
+function! im#pair#imap_refresh() abort"{{{
+  call im#pair#imap_enter()
+endfunction"}}}
+
+function! im#pair#imap_enter() abort"{{{
+  if !s:imap_session
+    return
+  endif
+  if !s:opt_g('enabled', 0)
+    return
+  endif
+  if !s:opt_g('imap_enabled', 1)
+    return
+  endif
+  call s:imap_prune()
+  let buf = bufnr('%')
+  if !has_key(s:imap_saved, buf)
+    let s:imap_saved[buf] = {}
+  endif
+  for key in im#pair#imap_keys()
+    if empty(key)
+      continue
+    endif
+    if maparg(key, 'i') ==# s:imap_rhs(key)
+      if !has_key(s:imap_saved[buf], key)
+        let s:imap_saved[buf][key] = {'map': {}, 'rhs': ''}
+      endif
+      continue
+    endif
+    let eff = maparg(key, 'i', 0, 1)
+    let s:imap_saved[buf][key] = {
+          \ 'map': type(eff) == v:t_dict ? eff : {},
+          \ 'rhs': maparg(key, 'i'),
+          \ }
+    silent! execute 'inoremap <buffer> <expr> <silent> ' . s:imap_lhs(key)
+          \ . ' ' . s:imap_rhs(key)
+  endfor
+endfunction"}}}
+
+function! im#pair#imap_leave() abort"{{{
+  let buf = bufnr('%')
+  if !has_key(s:imap_saved, buf)
+    return
+  endif
+  for key in keys(s:imap_saved[buf])
+    let snap = s:imap_saved[buf][key]
+    let eff = maparg(key, 'i', 0, 1)
+    if maparg(key, 'i') ==# s:imap_rhs(key)
+          \ && type(eff) == v:t_dict && get(eff, 'buffer', 0)
+      silent! execute 'iunmap <buffer> ' . s:imap_lhs(key)
+      if !empty(snap.map)
+        call s:imap_restore(key, snap.map)
+      endif
+    endif
+  endfor
+  call remove(s:imap_saved, buf)
+endfunction"}}}
+
+function! im#pair#imap_complete(key) abort"{{{
+  if im#replace#active() || !s:imap_session || !s:opt_g('enabled', 0)
+    return a:key
+  endif
+  if s:blocked(a:key)
+    return a:key
+  endif
+  let role = s:classify(a:key)
+  if empty(role)
+    return a:key
+  endif
+  if role.kind ==# 'close'
+    return s:char_at_cursor() ==# role.ch ? "\<Right>" : a:key
+  elseif role.kind ==# 'open'
+    return a:key . role.close . "\<Left>"
+  else
+    return s:char_at_cursor() ==# role.ch ? "\<Right>" : a:key . a:key . "\<Left>"
+  endif
 endfunction"}}}
