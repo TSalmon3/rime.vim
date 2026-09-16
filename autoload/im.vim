@@ -33,6 +33,8 @@ function! s:setup_im_autocmd() abort"{{{
     autocmd InsertEnter * call im#context#on_enter()
     autocmd CursorMovedI * call im#context#update()
     autocmd InsertLeave * call im#context#on_leave()
+    autocmd InsertEnter * call im#pair#on_enter()
+    autocmd InsertLeave * call im#pair#on_leave()
   augroup END
 endfunction"}}}
 
@@ -126,8 +128,6 @@ function! s:commit_text(committed) abort"{{{
     call complete(col('.'), [])
   endif
 
-  call im#underline#clean()
-  call im#state#reset_input()
   let state.last_commit = a:committed
 endfunction"}}}
 
@@ -141,36 +141,23 @@ function! im#key(keycode, mask, ...) abort"{{{
   " librime reject 上屏
   if !ctx.accepted
     let committed = get(ctx, 'committed', '')
-    let pair = im#pair#extra(fallback)
     if !empty(committed)
       call s:commit_text(committed)
-    else
-      call im#underline#clean()
-      call im#state#reset_input()
-      " 半角闭符：光标右侧已有闭符则跳出，不插入。
-      if im#pair#jump(fallback)
-        call feedkeys("\<Del>" . fallback, 'ni')
-        return
-      endif
     endif
-    call feedkeys(fallback . pair, 'ni')
+    call im#underline#clean()
+    call im#state#reset_input()
+    let state.last_fallback = fallback
+    silent! doautocmd User RimeIMCommit
+    call feedkeys(fallback, 'ni')
     return
   else
     " 组词结束上屏
     let committed = get(ctx, 'committed', '')
     if !empty(committed) || !ctx.composing
-      " 全角闭符：光标右侧已有闭符则跳出，不commit。
-      let last = empty(committed) ? '' : strcharpart(committed, strchars(committed) - 1, 1)
-      if im#pair#jump(last)
-        call complete(col('.'), [])
-        call im#underline#clean()
-        call im#state#reset_input()
-        call feedkeys("\<Del>" . last, 'ni')
-        return
-      endif
-      let pair = im#pair#extra(committed)
       call s:commit_text(committed)
-      call feedkeys(pair, 'ni')
+      call im#underline#clean()
+      call im#state#reset_input()
+      silent! doautocmd User RimeIMCommit
       return
     endif
     " composing waiting input
@@ -196,10 +183,9 @@ function! im#cancel() abort"{{{
     let ctx = im#rime#get_input()
     if !empty(get(ctx, 'input', ''))
       call s:commit_text(ctx.input)
-    else
-      call im#underline#clean()
-      call im#state#reset_input()
     endif
+    call im#underline#clean()
+    call im#state#reset_input()
   endif
   call im#state#reset_replace()
 endfunction"}}}
@@ -211,7 +197,11 @@ function! im#ascii_switch(style) abort"{{{
   call im#apply_option_changes(ctx)
   if !ctx.composing
     let committed = get(ctx, 'committed', '')
-    call s:commit_text(committed)
+    if !empty(committed)
+      call s:commit_text(committed)
+    endif
+    call im#underline#clean()
+    call im#state#reset_input()
   else
     call s:redraw(ctx)
   endif
@@ -271,6 +261,7 @@ endfunction"}}}
 function! im#disable() abort"{{{
   let state = im#state#get()
   call im#cancel()
+  call im#keymap#clear()
   let state.enabled = 0
   set iminsert=0
   set imsearch=0
@@ -302,10 +293,12 @@ function! im#on_ready() abort"{{{
   if mode() == "i"
     call im#enable()
     call im#context#on_enter()
+    call im#pair#on_enter()
   elseif mode() =~# '^R'
     call im#enable()
     call im#replace#enter()
     call im#context#on_enter()
+    call im#pair#on_enter()
   endif
 
   echo '[IM] on'
@@ -321,7 +314,7 @@ function! im#stop() abort"{{{
   if state.ready
     call s:clear_im_autocmd()
     call im#disable()
-    call s:vimrc_restore()
+    call im#pair#on_leave()
   endif
   let state.started = 0
   silent! doautocmd User RimeIMDisable

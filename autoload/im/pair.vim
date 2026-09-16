@@ -13,28 +13,56 @@ let s:default_rules = [
       \ {'open': "'",  'close': "'",  'kind': 'quote'},
       \ ]
 
-let s:enabled = 0
-let s:cached_bufnr = -1
-let s:open_map  = {}
-let s:close_map = {}
-let s:quote_map = {}
-let s:hl_blacklist  = []
-let s:ft_blacklist  = []
-let s:ts_check      = 0
-let s:ts_config     = {}
+let s:default_config = {
+      \ '*': {'syntax': [], 'ts': []},
+      \ }
 
-augroup im_pair_cache
-  autocmd!
-  autocmd BufEnter,BufWinEnter,BufNewFile,BufRead,FileType * let s:cached_bufnr = -1
-augroup END
+function! s:opt_g(name, default) abort"{{{
+  let gname = 'im_pair_' . a:name
+  if has_key(g:, gname)
+    return g:[gname]
+  endif
+  return a:default
+endfunction"}}}
 
+function! s:rules() abort"{{{
+  if has_key(b:, 'im_pair_rules')
+    return b:im_pair_rules
+  endif
+  return s:opt_g('rules', s:default_rules)
+endfunction"}}}
 
-function! s:role(ch) abort"{{{
-  if has_key(s:open_map, a:ch)
-    return {'kind': 'open', 'ch': a:ch, 'close': s:open_map[a:ch]}
-  elseif has_key(s:close_map, a:ch)
+function! im#pair#on_enter() abort"{{{
+  let open_map  = {}
+  let close_map = {}
+  let quote_map = {}
+  for r in s:rules()
+    if type(r) != v:t_dict || !has_key(r, 'open') || !has_key(r, 'close')
+      continue
+    endif
+    if get(r, 'kind', '') ==# 'quote'
+      let quote_map[r.open] = 1
+    else
+      let open_map[r.open] = r.close
+      let close_map[r.close] = 1
+    endif
+  endfor
+  let b:im_pair_open_map  = open_map
+  let b:im_pair_close_map = close_map
+  let b:im_pair_quote_map = quote_map
+endfunction"}}}
+
+function! im#pair#on_leave() abort"{{{
+  unlet! b:im_pair_open_map b:im_pair_close_map b:im_pair_quote_map
+endfunction"}}}
+
+function! s:classify(ch) abort"{{{
+  let open_map = get(b:, 'im_pair_open_map', {})
+  if has_key(open_map, a:ch)
+    return {'kind': 'open', 'ch': a:ch, 'close': open_map[a:ch]}
+  elseif has_key(get(b:, 'im_pair_close_map', {}), a:ch)
     return {'kind': 'close', 'ch': a:ch}
-  elseif has_key(s:quote_map, a:ch)
+  elseif has_key(get(b:, 'im_pair_quote_map', {}), a:ch)
     return {'kind': 'quote', 'ch': a:ch}
   endif
   return {}
@@ -45,66 +73,40 @@ function! s:char_at_cursor() abort"{{{
   return strcharpart(line, charidx(line, col('.') - 1), 1)
 endfunction"}}}
 
-function! s:opt(name, default) abort"{{{
-  let bname = 'im_pair_' . a:name
-  if has_key(b:, bname)
-    return b:[bname]
+function! s:normalize_entry(raw) abort"{{{
+  let dflt = {'disabled': 0, 'ts': [], 'syntax': []}
+  if type(a:raw) != v:t_dict
+    return dflt
   endif
-  let gname = 'im_pair_' . a:name
-  if has_key(g:, gname)
-    return g:[gname]
+  let ts = get(a:raw, 'ts', [])
+  let syntax = get(a:raw, 'syntax', [])
+  if type(ts) != v:t_list
+    let ts = []
   endif
-  return a:default
+  if type(syntax) != v:t_list
+    let syntax = []
+  endif
+  return {'disabled': !!get(a:raw, 'disabled', 0), 'ts': ts, 'syntax': syntax}
 endfunction"}}}
 
-function! s:opt_g(name, default) abort"{{{
-  let gname = 'im_pair_' . a:name
-  if has_key(g:, gname)
-    return g:[gname]
+function! im#pair#entry() abort"{{{
+  let all = s:opt_g('config', s:default_config)
+  if type(all) != v:t_dict
+    return s:normalize_entry({})
   endif
-  return a:default
+  let ft = &filetype
+  if !empty(ft) && has_key(all, ft)
+    return s:normalize_entry(all[ft])
+  endif
+  return s:normalize_entry(get(all, '*', {}))
 endfunction"}}}
 
-function! s:resolve() abort"{{{
-  let s:enabled       = s:opt_g('enabled', 0)
-  let rules           = s:opt('rules', s:default_rules)
-  let s:open_map  = {}
-  let s:close_map = {}
-  let s:quote_map = {}
-  for r in rules
-    if type(r) != v:t_dict || !has_key(r, 'open') || !has_key(r, 'close')
-      continue
-    endif
-    if get(r, 'kind', '') ==# 'quote'
-      let s:quote_map[r.open] = 1
-    else
-      let s:open_map[r.open] = r.close
-      let s:close_map[r.close] = 1
-    endif
-  endfor
-  let s:hl_blacklist  = s:opt_g('blacklist_highlight', [])
-  let s:ft_blacklist  = s:opt_g('blacklist_filetypes', ['vim'])
-  let s:ts_check      = s:opt_g('ts_check', 0)
-  let s:ts_config     = s:opt_g('ts_config', {})
-endfunction"}}}
-
-function! s:sync() abort"{{{
-  if s:cached_bufnr != bufnr()
-    call s:resolve()
-    let s:cached_bufnr = bufnr()
-  endif
-endfunction"}}}
-
-function! s:hl_blocked() abort"{{{
-  if empty(s:hl_blacklist)
-    return 0
-  endif
-  if empty(&syntax)
+function! s:syntax_hit(pats) abort"{{{
+  if empty(a:pats) || empty(&syntax)
     return 0
   endif
   let lnum = line('.')
   let scol = col('.')
-  " 行尾特殊处理
   let llen = len(getline(lnum))
   if scol > llen && llen > 0
     let scol = llen
@@ -115,8 +117,8 @@ function! s:hl_blocked() abort"{{{
     if empty(name)
       continue
     endif
-    for pat in s:hl_blacklist
-      if empty(pat)
+    for pat in a:pats
+      if type(pat) != v:t_string || empty(pat)
         continue
       endif
       if match(name, '\c' . pat) >= 0
@@ -127,19 +129,26 @@ function! s:hl_blocked() abort"{{{
   return 0
 endfunction"}}}
 
-function! s:ts_blocked() abort"{{{
-  if !has('nvim') || !s:ts_check
+function! s:ts_hit(pats) abort"{{{
+  if empty(a:pats)
     return 0
   endif
-  let pats = get(s:ts_config, &filetype, get(s:ts_config, '*', []))
-  if empty(pats)
+  if !has('nvim')
     return 0
   endif
-  return luaeval("require('im.pair').ts_blocked(_A)", pats)
+  try
+    return luaeval("require('im.pair').ts_blocked(_A)", a:pats) ? 1 : 0
+  catch
+    return 0
+  endtry
 endfunction"}}}
 
-function! s:ft_blocked() abort"{{{
-  return index(s:ft_blacklist, &filetype) >= 0
+function! s:scope_blocked() abort"{{{
+  let entry = im#pair#entry()
+  if entry.disabled
+    return 1
+  endif
+  return s:ts_hit(entry.ts) || s:syntax_hit(entry.syntax)
 endfunction"}}}
 
 function! s:vim_comment_line(ch) abort"{{{
@@ -149,63 +158,44 @@ endfunction"}}}
 
 function! s:blocked(...) abort"{{{
   let ch = a:0 ? a:1 : ''
-  return s:ft_blocked() || s:ts_blocked() || s:hl_blocked()
-        \ || s:vim_comment_line(ch)
+  return s:scope_blocked() || s:vim_comment_line(ch)
 endfunction"}}}
 
-function! im#pair#refresh() abort"{{{
-  let s:cached_bufnr = -1
-endfunction"}}}
-
-function! im#pair#jump(ch) abort"{{{
-  call s:sync()
-  if !s:enabled || im#replace#active()
-    return 0
+function! im#pair#complete() abort"{{{
+  let state = im#state#get()
+  if !s:opt_g('enabled', 0) || im#replace#active()
+    return
   endif
-  let role = s:role(a:ch)
-  if empty(role) || role.kind ==# 'open'
-    return 0
-  endif
-  if s:blocked()
-    return 0
-  endif
-  let next = s:char_at_cursor()
-  if empty(next)
-    return 0
-  endif
-  let nrole = s:role(next)
-  return !empty(nrole) && nrole.kind !=# 'open' && next ==# a:ch
-endfunction"}}}
-
-function! im#pair#extra(text) abort"{{{
-  call s:sync()
-  if !s:enabled || im#replace#active()
-    return ''
-  endif
-  if empty(a:text)
-    return ''
-  endif
-  let ch = strcharpart(a:text, strchars(a:text) - 1, 1)
-  let role = s:role(ch)
-  if empty(role)
-    return ''
-  endif
-  if s:blocked(ch)
-    return ''
-  endif
-  let next = s:char_at_cursor()
-  if role.kind ==# 'open'
-    return role.close . "\<Left>"
-  elseif role.kind ==# 'quote'
-    return next ==# ch ? "\<BS>" : ch . "\<Left>"
+  let text = state.last_commit
+  let state.last_commit = ''
+  let fb = state.last_fallback
+  let state.last_fallback = ''
+  if strchars(fb) == 1
+    let ch = fb
+  elseif !empty(text)
+    let ch = strcharpart(text, strchars(text) - 1, 1)
   else
-    return ""
+    return
+  endif
+
+  let role = s:classify(ch)
+  if empty(role) || s:blocked(ch)
+    return
+  endif
+  if role.kind ==# 'close'
+    let keys = s:char_at_cursor() ==# ch ? "\<BS>\<Right>" : ''
+  elseif role.kind ==# 'open'
+    let keys = role.close . "\<Left>"
+  else
+    let keys = s:char_at_cursor() ==# ch ? "\<BS>\<Right>" : ch . "\<Left>"
+  endif
+  if !empty(keys)
+    call feedkeys(keys, 'ni')
   endif
 endfunction"}}}
 
 function! im#pair#should_bs_pair() abort"{{{
-  call s:sync()
-  if !s:enabled || im#replace#active() || col('.') <= 1
+  if !s:opt_g('enabled', 0) || im#replace#active() || col('.') <= 1
     return 0
   endif
   if s:blocked()
@@ -218,7 +208,7 @@ function! im#pair#should_bs_pair() abort"{{{
   if empty(cur)
     return 0
   endif
-  let role = s:role(before)
+  let role = s:classify(before)
   if empty(role)
     return 0
   endif
@@ -235,8 +225,7 @@ function! im#pair#bs() abort"{{{
 endfunction"}}}
 
 function! im#pair#should_jump() abort"{{{
-  call s:sync()
-  if !s:enabled || im#replace#active() || im#state#composing()
+  if !s:opt_g('enabled', 0) || im#replace#active() || im#state#composing()
     return 0
   endif
   if s:blocked()
@@ -246,7 +235,7 @@ function! im#pair#should_jump() abort"{{{
   if empty(next)
     return 0
   endif
-  let nrole = s:role(next)
+  let nrole = s:classify(next)
   return !empty(nrole) && nrole.kind !=# 'open'
 endfunction"}}}
 
@@ -255,8 +244,7 @@ function! im#pair#jump_any() abort"{{{
 endfunction"}}}
 
 function! im#pair#jump_many() abort"{{{
-  call s:sync()
-  if !s:enabled || im#replace#active() || im#state#composing()
+  if !s:opt_g('enabled', 0) || im#replace#active() || im#state#composing()
     return ''
   endif
   if s:blocked()
@@ -267,7 +255,7 @@ function! im#pair#jump_many() abort"{{{
   let clen = strchars(line)
   let n = 0
   while cidx + n < clen
-    let r = s:role(strcharpart(line, cidx + n, 1))
+    let r = s:classify(strcharpart(line, cidx + n, 1))
     if empty(r) || r.kind ==# 'open'
       break
     endif
@@ -286,9 +274,7 @@ function! im#pair#toggle() abort"{{{
   else
     let g:im_pair_enabled = 0
   endif
-  call im#pair#refresh()
-  call s:sync()
-  echom '[IM] auto-pair ' . (s:enabled ? 'on' : 'off')
+  echom '[IM] auto-pair ' . (s:opt_g('enabled', 0) ? 'on' : 'off')
 endfunction"}}}
 
 function! im#pair#default_rules() abort"{{{

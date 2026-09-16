@@ -22,6 +22,7 @@ let s:state = {
       \ 'traditional'     : 0,
       \ 'schema'          : '',
       \ 'last_commit'     : '',
+      \ 'last_fallback'   : '',
       \ 'ns_id'           : 0,
       \ 'mark_id'         : 0,
       \ 'match_id'        : 0,
@@ -57,6 +58,7 @@ function! im#state#init() abort
   let s:state.last_preedit    = ''
   let s:state.last_hl         = 0
   let s:state.last_commit     = ''
+  let s:state.last_fallback   = ''
   let s:state.mark_id        = 0
   let s:state.match_id       = 0
   let s:state.repl_active      = 0
