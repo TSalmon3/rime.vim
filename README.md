@@ -742,7 +742,7 @@ augroup RimeGroup
 augroup END
 ```
 
-### Replace Mode 替换模式 {doc="rime-replace-mode-替换模式"}
+### Replace Mode 替换模式
 
 > 以下功能还处于实验性阶段。
 
@@ -774,7 +774,7 @@ let g:im_replace_mode = 1
 nnoremap r <Cmd>call im#keymap#r()<CR>
 ```
 
-### Auto Pair 自动成对 {doc="rime-auto-pair-自动成对"}
+### Auto Pair 自动成对
 
 > [!Tip]
 > 替换模式下会自动关闭成对功能
@@ -892,7 +892,7 @@ augroup RimeGroup
   autocmd User RimeKeymapClear call RimeKeymapClear()
 augroup END
 ```
-### Surround 包围编辑 {doc="rime-surround-包围编辑"}
+### Surround 包围编辑
 
 为选区、文本对象或整行**添加、删除、替换**成对分隔符（括号、引号、HTML 标签、函数调用等），并额外支持全角符号。
 
@@ -1146,7 +1146,7 @@ endfunction
 ```
 
 
-### Context 自动切换 {doc="rime-context-自动切换"}
+### Context 自动切换
 
 根据光标所在的高亮（语法作用域）自动切换【Rime 接管】与【原生直通】模式。
 
@@ -1234,7 +1234,7 @@ nnoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
 inoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
 ```
 
-### Tmux 弹窗输入 {doc="rime-tmux-弹窗输入"}
+### Tmux 弹窗输入
 
 在 tmux 中通过 `display-popup` 弹窗使用 Rime 输入法，复用同一个 `rime-query` daemon。
 
