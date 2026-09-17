@@ -1,102 +1,105 @@
 *rime.txt*
-                             For NVIM v0.8.0    Last change: 2026 September 16
+                             For NVIM v0.8.0    Last change: 2026 September 17
 
 ==============================================================================
 Table of Contents                                     *rime-table-of-contents*
 
-  - Table of Contents                                 |rime-table-of-contents|
-  - Introduction                                           |rime-introduction|
-  - Quick Start                                             |rime-quick-start|
-  - Configuration                                         |rime-configuration|
-  - Usage                                                         |rime-usage|
-  - Integration                                             |rime-integration|
-  - Advanced Topics                                     |rime-advanced-topics|
-  - Acknowledgments                                     |rime-acknowledgments|
+  - 目录                                                       |rime-目录|
+  - 简介                                                       |rime-简介|
+  - 快速开始                                           |rime-快速开始|
+  - 配置                                                       |rime-配置|
+  - 使用                                                       |rime-使用|
+  - 集成                                                       |rime-集成|
+  - 高级主题                                           |rime-高级主题|
+  - 致谢                                                       |rime-致谢|
   - License                                                     |rime-license|
 1. Links                                                          |rime-links|
 Rime input method support for Vim/Neovim
 
 
-------------------------------------------------------------------------------
-Before you start ~
+导航页
+·
+文档站 Website
+·
+中文说明
+·
+英文说明------------------------------------------------------------------------------
+写在最前面 ~
 
-Answers to common questions.
+对常见问题的统一说明。
 
-- Will this conflict with the system Rime input method?
+- 是否会跟系统的 Rime 输入法产生冲突？
 
 >answer
-        Yes, it will conflict. It is recommended to create a new directory for your
-        pinyin scheme, i.e. your "user data directory", and preferably not the same
-        directory as the system input method.
+        会产生冲突。建议新建一个独立目录存放你的拼音方案，即你的「用户数据目录」，最好不要与系统输入法共用同一目录。
 <
 
 ------------------------------------------------------------------------------
 
-TABLE OF CONTENTS                                     *rime-table-of-contents*
+目录                                                           *rime-目录*
 
-- |rime-introduction|
-- |rime-quick-start|
-    - Requirements
-    - Installation
-    - Building the backend
-- |rime-configuration|
-    - Options
-    - Environment variables
-- |rime-usage|
-    - Commands
-    - Key mappings
-- |rime-integration|
-    - Autocmd
-    - Statusline
-- |rime-advanced-topics|
-    - rime-ice configuration examples
-    - Making Chinese editing smoother
-    - Customizing Chinese/English switching and the scheme menu
-    - Replace Mode
-    - Auto Pair
-    - Surround
-    - Context auto-switching
-    - Tmux popup input
-    - Complementary plugins
-- |rime-acknowledgments|
+- |rime-简介|
+- |rime-快速开始|
+    - 环境要求
+    - 安装
+    - 编译后端
+- |rime-配置|
+    - 选项
+    - 环境变量
+- |rime-使用|
+    - 命令
+    - 按键映射
+- |rime-集成|
+    - 事件
+    - 状态栏
+- |rime-高级主题|
+    - rime-ice 配置示例
+    - 让中文编辑更加丝滑
+    - 定制中英切换与方案选单
+    - Replace Mode 替换模式
+    - Auto Pair 自动成对
+    - Surround 包围编辑
+    - Context 自动切换
+    - Tmux 弹窗输入
+    - 其他搭配插件
+- |rime-致谢|
 - |rime-license|
 
-------------------------------------------------------------------------------
 
-INTRODUCTION                                               *rime-introduction*
+简介                                                           *rime-简介*
 
-Rime (Zhongzhouyun) input method integration for Vim / Neovim, supporting both
-Vim (>= 8.2.1978) and Neovim.
-
-**Usage**: enter Insert mode and type pinyin directly; a candidate popup
-appears. Use the number keys or `Up` / `Down` to select a candidate, `Enter` /
-`Space` to commit, and `Esc` to cancel the current composition.
+Rime（中州韵）输入法在 Vim / Neovim
+中的集成方案，，同时支持 Vim（>= 8.2.1978）与 Neovim。
 
 
-
-Key features:
-
-- Supports full pinyin, double pinyin, nine-grid (T9) and other input schemes
-- Toggle between simplified / traditional, half/full-width punctuation, and emoji
-- Candidate popup / underline rendering; the statusline can show the current input state
-- Supports auto-completion for brackets, quotes, and other delimiters
-- Supports automatic switching between Chinese and English
-- Supports shared word-frequency learning across multiple instances, including mixed Vim and Neovim sessions
-- Provides command-line and terminal input solutions
-
-------------------------------------------------------------------------------
-
-QUICK START                                                 *rime-quick-start*
+**用法**：进入插入模式后直接键入拼音，即可弹出候选词浮窗；用数字键或
+`Up` / `Down` 选择候选，`Enter` / `Space` 上屏，`Esc`
+取消本次输入。
 
 
-REQUIREMENTS ~
 
-- Vim >= 8.2.1978 or Neovim
-- librime (required to build the backend)
-- Rime shared data directory and a user data directory (e.g. rime-ice <https://github.com/iDvel/rime-ice>)
+主要特性：
+
+- 支持全拼、双拼、九宫格等输入方案
+- 支持简繁、中英文标点、emoji 切换
+- 候选词浮窗、下划线渲染、状态栏可显示当前输入状态
+- 支持括号、引号等自动补全
+- 支持中英文自动切换
+- 支持多实例共享词频学习，甚至 Vim 和 Neovim 混合多实例
+- 提供命令行和终端输入解决方案
 
 
-INSTALLATION ~
+快速开始                                               *rime-快速开始*
+
+
+环境要求 ~
+
+- Vim >= 8.2.1978 或 Neovim
+- librime <https://github.com/rime/librime>（编译后端所必需）
+- Rime 共享数据目录与用户数据目录（例如 rime-ice <https://github.com/iDvel/rime-ice>）
+
+
+安装 ~
 
 - **vim.pack**
 
@@ -113,17 +116,17 @@ INSTALLATION ~
 <
 
 
-BUILDING THE BACKEND ~
+编译后端 ~
 
-The built `rime-query` executable must be findable (searched on `PATH` by
-default; you can point at it via `g:im_rime_bin`), otherwise `:IMStart` will
-fail.
+构建出的 `rime-query` 可执行文件需能被找到（默认查找
+`PATH`，也可通过 `g:im_rime_bin` 指定路径），否则 `:IMStart`
+会失败。
 
 
-  Replace the repo path `/path/to/rime.vim` in the commands below with your
-  actual path.
+  以下命令中的仓库路径 `/path/to/rime.vim`
+  请替换为你的实际路径。
 
-MACOS
+macOS                                                             *rime-macOS*
 
 >bash
     cd /path/to/rime.vim/cpp
@@ -131,8 +134,8 @@ MACOS
     clang++ -std=c++17 -I./3rd -I/opt/homebrew/include -L/opt/homebrew/lib -lstdc++ -lrime -o build/rime-query rime-query.cc
 <
 
-Alternatively, use CMake (edit the librime include / lib paths in
-`CMakeLists.txt` if needed):
+也可以使用 CMake（必要时修改 `CMakeLists.txt` 中的 librime include
+/ lib 路径）：
 
 >bash
     cd /path/to/rime.vim/cpp
@@ -140,11 +143,12 @@ Alternatively, use CMake (edit the librime include / lib paths in
     cmake --build build
 <
 
+------------------------------------------------------------------------------
 
-LINUX
+Linux                                                             *rime-Linux*
 
-Compile librime manually, then point at its header include path and dynamic
-library lib path separately:
+需手动编译 librime，并分别指定其头文件 include
+路径与动态库 lib 路径：
 
 >bash
     cd /path/to/rime.vim/cpp
@@ -153,15 +157,12 @@ library lib path separately:
 
 ------------------------------------------------------------------------------
 
-WINDOWS
+Windows                                                         *rime-Windows*
 
-1. Download a librime prebuilt release archive and extract it to a directory
-containing `include/` and `lib/` (`/path/to/librime` in the commands below
-points at that directory).
-2. Compile `rime-query`.
-3. Copy `rime.dll` into the same directory as the executable.
-4. Add the executable’s directory to `PATH`, or point at it directly in vimrc
-with `let g:im_rime_bin = 'full/path'`.
+1. 下载 librime 预编译 release 压缩包，解压后得到包含 `include/` 与 `lib/` 的目录（下述命令中的 `/path/to/librime` 即指向该目录）。
+2. 编译 `rime-query`。
+3. 将 `rime.dll` 拷贝到可执行文件同一目录。
+4. 将可执行文件所在目录加入 `PATH`，或在 vimrc 中用 `let g:im_rime_bin = '完整路径'` 直接指定。
 
 >bash
     cd /path/to/rime.vim/cpp
@@ -170,11 +171,11 @@ with `let g:im_rime_bin = 'full/path'`.
     clang++ build/rime-query.o -L/path/to/librime/lib -lrime -lws2_32 -o build/rime-query.exe
 <
 
-`-lws2_32` links Windows Sockets, which the backend TCP listener requires; it
-is a stock system component (System32) and needs no extra installation.
+其中 `-lws2_32` 用于链接 Windows Sockets，是后端 TCP
+监听所必需的；它是系统自带组件（System32），无需额外安装。
 
-Alternatively, use CMake (edit the compiler and the librime include / lib paths
-in `CMakeLists.txt` if needed):
+也可以使用 CMake（必要时修改 `CMakeLists.txt` 中的编译器与
+librime include / lib 路径）：
 
 >bash
     cd /path/to/rime.vim/cpp
@@ -183,122 +184,117 @@ in `CMakeLists.txt` if needed):
 <
 
 
-  !note
-  <Priority%20%60b:im_pair_rules%60%20%3E%20%60g:im_pair_rules%60%20%3E%20default>
-  `clang++` and `mingw32-make` must be on `PATH`
-After building, add the generated `rime-query` to `PATH`.
+  [!note]
+  需要 `clang++` 与 `mingw32-make` 在 `PATH` 中
+构建完成后，请把生成的 `rime-query` 加入 `PATH`。
 
 ------------------------------------------------------------------------------
 
-BUILDING INSIDE THE EDITOR
+在编辑器内编译                             *rime-在编辑器内编译*
 
-Once the librime paths are configured, you can also build without leaving Vim:
+配好 librime 路径后，也可以直接在 Vim
+内完成编译，无需切换到终端：
 
 >vim
     let g:im_build_rime_include = '/opt/homebrew/include'
     let g:im_build_rime_lib     = '/opt/homebrew/lib'
-    let g:im_build_compiler     = 'clang++'              " optional, default
-    let g:im_build_flags        = '-std=c++17 -O2 -Wall' " optional, default
+    let g:im_build_compiler     = 'clang++'              " 可省略，默认值
+    let g:im_build_flags        = '-std=c++17 -O2 -Wall' " 可省略，默认值
 <
 
-On Windows you also need the `rime.dll` path:
+Windows 下需要额外指定 `rime.dll` 路径：
 
 >vim
     let g:im_build_rime_dll     = 'D:/Library/librime/lib/rime.dll'
 <
 
-  -----------------------------------------------------------------------
-  Command      Description
-  ------------ ----------------------------------------------------------
-  :IMCheck     Self-check: compiler/flags/paths/whether already built
-
-  :IMBuild     Build asynchronously in the background
-
-  :IMClean     Clean build artifacts
-  -----------------------------------------------------------------------
-Flow: configure → `:IMCheck` to verify → `:IMBuild`.
-
-------------------------------------------------------------------------------
-
-CONFIGURATION                                             *rime-configuration*
+  命令       说明
+  ---------- -----------------------------------
+  :IMCheck   自检：编译器/参数/路径/是否已编译
+  :IMBuild   后台异步编译
+  :IMClean   清理编译结果
+流程：配置 → `:IMCheck` 验证 → `:IMBuild`。
 
 
-OPTIONS ~
+配置                                                           *rime-配置*
 
 
-  [!Tip] Taking Rime-ice (rime-ice) as an example: if you already have Squirrel
-  or Weasel installed, create a new user data directory to avoid conflicts.
-These are common `g:` variables; all are optional (defaults apply). Set them in
-your vimrc **before** the plugin is loaded:
+选项 ~
+
+
+  [!Tip]
+  以雾凇拼音（rime-ice）为例，如果你的系统中已安装了「鼠须管」或「小狼毫」，建议新建一个用户数据目录，避免产生冲突。
+以下均为常用 `g:` 变量，可省略（使用默认值）。请在 vimrc
+中、插件加载**之前**设置：
 
 >vim
-    " rime-query executable path (must be on PATH)
+    " rime-query 可执行文件路径（需在 PATH 中可找到）
     let g:im_rime_bin                  = 'rime-query'
-    " User data directory, i.e. where your pinyin schemes live ($RIME_USER_DATA_DIR)
+    " 用户数据目录，即拼音方案的安装目录（$RIME_USER_DATA_DIR）
     let g:im_user_data_dir             = '/path/to/rime'
-    " Shared data directory ($RIME_SHARED_DATA_DIR)
+    " 共享数据目录（$RIME_SHARED_DATA_DIR）
     let g:im_shared_data_dir           = '/usr/share/rime-data'
-    " Backend log path ($RIME_LOG)
+    " 后端日志文件路径（$RIME_LOG）
     let g:im_log_file                  = '~/.local/state/log/vim/rime.log'
     
     
-    " Unix: socket file path, empty defaults to ~/.cache/rime-query.sock
+    " Unix：socket 文件路径，留空则默认为 ~/.cache/rime-query.sock
     let g:im_unix_socket                = '~/.cache/rime-query.sock'
-    " Windows: TCP loopback endpoint, shared between Vim and Neovim, empty defaults to 127.0.0.1:18666
+    " Windows：TCP 回环地址，Vim 与 Neovim 共用同一通道，留空则默认为 127.0.0.1:18666
     let g:im_tcp_addr                   = '127.0.0.1:18666'
-    " Daemon idle lifetime after the last client leaves (ms; 0 = stay resident)
+    " 最后一个客户端断开后，daemon 的空闲存活时长（毫秒，设为 0 表示常驻不退出）
     let g:im_idle_exit_ms               = 60000
-    " Timeout waiting for the daemon to become ready after launch (ms)
+    " 拉起 daemon 后，等待其就绪的超时时长（毫秒）
     let g:im_connect_timeout_ms         = 30000
     
     
-    " Candidate popup height
+    " 候选词弹窗的显示行数
     let g:im_pumheight                 = 9
-    " Set to 1 to disable underline rendering
+    " 设为 1 可关闭下划线渲染
     let g:im_underline_disable         = 0
-    " Set to 1 to skip creating default key mappings
+    " 设为 1 则不创建默认按键映射
     let g:im_no_default_mappings       = 0
-    " Toggle input method on/off
+    " 输入法切换快捷键
     let g:im_toggle_key                = ';;'
-    " Toggle Chinese/English mode
+    " 中文/英文模式切换快捷键
     let g:im_toggle_ascii_mode_key     = ';,'
-    " Toggle Chinese/English punctuation
+    " 中英文标点切换快捷键
     let g:im_toggle_ascii_punct_key    = ';a'
-    " Toggle simplified/traditional
+    " 简体/繁体切换快捷键
     let g:im_toggle_traditional_key    = ';f'
-    " Toggle emoji
+    " emoji 开关快捷键
     let g:im_toggle_emoji_key          = ';e'
-    " Backend wait timeout for :IMDeploy / :IMSync (ms)
+    " :IMDeploy / :IMSync 等待后端响应的超时时长（毫秒）
     let g:im_deploy_timeout            = 60000
-    " Root directory for :IMSchemeDownload downloads
+    " :IMSchemeDownload 方案下载的根目录
     let g:im_scheme_dir                = '~/.local/share/rime-schemes'
-    " Statusline icon
+    " 状态栏输入法图标
     let g:im_status_text               = 'ㄓ'
-    " Half-width punctuation status text
+    " 半角标点状态文本
     let g:im_status_half_text          = '$'
-    " Full-width punctuation status text
+    " 全角标点状态文本
     let g:im_status_full_text          = '¥'
-    " Simplified status text
+    " 简体状态文本
     let g:im_status_simplified_text    = '简'
-    " Traditional status text
+    " 繁体状态文本
     let g:im_status_traditional_text   = '繁'
-    " Indicator text when Rime owns the input
+    " Rime 接管输入时的指示文本
     let g:im_status_lmap_text          = 'L'
-    " Indicator text for native passthrough (not owned)
+    " 原生直通（未接管）时的指示文本
     let g:im_status_imap_text          = 'I'
-    " Input method disconnected status text
+    " 输入法断开连接时的状态文本
     let g:im_status_disconnect         = '断'
-    " Initial punctuation state (1 = half-width at startup)
+    " 标点初始状态（1 表示启动时为半角标点）
     let g:im_option_ascii_punct        = 0
-    " Initial simplified/traditional state (1 = traditional at startup)
+    " 简繁初始状态（1 表示启动时为繁体）
     let g:im_option_traditional        = 0
-    " Initial Chinese/English state (1 = English mode at startup)
+    " 中英文初始状态（1 表示启动时为英文模式）
     let g:im_option_ascii_mode         = 0
-    " Initial emoji state (1 = enabled at startup)
+    " emoji 初始状态（1 表示启动时开启）
     let g:im_option_emoji              = 0
     
     
-    " Use in the command line
+    " 在 Cmdline 中使用
     function! IMCmdEdit()
         let cmdtype = getcmdtype()
         if cmdtype != ':' && cmdtype != '/' && cmdtype != '?'
@@ -320,7 +316,7 @@ your vimrc **before** the plugin is loaded:
     cnoremap <silent><expr> ;; IMCmdEdit()
     
     
-    " Use in the terminal
+    " 在 Terminal 中使用
     function! PassToTerm(text)
       let @t = a:text
       if has('nvim')
@@ -334,61 +330,59 @@ your vimrc **before** the plugin is loaded:
     tnoremap ;; <c-\><c-n><cmd>call im#start()<cr>q:a:PassToTerm<space>
 <
 
-Notes:
+其中：
 
-- `g:im_rime_bin` corresponds to the backend executable.
-- `g:im_user_data_dir` / `g:im_shared_data_dir` / `g:im_log_file` map to the
-    three environment variables below, and take **higher priority**.
+- `g:im_rime_bin` 对应后端可执行文件。
+- `g:im_user_data_dir` / `g:im_shared_data_dir` / `g:im_log_file` 分别对应下述三个环境变量，且**优先级更高**。
 
-Platform / editor transport support:
+各平台 / 编辑器的传输支持情况：
 
-  ---------------------------------------------------------------------------------
-  Platform   Editor   Default      Optional   Custom endpoint
-                      transport               
-  ---------- -------- ------------ ---------- -------------------------------------
-  macOS /    Neovim   Unix socket  —          g:im_unix_socket
-  Linux                                       
+  --------------------------------------------------------------------------------
+  平台        编辑器   默认传输   可选传输   自定义端点
+  ----------- -------- ---------- ---------- -------------------------------------
+  macOS /     Neovim   Unix       —          g:im_unix_socket
+  Linux                socket                
 
-  macOS /    Vim      Unix socket  —          g:im_unix_socket
-  Linux                                       
+  macOS /     Vim      Unix       —          g:im_unix_socket
+  Linux                socket                
 
-  Windows    Neovim   TCP loopback —          g:im_tcp_addr / env RIME_QUERY_TCP
+  Windows     Neovim   TCP 回环   —          g:im_tcp_addr / 环境变量
+                                             RIME_QUERY_TCP
 
-  Windows    Vim      TCP loopback —          g:im_tcp_addr / env RIME_QUERY_TCP
-  ---------------------------------------------------------------------------------
+  Windows     Vim      TCP 回环   —          g:im_tcp_addr / 环境变量
+                                             RIME_QUERY_TCP
+  --------------------------------------------------------------------------------
 
-  !Note
-  <Priority%20%60b:im_pair_rules%60%20%3E%20%60g:im_pair_rules%60%20%3E%20default>
-  On Windows the daemon only listens on a single TCP channel (shared between Vim
-  and Neovim). When customizing `g:im_tcp_addr`, keep vimrc and Neovim config in
-  sync.
+  [!Note] Windows 上 daemon 只监听单条 TCP 通道（Vim 与 Neovim
+  共用）。 如自定义了 `g:im_tcp_addr`，vimrc 与 Neovim
+  配置需保持一致。
 
-ENVIRONMENT VARIABLES ~
-
-The plugin reads three environment variables for its data directories and log
-path. Either of the following two approaches works:
+环境变量 ~
 
 
-SETTING IN VIM
+插件通过三个环境变量获取数据目录与日志路径，两种设置方式任选其一：
 
-Set them in your vimrc, before the plugin is loaded:
+
+在 Vim 中设置                                     *rime-在-Vim-中设置*
+
+在 vimrc 中、插件加载前设置：
 
 >vim
-    " RIME_LOG - backend log path
+    " RIME_LOG — 后端日志路径
     let $RIME_LOG = expand("~/.local/state/log/vim/rime.log")
     
-    " RIME_USER_DATA_DIR - user data directory
+    " RIME_USER_DATA_DIR — 用户数据目录
     let $RIME_USER_DATA_DIR = "/path/to/rime"
     
-    " RIME_SHARED_DATA_DIR - shared data directory
+    " RIME_SHARED_DATA_DIR — 共享数据目录
     let $RIME_SHARED_DATA_DIR = "/usr/share/rime-data"
 <
 
 
-SETTING IN THE TERMINAL
+在终端中设置                                   *rime-在终端中设置*
 
-If you want these directories to apply to all programs, export them in your
-shell config (e.g. `~/.zshrc`):
+如果希望这些目录对所有程序生效，可在 shell 配置（如
+`~/.zshrc`）中导出：
 
 >sh
     export RIME_LOG="$HOME/.local/state/log/vim/rime.log"
@@ -396,136 +390,130 @@ shell config (e.g. `~/.zshrc`):
     export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 <
 
-On Windows, `RIME_QUERY_TCP` overrides the backend’s TCP listen endpoint
-(default `127.0.0.1:18666`; same meaning as `g:im_tcp_addr`, which takes
-precedence).
+Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认
+`127.0.0.1:18666`； 与 `g:im_tcp_addr` 同义，二者同时设置时以
+`g:im_tcp_addr` 优先）。
 
 
-  Note: setting `g:im_user_data_dir`, `g:im_shared_data_dir` or `g:im_log_file`
-  in Vim overrides the corresponding environment variable.
-------------------------------------------------------------------------------
+  注意：在 Vim 中设置 `g:im_user_data_dir` / `g:im_shared_data_dir` /
+  `g:im_log_file` 会覆盖同名环境变量。
 
-USAGE                                                             *rime-usage*
-
-
-COMMANDS ~
-
-  ----------------------------------------------------------------------------------------
-  Command                       Description
-  ----------------------------- ----------------------------------------------------------
-  :IMStart                      Start/restart the input method (connect or launch the
-                                shared rime-query daemon)
-
-  :IMStop                       Stop the input method (disconnect this editor only)
-
-  :IMToggle                     Toggle the input method on/off
-
-  :IMDeploy                     Redeploy Rime (takes effect after editing config)
-
-  :IMSync                       Sync the user dictionary, then redeploy
-
-  :IMShutdown                   Shut down the shared daemon (all editors disconnect)
-
-  :IMSchemeDownload <git-url>   Download an input scheme into g:im_scheme_dir
-  ----------------------------------------------------------------------------------------
-
-REDEPLOYING
-
-After editing the configuration in your user data directory (e.g. `schema_list`
-/ `page_size` in `default.custom.yaml`), run `:IMDeploy` to apply the changes.
-The editor briefly blocks during deployment; tune the timeout with
-`g:im_deploy_timeout` (ms).
+使用                                                           *rime-使用*
 
 
-SYNCING THE USER DICTIONARY
+命令 ~
 
-`:IMSync` first merges your user dictionary (`*.userdb/`) with the
-`sync/<installation_id>/*.userdb.txt` backups in both directions, then
-redeploys. This makes it easy to sync personal word frequency across devices
-and platforms; on multiple devices it is recommended to set the same
-`installation_id` in `installation.yaml`, otherwise the merge may fail.
+  --------------------------------------------------------------------------
+  命令                          说明
+  ----------------------------- --------------------------------------------
+  :IMStart                      启动/重启输入法（连接或拉起共享 rime-query
+                                daemon）
 
+  :IMStop                       停止输入法（只断开本编辑器的连接）
 
-DOWNLOADING SCHEMES
+  :IMToggle                     切换输入法开关
 
-`:IMSchemeDownload <git-url>` clones an input scheme with `git clone --depth 1`
-into `g:im_scheme_dir` (default `~/.local/share/rime-schemes`); the directory
-name comes from the last URL segment (with a trailing `.git` stripped).
-Existing directories are skipped, never overwritten.
+  :IMDeploy                     重新部署 Rime（改配置后生效）
 
+  :IMSync                       同步用户词库并重新部署
 
-KEY MAPPINGS ~
+  :IMShutdown                   关停共享 daemon（所有编辑器断开）
 
-Default key mappings (disable by setting `g:im_no_default_mappings=1`, and
-customize via the corresponding `g:im_*_key`):
+  :IMSchemeDownload <git-url>   下载输入方案到 g:im_scheme_dir
+  --------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------
-  Key      Mode                             Function
-  -------- -------------------------------- ------------------------------
-  ;;       normal / insert / command /      Toggle input method
-           terminal                         
+重新部署                                               *rime-重新部署*
 
-  ;,       normal / insert                  Toggle Chinese/English mode
-
-  ;a       normal / insert                  Toggle Chinese/English
-                                            punctuation
-
-  ;f       normal / insert                  Toggle simplified/traditional
-
-  ;e       normal / insert                  Toggle emoji
-  ------------------------------------------------------------------------
-Keys and key combinations are basically compatible with system-level input
-methods:
-
-  Key          Function
-  ------------ -----------------------------
-  <cr>         Commit pinyin
-  <space>      Select
-  <left>       Move cursor left
-  <right>      Move cursor right
-  <up>         Previous candidate
-  <down>       Next candidate
-  <c-p>        Previous candidate
-  <c-n>        Next candidate
-  <pageup>     Previous page
-  <pagedown>   Next page
-  -            Previous page
-  =            Next page
-  <bs>         Delete one character
-  <s-bs>       Delete one syllable
-  <tab>        Next syllable end
-  <s-tab>      Next syllable start
-  <c-u>        Clear pinyin
-  <c-w>        Delete one syllable
-  <c-d>        Delete a self-made word
-  <c-a>        Move cursor to pinyin start
-  <c-e>        Move cursor to pinyin end
-------------------------------------------------------------------------------
-
-INTEGRATION                                                 *rime-integration*
+修改用户数据目录中的配置（如 `default.custom.yaml` 的
+`schema_list` / `page_size`）后，需执行 `:IMDeploy`
+使改动生效。部署期间编辑器会短暂阻塞，超时时间可用
+`g:im_deploy_timeout`（毫秒）调整。
 
 
-AUTOCMD ~
+同步词库                                               *rime-同步词库*
+
+`:IMSync` 会先将用户词库（`*.userdb/`）与
+`sync/<installation_id>/*.userdb.txt`
+备份双向合并，再重新部署，便于跨设备、跨平台同步个人词频。多台设备之间建议将
+`installation.yaml` 中的 `installation_id`
+设为同一值，否则合并可能失败。
+
+
+下载方案                                               *rime-下载方案*
+
+`:IMSchemeDownload <git-url>` 会用 `git clone --depth 1`
+把输入方案下载到 `g:im_scheme_dir`（默认
+`~/.local/share/rime-schemes`），目录名取自 URL
+最后一段（自动去掉 `.git`
+后缀）。若目标目录已存在则跳过，不会覆盖。
+
+
+按键映射 ~
+
+默认按键映射（可设 `g:im_no_default_mappings=1` 关闭，用对应的
+`g:im_*_key` 修改）：
+
+  -----------------------------------------------------------------------
+  按键     模式                                  功能
+  -------- ------------------------------------- ------------------------
+  ;;       normal / insert / command / terminal  切换输入法开关
+
+  ;,       normal / insert                       切换中/英模式
+
+  ;a       normal / insert                       切换中英文标点
+
+  ;f       normal / insert                       切换简/繁体
+
+  ;e       normal / insert                       切换 emoji
+  -----------------------------------------------------------------------
+组词过程中的按键和组合键基本兼容系统级输入法：
+
+  按键         功能
+  ------------ --------------------
+  <cr>         拼音上屏
+  <space>      选择
+  <left>       光标左移
+  <right>      光标右移
+  <up>         上一个候选
+  <down>       下一个候选
+  <c-p>        上一个候选
+  <c-n>        下一个候选
+  <pageup>     上一页
+  <pagedown>   下一页
+  -            上一页
+  =            下一页
+  <bs>         删除一个字符
+  <s-bs>       删除一个音节
+  <tab>        下一个音节结尾
+  <s-tab>      下一个音节开头
+  <c-u>        清空拼音
+  <c-w>        删除一个音节
+  <c-d>        删除自造词
+  <c-a>        光标移动到拼音开头
+  <c-e>        光标移动到拼音结尾
+
+集成                                                           *rime-集成*
+
+
+事件 ~
 
 **autocmd User RimeKeymapSetup {command}**
 
-Fired after insert-mode key mappings are set up.
+插入模式按键映射建立后触发。
 
 **autocmd User RimeKeymapClear {command}**
 
-Fired after insert-mode key mappings are cleared.
+插入模式按键映射清除后触发。
 
 **autocmd User RimeIMEnable {command}**
 
-Fired when the input method is enabled; useful for disabling completion from
-other plugins.
+输入法启用后触发，可用于关闭其他插件的补全。
 
 **autocmd User RimeIMDisable {command}**
 
-Fired when the input method is disabled; useful for re-enabling completion from
-other plugins.
+输入法禁用后触发，可用于恢复其他插件的补全。
 
-Example:
+示例：
 
 >vim
     function! im#hooks#suppress_completion() abort
@@ -561,44 +549,42 @@ Example:
 <
 
 
-STATUSLINE ~
+状态栏 ~
 
-The simplest way is to add `%{IM_Status()}` to your `'statusline'` option. When
-enabled it shows `[ㄓ]半|简` (icon / punctuation / simplified-traditional;
-the text is customizable via the `g:im_status_*` variables); when disabled it
-returns an empty string.
+最简单的方式是在你的 `'statusline'` 选项中加入
+`%{IM_Status()}`。开启时显示 `[ㄓ]半|简`（图标 / 标点 /
+简繁，文本均可用对应的 `g:im_status_*`
+定制），关闭时返回空串。
 
 >vim
     let statusline^=%{IM_Status()}
 <
 
-------------------------------------------------------------------------------
 
-ADVANCED TOPICS                                         *rime-advanced-topics*
+高级主题                                               *rime-高级主题*
 
 
-RIME-ICE CONFIGURATION EXAMPLES ~
+RIME-ICE 配置示例 ~
 
 **default.custom.yaml**
 
 >yaml
     patch:
       schema_list:
-        # You can delete or comment out schemes you do not need; the corresponding
-        # *.schema.yaml scheme files can also be deleted.
-        # Except t9: it depends on rime_ice, so keep rime_ice.schema.yaml if you use T9.
-        - schema: double_pinyin_flypy # 鹤 双拼
-        - schema: rime_ice # 雾凇 pinyin (full)
-        - schema: t9 # nine-grid (Cangjie input)
-        - schema: double_pinyin # natural-code double pinyin
-        - schema: double_pinyin_abc # Smart ABC double pinyin
-        - schema: double_pinyin_mspy # Microsoft double pinyin
-        - schema: double_pinyin_sogou # Sogou double pinyin
-        - schema: double_pinyin_ziguang # Ziguang double pinyin
+        # 可以直接删除或注释不需要的方案，对应的 *.schema.yaml 方案文件也可以直接删除
+        # 除了 t9，它依赖于 rime_ice，用九宫格别删 rime_ice.schema.yaml
+        - schema: double_pinyin_flypy # 小鹤双拼
+        - schema: rime_ice # 雾凇拼音（全拼）
+        - schema: t9 # 九宫格（仓输入法）
+        - schema: double_pinyin # 自然码双拼
+        - schema: double_pinyin_abc # 智能 ABC 双拼
+        - schema: double_pinyin_mspy # 微软双拼
+        - schema: double_pinyin_sogou # 搜狗双拼
+        - schema: double_pinyin_ziguang # 紫光双拼
     
-      # Menu
+      # 菜单
       menu:
-        page_size: 5 # number of candidates
+        page_size: 5 # 候选词个数
 <
 
 **double_pinyin_flypy.custom.yaml**
@@ -607,15 +593,15 @@ RIME-ICE CONFIGURATION EXAMPLES ~
     patch:
       schema:
         dependencies:
-          - melt_eng # English input, mounted onto the pinyin scheme as a secondary translator
-          - radical_pinyin # radical (component) input, for reverse lookup and auxiliary codes
+          - melt_eng # 英文输入，作为次翻译器挂载到拼音方案
+          - radical_pinyin # 部件拆字，反查及辅码
     
-      # Word frequency {{{1
+      # 词频 {{{1
       "translator/enable_user_dict": true
     
-      # Mixed spelling {{{1
-      # Insert long-word-priority Lua into engine/filters
-      # Double pinyin is not converted to full-pinyin codes
+      # 混拼 {{{1
+      # 在 engine/filters 插入长词优先的 Lua
+      # 双拼不转换为全拼编码
       translator/preedit_format: []
     
       engine/filters:
@@ -623,21 +609,21 @@ RIME-ICE CONFIGURATION EXAMPLES ~
         - reverse_lookup_filter@radical_reverse_lookup
         - lua_filter@*autocap_filter
         - lua_filter@*pin_cand_filter
-        - lua_filter@*long_word_filter # boost long words
+        - lua_filter@*long_word_filter # 增加长词优先
         - lua_filter@*reduce_english_filter
         - simplifier@emoji
         - simplifier@traditionalize
         - lua_filter@*search@radical_pinyin
         - uniquifier
     
-      # Long-word priority: promote 10 words to the first position
+      # 长词优先设置为提升 10 个词到第 1 个位置
       long_word_filter:
         count: 10
         idx: 1
     
-      # Change xform to derive
+      # xform 变形改为 derive 派生
       speller/algebra:
-        # Fuzzy sounds
+        # 模糊音
         - derive/^([zcs])h/$1/
         - derive/^([zcs])([^h])/$1h$2/
         - derive/ang$/an/
@@ -651,16 +637,15 @@ RIME-ICE CONFIGURATION EXAMPLES ~
         - derive/uan$/uang/
         - derive/uang$/uan/
         - derive/ong$/on/
-          ### v u conversion
-          # The 雾凇 dictionary follows correct u v(ü) annotations; the two lines
-          # below accept incorrect pinyin (e.g. qv, nue) to respond to qu, nve.
+          ### v u 转换
+          # 雾凇的词库严格按照正确的 u v(ü) 注音的，下面两行支持使用错误的拼音，例如 qv nue 来响应 qu nve
         - derive/^([nl])ve$/$1ue/
         - derive/^([jqxy])u/$1v/
-          # Also convert in case other dictionaries are not annotated correctly.
+          # 以防引入的其他词库没按照正确方式注音，也做一个转换
         - derive/^([nl])ue$/$1ve/
         - derive/^([jqxy])v/$1u/
     
-        # Double pinyin
+        # 双拼
         - derive/^([jqxy])u$/$1v/
         - derive/^([aoe])([ioun])$/$1$1$2/
         - derive/^([aoe])(ng)?$/$1$1$2/
@@ -693,11 +678,11 @@ RIME-ICE CONFIGURATION EXAMPLES ~
 <
 
 
-MAKING CHINESE EDITING SMOOTHER ~
+让中文编辑更加丝滑 ~
 
-If you have ultisnips <https://github.com/SirVer/ultisnips> and bullets.vim
-<https://github.com/bullets-vim/bullets.vim> installed, you can use them like
-this.
+如果你安装了 ultisnips <https://github.com/SirVer/ultisnips> 和
+bullets.vim
+<https://github.com/bullets-vim/bullets.vim>，可以这样配置：
 
 >vim
     function RimeKeymapRemap()
@@ -747,8 +732,8 @@ this.
     augroup END
 <
 
-If you have jieba.vim <https://github.com/kkew3/jieba.vim> installed, you can
-enhance `<c-w>`.
+如果你安装了 jieba.vim
+<https://github.com/kkew3/jieba.vim>，还可以对 `<c-w>` 进行增强：
 
 >vim
     function RimeKeymapRemap()
@@ -770,53 +755,45 @@ enhance `<c-w>`.
 <
 
 
-CUSTOMIZING CHINESE/ENGLISH SWITCHING AND THE SCHEME MENU ~
+定制中英切换与方案选单 ~
 
 
-SCHEME MENU
+方案选单                                               *rime-方案选单*
 
-`im#keymap#toggle_scheme()` sends `Ctrl+`` to Rime, opening the built-in scheme
-selection menu, matching the behavior of system input methods:
+`im#keymap#toggle_scheme()` 会向 Rime 发送
+`Ctrl+``，打开内置的「方案选单」，与系统输入法行为一致：
 
-- The menu comes from `schema_list` in your user data directory’s
-    `default.custom.yaml`, plus the switcher toggles (simplified/traditional,
-    half/full-width punctuation, emoji, etc.)
-- The statusline refreshes immediately after switching
+- 选单内容来自用户数据目录里 `default.custom.yaml` 的 `schema_list`，以及 switcher 中的开关项（简繁、中英标点、emoji 等）
+- 切换后状态栏会立即刷新
 
 
-CHINESE/ENGLISH SWITCHING
+中英切换                                               *rime-中英切换*
 
-Without an argument, `im#keymap#toggle_ascii_mode()` simulates a left Shift
-press + release, matching system input methods; while composing, the handling
-follows your rime `ascii_composer/switch_key` configuration.
+`im#keymap#toggle_ascii_mode()` 不带参数时，模拟一次左 Shift 按下
++ 释放，与系统输入法一致；组词过程中的处理方式由 Rime
+配置里的 `ascii_composer/switch_key` 决定。
 
-With an argument you can choose how an in-composition switch is handled:
+带参数时可以指定「正在组词时切换」的处理风格：
 
-  ----------------------------------------------------------------------------
-  Parameter            In-composition switch behavior
-  -------------------- -------------------------------------------------------
-  'commit_code'        Commit the raw pinyin letters as-is, then switch
+  -------------------------------------------------------------------------------
+  参数                 组词时切换的行为
+  -------------------- ----------------------------------------------------------
+  'commit_code'        拼音字母原样上屏，再切换
 
-  'commit_text'        Commit the highlighted candidate if any; otherwise
-                       commit the raw code
+  'commit_text'        有候选时上屏当前高亮候选词；无候选时原样上屏编码，再切换
 
-  'clear'              Discard the current composition, then switch
+  'clear'              丢弃当前组词内容，再切换
 
-  'inline_ascii'       Temporary English mode: type English directly and
-                       auto-revert to Chinese when the composition ends
+  'inline_ascii'       进入临时英文态：直接输出英文，本次上屏结束后自动切回中文
 
-  'set_ascii_mode'     Force English; discards the current composition when
-                       composing
+  'set_ascii_mode'     强制切到英文；正在组词时丢弃当前组词内容
 
-  'unset_ascii_mode'   Force back to Chinese; no-op when already in English
-                       mode
-  ----------------------------------------------------------------------------
+  'unset_ascii_mode'   强制切回中文；已是英文态时为空操作
+  -------------------------------------------------------------------------------
 
-  !Note
-  <Priority%20%60b:im_pair_rules%60%20%3E%20%60g:im_pair_rules%60%20%3E%20default>
-  These arguments only affect switching while composing; when idle they simply
-  toggle between Chinese and English.
-Example:
+  [!Note]
+  这些参数只影响「正在组词时」的切换行为；空闲状态下按下都只是单纯在中/英之间切换。
+示例：
 
 >vim
     function RimeKeymapRemap()
@@ -849,86 +826,74 @@ Example:
 <
 
 
-REPLACE MODE ~
+REPLACE MODE 替换模式 ~
 
 
-  Still experimental.
-When enabled, Rime works in Replace mode (`R` / `gR`): committed text
-**overwrites** from the cursor instead of inserting, and supports restoring
-just like native Replace.
+  以下功能还处于实验性阶段。
+开启该功能后，Rime 可以在替换模式（`R` /
+`gR`）下工作：上屏内容将从光标处**覆盖**原有字符（而非插入），且支持像原生
+Replace 一样撤销还原。
 
 >vim
-    " Set to 1: enable Rime in R/gR replace mode
+    " 设为 1：在 R/gR 替换模式下启用 Rime
     let g:im_replace_mode = 1
 <
 
-`g:im_replace_mode` defaults to `0`: keys in Replace mode are not intercepted
-by Rime, falling back entirely to native Vim behavior without a candidate
-popup.
+`g:im_replace_mode` 默认值为 `0`，此时替换模式下的按键不会被
+Rime 拦截，完全遵循 Vim 原生行为，也不会弹出候选窗口。
 
-When set to `1`, entering `R` / `gR` starts a replace session, and committed
-text is restored the native Replace way:
+设为 `1` 后，进入 `R` / `gR`
+即开启一个替换会话，期间上屏的内容可按原生 Replace
+的方式撤销还原：
 
-  -----------------------------------------------------------------------
-  Key     Function
-  ------- ---------------------------------------------------------------
-  <bs>    Restore the characters overwritten by the previous step
+  按键    功能
+  ------- ----------------------------------
+  <bs>    撤销上一步覆盖的字符
+  <c-w>   撤销上一个空格分隔词所覆盖的字符
+  <c-u>   撤销本次会话中覆盖的全部字符
+移动光标会终止当前会话的撤销能力（与原生 Replace
+行为一致），此后将从新位置重新开始覆盖。
 
-  <c-w>   Restore the characters overwritten by the previous
-          whitespace-delimited word
-
-  <c-u>   Restore all characters overwritten in this session
-  -----------------------------------------------------------------------
-Moving the cursor abandons the restore capability of this session (aligned with
-native Replace); overwriting then continues from the new position.
-
-- Remap `r` to support half-width / full-width switching.
+- 重新映射 `r`，以支持半角/全角切换：
 
 >vim
     nnoremap r <Cmd>call im#keymap#r()<CR>
 <
 
 
-AUTO PAIR ~
+AUTO PAIR 自动成对 ~
 
 
-  [!Tip] Auto closing is disabled in Replace mode
-  ---------------------------------------------------------------------------
-  Function     Key      Effect            Description
-  ------------ -------- ----------------- -----------------------------------
-  Auto close   ( 「 "   (|)　「|」　“|”   Entering an open delimiter inserts
-                                          the close and moves the cursor back
+  [!Tip] 替换模式下会自动关闭成对功能
+  -----------------------------------------------------------------------------------------
+  功能       按键     效果                说明
+  ---------- -------- ------------------- -------------------------------------------------
+  成对补全   ( 「 "   (|)　「|」　“|”     输入开符时自动补全闭符，并将光标移回中间
 
-  Jump close   ) 」 "   ()|　「」|　““|   When the same close delimiter/quote
-                                          is already right of the cursor,
-                                          jump over it instead of inserting
+  闭符跳出   ) 」 "   ()|　「」|　““|     光标右侧已有相同闭符/引号时直接跳出，不重复插入
 
-  Delete pair  <BS>     (|) → delete → |  In an empty pair (open immediately
-                                          followed by close), delete the
-                                          whole pair at once
+  空对删除   <BS>     (|) → 删除 → |      在空对（开符紧邻闭符）中一次性删除整对
 
-  Delete open  <s-bs>   (|) → delete → |) In an empty pair, delete only the
-  only                                    open delimiter, keeping the close
+  只删开符   <s-bs>   (|) → 删除 → |)     在空对（开符紧邻闭符）中只删除开符，保留闭符
 
-  Manual jump  ;j       (|) → jump one →  Skip one close delimiter/quote to
-                        ()|               the right (im#pair#jump_any)
+  手动跳过   ;j       (|) → 越过一个 →    跳过右侧一个闭符/引号（im#pair#jump_any）
+                      ()|                 
 
-  Manual       ;J       (|))) → jump all  Skip a run of close
-  multi-jump            → ()))|           delimiters/quotes to the right
-                                          (im#pair#jump_many)
-  ---------------------------------------------------------------------------
-- Default pairs: `()` `[]` `{}` `<>` `"` `'`, plus full-width `（）` `【】` `「」` `『』` `《》` `“”` `‘’`
-- Half-width punctuation goes straight to the screen; full-width punctuation goes through Rime. Pairing is handled correctly in both cases
-- Configuration priority: `b:im_pair_rules` > `g:im_pair_rules` > default (only `im_pair_rules` supports `b:`-local config, the rest are global `g:`)
-- Scope blacklist: when the cursor is inside a listed highlight group (e.g. comments, strings), auto pair pauses and resumes after leaving. **Disabled by default**; unset or empty means no effect:
+  手动连跳   ;J       (|))) → 越过全部 →  跳过右侧连续多个闭符/引号（im#pair#jump_many）
+                      ()))|               
+  -----------------------------------------------------------------------------------------
+- 默认配对：`()` `[]` `{}` `<>` `"` `'`，以及全角 `（）` `【】` `「」` `『』` `《》` `“”` `‘’`
+- 无论半角标点直接上屏，还是全角标点经 Rime 上屏，两种情况均可正确识别配对
+- 配置优先级：`b:im_pair_rules` > `g:im_pair_rules` > 默认值（仅 `im_pair_rules` 支持 `b:` 局部配置，其余选项均为全局 `g:`）
+- 高亮黑名单：当光标位于名单内的高亮组（如注释、字符串）时，自动成对会临时关闭，离开后自动恢复。**默认关闭**，未设置或设为空列表时不生效：
 
 
-CONFIGURATION
+配置                                                           *rime-配置*
 
 >vim
-    " Auto pair switch (default 0)
+    " 自动成对开关（默认 0）
     let g:im_pair_enabled = 0
-    " Pair rules; each entry has open/close and kind ('matchpair' open != close, 'quote' open == close)
+    " 配对规则列表，每条包含 open/close 与 kind（'matchpair' 表示开闭符不同，'quote' 表示开闭符相同）
     let g:im_pair_rules = [
           \ {'open': '(',  'close': ')',  'kind': 'matchpair'},
           \ {'open': '[',  'close': ']',  'kind': 'matchpair'},
@@ -945,17 +910,17 @@ CONFIGURATION
           \ {'open': "'",  'close': "'",  'kind': 'quote'},
           \ ]
     
-    " Or just use the default rules
+    " 等价于
     let g:im_pair_rules = im#pair#default_rules()
     
     
-    " Scope blacklist
-    " Keys are &filetype, '*' is the global default; a matching filetype entry is used as-is, not merged with '*'
-    " Value fields:
-    "   disabled: 1 disables auto pair for that filetype entirely
-    "   syntax: regex list of vim highlight group names (case-insensitive, e.g. 'comment' matches Comment/vimCommentTitle)
-    "   ts: substring list of treesitter node types (case-insensitive, Neovim only, ignored in Vim)
-    " syntax and ts are OR-ed; hitting either one pauses; when both are empty nothing happens
+    " 作用域黑名单
+    " 键为 &filetype，'*' 为全局默认；命中具体 filetype 则只用该条，不与 '*' 合并
+    " 值字段：
+    "   disabled: 1 则该 filetype 下完全关闭自动成对
+    "   syntax: vim 高亮组名的正则列表（大小写不敏感，如 'comment' 可命中 Comment/vimCommentTitle）
+    "   ts: treesitter 节点类型的子串列表（大小写不敏感，仅 Neovim 生效，Vim 下忽略）
+    " syntax 与 ts 为“或”关系，命中任一即暂停；两者皆空则不生效
     let g:im_pair_config = {
           \ '*': {'syntax': ['comment', 'string'], 'ts': ['comment', 'string']},
           \ 'txt': {'disabled': 1}
@@ -963,42 +928,42 @@ CONFIGURATION
 <
 
 
-G:IM_PAIR_RULES
+g:im_pair_rules                                         *rime-g:im_pair_rules*
 
-- `open`: open delimiter
-- `close`: close delimiter
-- `kind`: `matchpair` means open != close, `quote` means open == close
-
-
-  
-
-G:IM_PAIR_CONFIG
-
-Disable auto pair by scope. Keys are concrete `filetype`s or `*` (global
-wildcard); a specific `filetype` entry fully overrides the `*` settings.
-
-Available fields:
-
-- `disabled`: boolean. 1 disables auto pair for that filetype and short-circuits the remaining fields.
-- `syntax`: list. Case-insensitively matches the highlight group name (Syntax Group) under the cursor.
-- `ts`: list. Matches Tree-sitter node types (Neovim only).
+- `open` : 开符
+- `close` : 闭符
+- `kind` : `matchpair` 表示开闭符不同，`quote` 表示开闭符相同
 
 
-  !note
-  <Priority%20%60b:im_pair_rules%60%20%3E%20%60g:im_pair_rules%60%20%3E%20default>
-  `ts` and `syntax` are OR-ed; hitting either one pauses; when both are set `ts`
-  is checked first.
+  [!Note]： 优先级 `b:im_pair_rules` > `g:im_pair_rules` > 默认
 
-KEY MAPPINGS
+g:im_pair_config                                       *rime-g:im_pair_config*
+
+按作用域关闭自动成对。键名可为具体 `filetype` 或
+`*`（表示全局通配）；特定 `filetype` 的配置会整体覆盖 `*`
+的设置。
+
+可用字段：
+
+- `disabled`：布尔值。设为 1 时直接关闭该 filetype 下的自动成对，并短路其余字段。
+- `syntax`：列表。大小写不敏感地匹配光标处的高亮组名（Syntax Group）。
+- `ts`：列表。匹配 Tree-sitter 节点类型（仅 Neovim 生效）。
+
+
+  [!note] `ts` 与 `syntax`
+  之间为「或」的关系，命中任一即可触发关闭；两者同时配置时优先判定
+  ts。
+
+快捷键                                                     *rime-快捷键*
 
 >vim
-    " Auto pair toggle mappings
+    " 自动成对切换快捷键
     inoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
     nnoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
     
     function RimeKeymapRemap()
-      inoremap <expr> ;j im#pair#jump_any()   " skip one close delimiter/quote to the right
-      inoremap <expr> ;J im#pair#jump_many()  " skip a run of close delimiters/quotes to the right
+      inoremap <expr> ;j im#pair#jump_any()   " 跳过右侧一个闭符/引号
+      inoremap <expr> ;J im#pair#jump_many()  " 跳过右侧连续一串闭符/引号
     
       lnoremap <silent><expr> <bs> im#state#composing() ?
             \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
@@ -1025,38 +990,27 @@ KEY MAPPINGS
 <
 
 
-SURROUND ~
+SURROUND 包围编辑 ~
 
-Add, delete, and replace paired delimiters (brackets, quotes, HTML tags,
-function calls, and more) for selections, text objects, or whole lines, with
-extra full-width symbol support.
 
-Default key mappings (all customizable via the corresponding
-`g:im_surround_*_key`):
+为选区、文本对象或整行**添加、删除、替换**成对分隔符（括号、引号、HTML
+标签、函数调用等），并额外支持全角符号。
 
-  -----------------------------------------------------------------------
-  Key                   Mode     Description
-  --------------------- -------- ----------------------------------------
-  ys{motion}{char}      normal   Add surrounds around the motion
+默认按键映射（均可用对应的 `g:im_surround_*_key` 定制）：
 
-  yS{motion}{char}      normal   Same, but on their own first/last lines
+  按键               模式     说明
+  ------------------ -------- ----------------------------------
+  ys{motion}{char}   normal   为 motion 选中的内容添加分隔符
+  yS{motion}{char}   normal   同上，但分隔符独占首尾新行
+  yss / ySS          normal   为整行添加分隔符（ySS 独占新行）
+  ds{char}           normal   删除光标处最近的分隔符
+  cs{old}{new}       normal   将旧分隔符替换为新分隔符
+  cS{old}{new}       normal   同上，新分隔符独占首尾新行
+  S / gS             visual   为选区添加分隔符（gS 独占新行）
+  <c-g>s / <c-g>S    insert   插入一对分隔符并将光标置于中间
+常见用法示例（`*` 为光标位置）：
 
-  yss / ySS             normal   Add surrounds for the whole line (ySS
-                                 uses newlines)
-
-  ds{char}              normal   Delete the nearest surround pair
-
-  cs{old}{new}          normal   Replace the old pair with a new one
-
-  cS{old}{new}          normal   Same, new pair on its own lines
-
-  S / gS                visual   Wrap the selection (gS uses newlines)
-
-  <c-g>s / <c-g>S       insert   Insert a pair and put the cursor inside
-  -----------------------------------------------------------------------
-Common examples (`*` is the cursor):
-
-  Old text                     Keys    New text
+  旧文本                       按键    新文本
   ---------------------------- ------- ---------------------
   surr*ound_words              ysiw)   (surr*ound_words)
   surr*ound_words              ysiw(   ( surr*ound_words )
@@ -1066,31 +1020,31 @@ Common examples (`*` is the cursor):
   'change quot*es'             cs'"    "change quot*es"
   delete(functi*on calls)      dsf     functi*on calls
 
-CONFIGURATION
+配置                                                           *rime-配置*
 
 >vim
-    " Surround switch (default 0)
+    " 包围功能开关（默认 0）
     let g:im_surround_enable = 1
     
-    " Custom keys
-    let g:im_surround_add_key           = 'ys'      " add surround (normal)
-    let g:im_surround_add_cur_key       = 'yss'     " add surround for current line (normal)
-    let g:im_surround_add_line_key      = 'yS'      " add surround with newlines (normal)
-    let g:im_surround_add_cur_line_key  = 'ySS'     " add surround for current line with newlines (normal)
-    let g:im_surround_delete_key        = 'ds'      " delete surround (normal)
-    let g:im_surround_change_key        = 'cs'      " change surround (normal)
-    let g:im_surround_change_line_key   = 'cS'      " change surround with newlines (normal)
-    let g:im_surround_visual_key        = 'S'       " visual wrap (visual)
-    let g:im_surround_visual_line_key   = 'gS'      " visual wrap with newlines (visual)
-    let g:im_surround_insert_key        = '<C-g>s'  " insert pair (insert)
-    let g:im_surround_insert_line_key   = '<C-g>S'  " insert pair with newlines (insert)
+    " 自定义快捷键
+    let g:im_surround_add_key           = 'ys'      " 加包围 (normal)
+    let g:im_surround_add_cur_key       = 'yss'     " 整行加包围 (normal)
+    let g:im_surround_add_line_key      = 'yS'      " 加包围-新行式 (normal)
+    let g:im_surround_add_cur_line_key  = 'ySS'     " 整行加包围-新行式 (normal)
+    let g:im_surround_delete_key        = 'ds'      " 删包围 (normal)
+    let g:im_surround_change_key        = 'cs'      " 换包围 (normal)
+    let g:im_surround_change_line_key   = 'cS'      " 换包围-新行式 (normal)
+    let g:im_surround_visual_key        = 'S'       " 可视模式包裹 (visual)
+    let g:im_surround_visual_line_key   = 'gS'      " 可视模式新行包裹 (visual)
+    let g:im_surround_insert_key        = '<C-g>s'  " 插入模式插入 (insert)
+    let g:im_surround_insert_line_key   = '<C-g>S'  " 插入模式换行插入 (insert)
     
-    " Flash highlight duration when ds / cs lands on a pair (ms, 0 disables)
+    " ds / cs 定位到包围对时的闪光高亮时长（毫秒，0 关闭）
     let g:im_surround_flash_ms          = 120
     
-    " Custom surround rules
+    " 自定义包围规则
     let g:im_surround_surrounds = im#surround#config#default_surrounds()
-    " Equivalent to
+    " 等价于
     let g:im_surround_surrounds = [
           \ {'key': '(',  'add': ['( ', ' )'], 'find': function('im#surround#find#matchpair')},
           \ {'key': ')',  'add': ['(', ')'],   'find': function('im#surround#find#matchpair')},
@@ -1126,7 +1080,7 @@ CONFIGURATION
           \ ]
     
     
-    " Custom aliases (replace the default table as a whole)
+    " 自定义别名（整体替换默认表）
     let g:im_surround_aliases = im#surround#config#default_aliases()
     let g:im_surround_aliases += [
           \ {'key': ')', 'targets' : [')', '）']},
@@ -1151,100 +1105,72 @@ CONFIGURATION
 <
 
 
-G:IM_SURROUND_SURROUNDS
+g:im_surround_surrounds                         *rime-g:im_surround_surrounds*
 
-This is a `List`; extending `im#surround#config#default_surrounds()` is
-recommended.
+该项为 `List` 类型，推荐基于 `im#surround#config#default_surrounds()`
+进行扩展和修改。
 
-Each entry is a Dict with these core fields:
+每项为一个字典，包含以下核心字段：
 
-  ------------------------------------------------------------------------
-  Field         Requirement                               Description
-  ------------- ----------------------------------------- ----------------
-  key           Char (required, CJK allowed)              Trigger char
-                                                          typed after ys /
-                                                          ds / cs; the
-                                                          entry is ignored
-                                                          when empty or
-                                                          mistyped
+  ---------------------------------------------------------------------------------------
+  字段      赋值要求           说明
+  --------- ------------------ ----------------------------------------------------------
+  key       Char（必填，支持   触发字符，即 ys / ds / cs
+            CJK）              之后键入的字符；为空或类型不符时该项整体失效
 
-  add           List or Funcref                           Where the
-                                                          delimiters come
-                                                          from when
-                                                          adding, see
-                                                          below
+  add       List 或 Funcref    添加包围时分隔符的来源，见下
 
-  find          Funcref                                   Locate the pair
-                                                          under the cursor
-                                                          for ds / cs, see
-                                                          below
+  find      Funcref            定位光标所在的包围对，供 ds / cs 使用，见下
 
-  replace       Funcref (optional)                        Build the new
-                                                          pair for cs, see
-                                                          below; when
-                                                          missing,
-                                                          highlight the
-                                                          old pair and
-                                                          wait for a new
-                                                          key
-  ------------------------------------------------------------------------
+  replace   Funcref（可选）    cs
+                               时生成新分隔符，见下；缺省则高亮原包围并等待键入新分隔符
+  ---------------------------------------------------------------------------------------
 
-  !note
-  <Priority%20%60b:im_pair_rules%60%20%3E%20%60g:im_pair_rules%60%20%3E%20default>
-  - `add` is only used when **adding** - `find` is only used to **locate the old
-  pair** for `ds` / `cs` - `replace` is only used to **build the new pair** for
-  `cs`.
-1. `add` (build delimiters)
+  [!note] - `add` 只在**添加**时使用 - `find` 只在 `ds` / `cs`
+  **定位旧包围**时使用 - `replace` 只在 `cs`
+  **生成新包围**时使用。
+1. `add`（添加分隔符）
 
-- **List**: left/right pair `[left, right]`
-- **Funcref**:
-    - Input: `char`, the trigger char just typed.
-    - Output: `[left, right]` (two-string list); empty list aborts.
+- **List** ：左右分割符 `[left, right]`
+- **Funcref**：
+    - 入参：`char`，当前键入的触发字符。
+    - 出参：`[left, right]`（二元字符串列表），返回空列表表示放弃操作。
 
-1. `find` (locate the pair)
+1. `find`（定位包围对）
 
-- Input: `char`, the trigger char just typed.
-- Output: the surround Dict on hit, `{}` on miss; keys are:
+- 入参：`char`，当前键入的触发字符。
+- 出参：命中时返回包围字典，未命中返回 `{}`；字典各键如下：
 
-  -------------------------------------------------------------------------------
-  Key               Type                          Required     Meaning
-  ----------------- ----------------------------- ------------ ------------------
-  first_pos         [Number, Number]              yes          Outer start: first
-                                                               byte of the open
-                                                               delimiter,
-                                                               [line, byte-col]
+  --------------------------------------------------------------------------------
+  键          类型               必填   含义
+  ----------- ------------------ ------ ------------------------------------------
+  first_pos   [Number, Number]   是     外框起点：开分隔符首字节，[行, 字节列]
 
-  last_pos          [Number, Number]              yes          Outer end: last
-                                                               byte of the close
-                                                               delimiter,
-                                                               [line, byte-col]
+  last_pos    [Number, Number]   是     外框终点：闭分隔符末字节，[行, 字节列]
 
-  open_len          Number                        no           Bytes of the open
-                                                               delimiter,
-                                                               recommended
+  open_len    Number             否     开分隔符占几字节，建议都写
 
-  close_len         Number                        no           Bytes of the close
-                                                               delimiter,
-                                                               recommended
-  -------------------------------------------------------------------------------
-1. `replace` (replace delimiters)
+  close_len   Number             否     闭分隔符占几字节，建议都写
+  --------------------------------------------------------------------------------
+1. `replace`（替换分隔符）
 
-- Output: `[left, right]` (the new pair); empty list aborts the replacement.
-- Example: `function('im#surround#change#tag')`.
+- 出参：`[left, right]`（新的左右分隔符）；返回空列表表示放弃本次替换。
+- 例：`function('im#surround#change#tag')`。
 
 
-G:IM_SURROUND_ALIASES
+g:im_surround_aliases                             *rime-g:im_surround_aliases*
 
-A List; start from `im#surround#config#default_aliases()` before changing it.
+List 类型，建议先用 `im#surround#config#default_aliases()`
+取默认值再改。
 
-  Field     Requirement                    Description
-  --------- ------------------------------ -----------------
-  key       Char (required, CJK allowed)   Alias trigger
-  targets   List (required)                Target key list
-Typing an alias for `ds` / `cs` picks the **innermost** pair among all
-`targets` under the cursor.
+  字段      赋值要求                说明
+  --------- ----------------------- ---------------
+  key       Char（必填，支持CJK）   别名触发字符
+  targets   List（必填）            目标 key 列表
+`ds` / `cs` 时输入别名键，会在 `targets`
+列出的所有目标中，挑选光标处**最内层**的那一对。
 
-Default aliases:
+默认别名如下：
 
 >vim
     let s:default_aliases = [
@@ -1256,87 +1182,58 @@ Default aliases:
 <
 
 
-  !NOTE
-  <Priority%20%60b:im_pair_rules%60%20%3E%20%60g:im_pair_rules%60%20%3E%20default>
-  All g:im_surround_* options support b: (buffer-local) overrides with priority:
-  b: > g: > default. surrounds and aliases use whole-table replacement: once
-  customized, the defaults are fully replaced, so fetch-then-append via the
-  helper functions to keep them.
+  [!NOTE] 所有 g:im_surround_* 选项均支持 b:（buffer
+  级别）局部覆盖，优先级规则为：b: > g: > 默认值。 surrounds
+  与 aliases
+  均采用整体替换语义：一旦自定义设置，默认表将被完全取代，因此如需保留默认项建议先通过函数获取再拼接。
 
-BUILT-IN FUNCTIONS
+内置函数一览                                   *rime-内置函数一览*
 
-Built-in `add` / `replace` functions:
+内置 `add` / `replace` 函数：
 
-  -----------------------------------------------------------------------------
-  Function                             Input → Output             Purpose
-  ------------------------------------ -------------------------- -------------
-  im#surround#add#tag                  ch → [left, right]         Ask for a tag
-                                                                  name plus
-                                                                  attributes,
-                                                                  build
-                                                                  <tag ...> /
-                                                                  </tag>
+  -----------------------------------------------------------------------------------
+  函数                          入参 → 出参      用途
+  ----------------------------- ---------------- ------------------------------------
+  im#surround#add#tag           ch →             输入标签名与属性，生成 <tag ...> /
+                                [left, right]    </tag>
 
-  im#surround#add#func                 ch → [left, right]         Ask for a
-                                                                  function
-                                                                  name, build
-                                                                  name(...)
+  im#surround#add#func          ch →             输入函数名，生成 name(...)
+                                [left, right]    
 
-  im#surround#add#input                ch → [left, right]         Ask for left
-                                                                  and right
-                                                                  delimiters
-                                                                  separately
+  im#surround#add#input         ch →             分别输入左右分隔符
+                                [left, right]    
 
-  im#surround#add#invalid              ch → [left, right]         Use the typed
-                                                                  char directly
-                                                                  as both sides
+  im#surround#add#invalid       ch →             直接使用所键入的字符作为左右分隔符
+                                [left, right]    
 
-  im#surround#change#tag               none → [left, right]       Replace the
-                                                                  tag name,
-                                                                  keep
-                                                                  attributes
+  im#surround#change#tag        无 →             替换标签名，保留原属性
+                                [left, right]    
 
-  im#surround#change#tag_full          none → [left, right]       Replace the
-                                                                  tag name,
-                                                                  drop
-                                                                  attributes
+  im#surround#change#tag_full   无 →             替换标签名，丢弃原属性
+                                [left, right]    
 
-  im#surround#change#func              none → [left, right]       Replace the
-                                                                  function name
-  -----------------------------------------------------------------------------
-Built-in `find` functions:
+  im#surround#change#func       无 →             替换函数名
+                                [left, right]    
+  -----------------------------------------------------------------------------------
+内置 `find` 函数：
 
-  ------------------------------------------------------------------------
-  Function                                                 Use case
-  -------------------------------------------------------- ---------------
-  im#surround#find#matchpair                               Asymmetric
-                                                           delimiters (()
-                                                           [] {} <> and
-                                                           full-width
-                                                           brackets, …)
+  --------------------------------------------------------------------------
+  函数                         适用场景
+  ---------------------------- ---------------------------------------------
+  im#surround#find#matchpair   左右不同的定界符（() [] {} <> 及全角括号等）
 
-  im#surround#find#quote                                   Symmetric
-                                                           quotes
+  im#surround#find#quote       左右相同的引号
 
-  im#surround#find#tag                                     HTML / XML tags
-                                                           (reuses native
-                                                           at)
+  im#surround#find#tag         HTML / XML 标签（复用原生 at）
 
-  im#surround#find#func                                    Function calls
+  im#surround#find#func        函数调用
 
-  im#surround#find#invalid                                 Fallback:
-                                                           nearest
-                                                           identical chars
-                                                           around the
-                                                           cursor
+  im#surround#find#invalid     兜底：光标左右最近的同名字符成对
 
-  im#surround#find#pattern                                 Custom regex
-                                                           with signature
-                                                           fun(ch, opt),
-                                                           see below
-  ------------------------------------------------------------------------
-Custom regex surrounds with `im#surround#find#pattern` (works for `add` / `ds`
-/ `cs`):
+  im#surround#find#pattern     自定义正则，签名为 fun(ch, opt)，见下
+  --------------------------------------------------------------------------
+用 `im#surround#find#pattern` 自定义正则包围（`add` / `ds` / `cs`
+均可）：
 
 >vim
     let b:im_surround_surrounds = [
@@ -1346,14 +1243,15 @@ Custom regex surrounds with `im#surround#find#pattern` (works for `add` / `ds`
           \ ]
 <
 
-- The `opt` Dict takes:
-    - `open_pat` / `close_pat`: Vim regexes for the two sides; prefix literals with `\V`.
-    - `scope`: `'line'` (default) matches only on the current line; `'buffer'` allows multi-line matches.
+- 入参 `opt` 为一个字典：
+    - `open_pat` / `close_pat`：左右两侧的 Vim 正则，字面量建议加 `\V` 前缀。
+    - `scope`：`'line'`（默认）只在当前行内匹配；`'buffer'` 允许跨行匹配。
 
 
-ADVANCED EXAMPLE: MARKDOWN-LOCAL MAPPINGS
+进阶使用案例：Markdown 专属快捷键*rime-进阶使用案例：Markdown-专属快捷键*
 
-You can extend the rules per filetype (e.g. Markdown) with FileType autocmds:
+你可以通过 FileType 自动命令为特定文件类型（如
+Markdown）动态扩展包围规则：
 
 >vim
     augroup RimeGroup
@@ -1379,26 +1277,23 @@ You can extend the rules per filetype (e.g. Markdown) with FileType autocmds:
 <
 
 
-CONTEXT AUTO-SWITCHING ~
+CONTEXT 自动切换 ~
 
-Automatically switch between [Rime owned] and [native passthrough] modes based
-on the highlight (syntax scope) under the cursor.
+根据光标所在的高亮（语法作用域）自动切换【Rime
+接管】与【原生直通】模式。
 
 
-  !note
-  <Priority%20%60b:im_pair_rules%60%20%3E%20%60g:im_pair_rules%60%20%3E%20default>
-  - Switching is only evaluated when the cursor crosses a highlight boundary -
-  Recalibrates once on entering Insert mode; resets after leaving it; never
-  switches mid-composition - Restarting the input method with `;;` in Insert mode
-  also recalibrates once
+  [!note] - 仅在光标跨越高亮区域边界时才会触发切换判断 -
+  进入插入模式时强制校准一次；离开插入模式后状态复位；组词过程中不会切换
+  - 插入模式下用 `;;` 重启输入法时，同样会强制校准一次
 
-CONFIGURATION
+配置                                                           *rime-配置*
 
 >vim
-    " Master switch for context auto-switching (off by default)
+    " 上下文自动切换总开关（默认关闭）
     let g:im_context_enabled = 1
     
-    " '*' is the global default; specific filetypes take higher priority
+    " '*' 为全局默认规则，具体 filetype 的配置优先级更高
     let g:im_context_config = {
           \ '*':        {'mode': 'blacklist'},
           \ 'vim':      {'mode': 'whitelist', 'ts': ['comment', 'string'], 'syntax': ['comment', 'string']},
@@ -1406,43 +1301,26 @@ CONFIGURATION
           \ }
 <
 
-- With `mode` set to `whitelist`, Rime only owns the listed highlight areas and
-    passes everything else through; `blacklist` does the opposite.
-- `ts` is a treesitter capture name.
-- `syntax` is a vim syntax highlight group name.
-- `ts` and `syntax` are OR-ed; hitting either one counts; when both are set `ts` wins.
+- `mode` 为 `whitelist` 时，仅在列出的高亮区域内接管为 Rime，其余区域保持直通；为 `blacklist` 时反之。
+- `ts` 对应 treesitter capture 名称。
+- `syntax` 对应 vim syntax 高亮组名称。
+- `ts` 与 `syntax` 之间为「或」的关系，命中任一即生效；两者同时配置时 `ts` 优先级更高。
 
 
-AUTOCMD
+事件                                                           *rime-事件*
 
-The following `autocmd`s fire on state changes for third-party plugins
-(completion, AI continuation, …):
+状态变化时会触发以下
+`autocmd`，可用于联动第三方插件（如补全、AI 续写等）：
 
-  -----------------------------------------------------------------------
-  Event                                                   When
-  ------------------------------------------------------- ---------------
-  RimeContextChinese                                      Fired on
-                                                          entering [Rime
-                                                          owned] mode,
-                                                          typically to
-                                                          disable
-                                                          third-party
-                                                          completion
+  ------------------------------------------------------------------------
+  事件                  触发时机
+  --------------------- --------------------------------------------------
+  RimeContextChinese    进入【Rime 接管】模式时触发，常用于关闭第三方补全
 
-  RimeContextEnglish                                      Fired on
-                                                          returning to
-                                                          [native
-                                                          passthrough]
-                                                          mode, typically
-                                                          to restore
-                                                          third-party
-                                                          completion
+  RimeContextEnglish    回到【原生直通】模式时触发，常用于恢复第三方补全
 
-  RimeContextChanged                                      Fired whenever
-                                                          the owned state
-                                                          flips (either
-                                                          direction)
-  -----------------------------------------------------------------------
+  RimeContextChanged    接管状态发生变化时触发（不区分方向）
+  ------------------------------------------------------------------------
 >vim
     function! im#hooks#suppress_completion() abort
       if exists('*coc#config')
@@ -1476,9 +1354,9 @@ The following `autocmd`s fire on state changes for third-party plugins
 <
 
 
-KEY MAPPINGS
+快捷键                                                     *rime-快捷键*
 
-Manually toggle [Rime owned] vs [native passthrough]:
+手动切换【Rime 接管】与【原生直通】模式：
 
 >
     inoremap <silent> ;u <cmd>call im#context#set('chinese')<cr>
@@ -1486,7 +1364,7 @@ Manually toggle [Rime owned] vs [native passthrough]:
     inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
 <
 
-Toggle the whole auto-switching:
+开关整个自动切换功能：
 
 >
     nnoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
@@ -1494,117 +1372,107 @@ Toggle the whole auto-switching:
 <
 
 
-TMUX POPUP INPUT ~
+TMUX 弹窗输入 ~
 
-Use the Rime input method in a tmux `display-popup`, sharing the same
-`rime-query` daemon.
+在 tmux 中通过 `display-popup` 弹窗使用 Rime
+输入法，复用同一个 `rime-query` daemon。
 
 
-REQUIREMENTS
+要求                                                           *rime-要求*
 
 - tmux >= 3.3
 - Python 3
-- a `rime-query` executable (see Building the backend)
+- rime-query 可执行文件（见 编译后端）
 
 
-INSTALLATION
+安装                                                           *rime-安装*
 
-With TPM <https://github.com/tmux-plugins/tpm>:
+使用 TPM <https://github.com/tmux-plugins/tpm>：
 
 >tmux
     set -g @plugin 'TSalmon3/rime.vim'
 <
 
-Or manually add to `.tmux.conf`:
+或手动在 `.tmux.conf` 中添加：
 
 >tmux
     run-shell '/path/to/rime.vim/rime.tmux'
 <
 
-After installing, press `prefix + ;` to pop the Rime input window.
+安装后按 `prefix + ;` 即可弹出 Rime 输入窗口。
 
 
-KEYS
+按键                                                           *rime-按键*
 
-  Key               Function
-  ----------------- --------------------------------------
-  prefix + ;        Open / close the popup
-  Space             Select candidate
-  Enter             Commit pinyin
-  Number (1-5)      Select the Nth candidate
-  Up / Down         Previous / next candidate
-  PageUp/PageDown   Previous / next page
-  Tab / S-Tab       Next / previous syllable
-  Backspace         Delete one char
-  Ctrl-u            Clear pinyin
-  Ctrl-w            Delete one syllable
-  Ctrl-d            Delete a self-made word
-  Ctrl-a / Ctrl-e   To pinyin start / end
-  Ctrl+p            Toggle half/full-width punctuation
-  Ctrl+f            Toggle simplified/traditional
-  Esc               Cancel composition / close the popup
-  Ctrl-c            Quit the popup
+  按键              功能
+  ----------------- ---------------------
+  prefix + ;        打开 / 关闭弹窗
+  Space             选择候选
+  Enter             拼音上屏
+  Number (1-5)      选择对应候选
+  Up / Down         上 / 下一个候选
+  PageUp/PageDown   上 / 下一页
+  Tab / S-Tab       下 / 上一个音节
+  Backspace         删除一个字符
+  Ctrl-u            清空拼音
+  Ctrl-w            删除一个音节
+  Ctrl-d            删除自造词
+  Ctrl-a / Ctrl-e   光标到拼音首 / 尾
+  Ctrl+p            切换半角/全角标点
+  Ctrl+f            切换简体/繁体
+  Esc               取消组合 / 关闭弹窗
+  Ctrl-c            退出弹窗
 
-CONFIGURATION
+配置                                                           *rime-配置*
 
-Set via tmux options (before `run-shell` in `.tmux.conf`):
+通过 tmux 选项设置（在 `.tmux.conf` 中 `run-shell` 之前）：
 
   -------------------------------------------------------------------------
-  Option                                 Default           Description
-  -------------------------------------- ----------------- ----------------
-  @rime_key                              ;                 Bound prefix key
+  选项                       默认值       说明
+  -------------------------- ------------ ---------------------------------
+  @rime_key                  ;            绑定的前缀键
 
-  @rime_bin                              rime-query        rime-query
-                                                           executable path
+  @rime_bin                  rime-query   rime-query 可执行文件路径
 
-  @rime_socket                           empty             Unix socket
-                                                           path,
-                                                           auto-detected
-                                                           when empty
+  @rime_socket               空           Unix socket 路径，留空自动检测
 
-  @rime_popup                            empty             Custom
-                                                           display-popup
-                                                           args
+  @rime_popup                空           自定义 display-popup 参数
 
-  @rime_option_ascii_punct               empty             Initial
-                                                           punctuation
-                                                           (0=full, 1=half)
+  @rime_option_ascii_punct   空           初始标点状态（0=全角，1=半角）
 
-  @rime_option_traditional               empty             Initial script
-                                                           (0=simplified,
-                                                           1=traditional)
+  @rime_option_traditional   空           初始简繁状态（0=简体，1=繁体）
   -------------------------------------------------------------------------
 >tmux
     set -g @rime_key ";"
     set -g @rime_bin "rime-query"
 <
 
-Custom `@rime_popup` overrides the default popup size and position:
+自定义 `@rime_popup` 会覆盖默认的弹窗尺寸与位置：
 
 >tmux
     set -g @rime_popup "-w80% -h10 -xC -yC -E -T ㄓ"
 <
 
-Set the initial states:
+设置初始状态：
 
 >tmux
-    set -g @rime_option_ascii_punct 1      # initial half-width punctuation
-    set -g @rime_option_traditional 0      # initial simplified
+    set -g @rime_option_ascii_punct 1      # 初始半角标点
+    set -g @rime_option_traditional 0      # 初始简体
 <
 
 
-ENVIRONMENT VARIABLES
+环境变量                                               *rime-环境变量*
 
-The tmux popup imports these three from the global environment:
+tmux 弹窗会自动从全局环境导入以下三个变量：
 
 >
-    RIME_USER_DATA_DIR   # user data directory
-    RIME_SHARED_DATA_DIR # shared data directory
-    RIME_LOG             # backend log path
-    RIME_TMUX_LOG        # tmux frontend log path
+    RIME_USER_DATA_DIR   # 用户数据目录
+    RIME_SHARED_DATA_DIR # 共享数据目录
+    RIME_LOG             # 后端日志路径
+    RIME_TMUX_LOG        # tmux 前端日志路径
 <
 
-Or set them in `.tmux.conf` via `set-environment -g`:
+也可以在 `.tmux.conf` 中通过 `set-environment -g` 设置：
 
 >
     set-environment -g RIME_USER_DATA_DIR "/path/to/rime"
@@ -1614,19 +1482,18 @@ Or set them in `.tmux.conf` via `set-environment -g`:
 <
 
 
-COMPLEMENTARY PLUGINS ~
+其他搭配插件 ~
 
-- jieba.vim <https://github.com/kkew3/jieba.vim> - word-wise navigation of jieba in Vim/Nvim
-- pangu.vim <https://github.com/hotoo/pangu.vim> - Chinese typography auto-normalization in Vim
-- vim-easymotion-zh <https://github.com/zzhirong/vim-easymotion-zh> - Make EasyMotion recognize Chinese via Double Pinyin
+- jieba.vim <https://github.com/kkew3/jieba.vim> — jieba 的 Vim/Nvim 按词跳转插件
+- pangu.vim <https://github.com/hotoo/pangu.vim> — 中文排版自动规范化的 Vim 插件
+- vim-easymotion-zh <https://github.com/zzhirong/vim-easymotion-zh> — 基于小鹤双拼让 EasyMotion 识别中文
 
-------------------------------------------------------------------------------
 
-ACKNOWLEDGMENTS                                         *rime-acknowledgments*
+致谢                                                           *rime-致谢*
 
-- ZFVimIM <https://github.com/ZSaberLv0/ZFVimIM> - Vim input method by pure vim script (user words, dynamic word priority, cloud db files)
-- rime-ls <https://github.com/wlh320/rime-ls> - a language server that provides input method functionality using librime, so you can use Rime via LSP completion
-- rime.nvim <https://github.com/rimeinn/rime.nvim> - ㄓ rime for neovim
+- ZFVimIM <https://github.com/ZSaberLv0/ZFVimIM> — vim 输入法 / Vim Input Method by pure vim script, support: user word, dynamic word priority, cloud db files
+- rime-ls <https://github.com/wlh320/rime-ls> — A language server that provides input method functionality using librime，通过 LSP 代码补全使用 Rime 输入法
+- rime.nvim <https://github.com/rimeinn/rime.nvim> — ㄓ rime for neovim
 - delimitMate <https://github.com/Raimondi/delimitMate> - Vim plugin, provides insert mode auto-completion for quotes, parens, brackets, etc.
 - nvim-surround <https://github.com/kylechui/nvim-surround> - Add/change/delete surrounding delimiter pairs with ease. Written with ❤️ in Lua.
 - vim-surround <https://github.com/tpope/vim-surround> - surround.vim: Delete/change/add parentheses/quotes/XML-tags/much more with ease
