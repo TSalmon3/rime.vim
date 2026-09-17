@@ -3,7 +3,7 @@ title: 使用
 description: 命令与按键映射
 ---
 
-<!-- 本页内容由 README.zh.md 切分生成，与 README.zh.md 同步维护 -->
+<!-- 本页内容由 README.md 切分生成，与 README.md 同步维护 -->
 
 # 使用
 

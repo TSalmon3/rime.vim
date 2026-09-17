@@ -3,7 +3,7 @@ title: rime-ice 配置示例
 description: 雾凇拼音配置示例
 ---
 
-<!-- 本页内容由 README.zh.md 切分生成，与 README.zh.md 同步维护 -->
+<!-- 本页内容由 README.md 切分生成，与 README.md 同步维护 -->
 
 # rime-ice 配置示例
 

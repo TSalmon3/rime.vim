@@ -9,6 +9,16 @@
   </p>
 </p>
 
+<p align="center">
+  <a href="https://github.com/TSalmon3/rime.vim/blob/master/index.md">Index</a>
+  ·
+  <a href="https://tsalmon3.github.io/rime.vim/">Website</a>
+  ·
+  <a href="https://github.com/TSalmon3/rime.vim/blob/master/README.md">Chinese Readme</a>
+  ·
+  <a href="https://github.com/TSalmon3/rime.vim/blob/master/README.en.md">English Readme</a>
+</p>
+
 ---
 
 <details>

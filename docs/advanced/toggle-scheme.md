@@ -3,7 +3,7 @@ title: 定制中英切换与方案选单
 description: 方案选单与中英切换风格
 ---
 
-<!-- 本页内容由 README.zh.md 切分生成，与 README.zh.md 同步维护 -->
+<!-- 本页内容由 README.md 切分生成，与 README.md 同步维护 -->
 
 # 定制中英切换与方案选单
 

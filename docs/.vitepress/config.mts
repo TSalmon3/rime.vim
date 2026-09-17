@@ -79,7 +79,7 @@ export default defineConfig({
 
     footer: {
       message: '基于 MIT 许可发布',
-      copyright: 'rime.vim 文档（内容与 README.zh.md 同步维护）',
+      copyright: 'rime.vim 文档（内容与 README.md 同步维护）',
     },
   },
 })

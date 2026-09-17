@@ -3,7 +3,7 @@ title: Tmux 弹窗输入
 description: tmux display-popup 输入方案
 ---
 
-<!-- 本页内容由 README.zh.md 切分生成，与 README.zh.md 同步维护 -->
+<!-- 本页内容由 README.md 切分生成，与 README.md 同步维护 -->
 
 # Tmux 弹窗输入
 

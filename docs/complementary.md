@@ -3,7 +3,7 @@ title: 搭配与致谢
 description: 搭配插件、致谢与 License
 ---
 
-<!-- 本页内容由 README.zh.md 切分生成，与 README.zh.md 同步维护 -->
+<!-- 本页内容由 README.md 切分生成，与 README.md 同步维护 -->
 
 # 搭配与致谢
 

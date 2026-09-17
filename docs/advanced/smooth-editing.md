@@ -3,7 +3,7 @@ title: 让中文编辑更加丝滑
 description: ultisnips / bullets / jieba 搭配
 ---
 
-<!-- 本页内容由 README.zh.md 切分生成，与 README.zh.md 同步维护 -->
+<!-- 本页内容由 README.md 切分生成，与 README.md 同步维护 -->
 
 # 让中文编辑更加丝滑
 

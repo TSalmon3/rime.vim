@@ -3,7 +3,7 @@ title: 快速开始
 description: 环境要求、安装与 rime-query 后端编译
 ---
 
-<!-- 本页内容由 README.zh.md 切分生成，与 README.zh.md 同步维护 -->
+<!-- 本页内容由 README.md 切分生成，与 README.md 同步维护 -->
 
 # 快速开始
 

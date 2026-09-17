@@ -3,8 +3,9 @@ name: panvimdoc
 on:
   push:
     paths:
-      - README.en.md
+      - README.md
       - .github/workflows/panvimdoc.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -20,7 +21,8 @@ jobs:
         uses: kdheepak/panvimdoc@main
         with:
           vimdoc: rime
-          pandoc: "README.en.md"
+          pandoc: "README.md"
+          docmapping: true
 
       - name: Auto commit docs
         uses: stefanzweifel/git-auto-commit-action@v6

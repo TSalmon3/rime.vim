@@ -3,7 +3,7 @@ title: Surround 包围编辑
 description: 包围规则、别名与内置函数
 ---
 
-<!-- 本页内容由 README.zh.md 切分生成，与 README.zh.md 同步维护 -->
+<!-- 本页内容由 README.md 切分生成，与 README.md 同步维护 -->
 
 # Surround 包围编辑
 

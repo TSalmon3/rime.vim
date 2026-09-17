@@ -3,7 +3,7 @@ title: Auto Pair 自动成对
 description: 括号引号自动成对配置
 ---
 
-<!-- 本页内容由 README.zh.md 切分生成，与 README.zh.md 同步维护 -->
+<!-- 本页内容由 README.md 切分生成，与 README.md 同步维护 -->
 
 # Auto Pair 自动成对
 

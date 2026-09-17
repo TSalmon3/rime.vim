@@ -3,7 +3,7 @@ title: Context 自动切换
 description: 按高亮作用域自动切换中英
 ---
 
-<!-- 本页内容由 README.zh.md 切分生成，与 README.zh.md 同步维护 -->
+<!-- 本页内容由 README.md 切分生成，与 README.md 同步维护 -->
 
 # Context 自动切换
 
