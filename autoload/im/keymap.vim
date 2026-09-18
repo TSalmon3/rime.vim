@@ -200,7 +200,7 @@ function! im#keymap#bs() abort"{{{
     if im#replace#can_restore()
       return "\<Cmd>call im#replace#bs()\<CR>"
     endif
-    if im#pair#should_bs_pair()
+    if im#pair#should_bs()
       return im#pair#bs()
     endif
     return "\<bs>"
@@ -214,7 +214,7 @@ function! im#keymap#shift_bs() abort"{{{
     if im#replace#can_restore()
       return "\<Cmd>call im#replace#bs()\<CR>"
     endif
-    if im#pair#should_bs_pair()
+    if im#pair#should_bs()
       return "\<bs>"
     endif
     return "\<s-bs>"
