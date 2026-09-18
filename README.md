@@ -39,6 +39,17 @@
 <summary><strong>CHANGELOG</strong></summary>
 <br>
 
+## v1.15.0（未发布）
+
+**Changed**
+
+- `g:im_surround_add_line_key` -> `g:im_surround_add_linewise_key`。
+- `g:im_surround_add_cur_line_key` -> `g:im_surround_add_cur_linewise_key`。
+- `g:im_surround_change_line_key` -> `g:im_surround_change_linewise_key`。
+- `g:im_surround_visual_line_key` -> `g:im_surround_visual_linewise_key`。
+- `g:im_surround_insert_line_key` -> `g:im_surround_insert_linewise_key`。
+- 旧名无别名保留；默认按键不变。
+
 ## v1.14.0
 
 **Changed**
@@ -1057,32 +1068,7 @@ endfunction
 **vim**
 
 ```vim
-function! s:ctx_get(c, key) abort
-  if type(a:c) != v:t_dict
-    return ''
-  endif
-  return get(a:c, a:key, '')
-endfunction
-
-function! s:is_vim_comment(c) abort
-  if type(a:c) != v:t_dict
-    return 0
-  endif
-  if index(split(get(a:c, 'filetype', ''), '\.'), 'vim') < 0
-    return 0
-  endif
-  return s:ctx_get(a:c, 'before') =~# '^\s*$'
-endfunction
-
-function! im#pair#cond#is_vim_comment() abort
-  return {c -> s:is_vim_comment(c)}
-endfunction
-
-function! im#pair#cond#not_vim_comment() abort
-  return {c -> !s:is_vim_comment(c)}
-endfunction
-
-autocmd FileType markdown call IMPairVim()
+autocmd FileType vim call IMPairVim()
 function! IMPairVim() abort
   let b:im_pair_rules = deepcopy(g:im_pair_rules)
   call filter(b:im_pair_rules, {i, v -> v.open !=# '"'})
@@ -1128,17 +1114,17 @@ endfunction
 let g:im_surround_enable = 1
 
 " 自定义快捷键
-let g:im_surround_add_key           = 'ys'      " 加包围 (normal)
-let g:im_surround_add_cur_key       = 'yss'     " 整行加包围 (normal)
-let g:im_surround_add_line_key      = 'yS'      " 加包围-新行式 (normal)
-let g:im_surround_add_cur_line_key  = 'ySS'     " 整行加包围-新行式 (normal)
-let g:im_surround_delete_key        = 'ds'      " 删包围 (normal)
-let g:im_surround_change_key        = 'cs'      " 换包围 (normal)
-let g:im_surround_change_line_key   = 'cS'      " 换包围-新行式 (normal)
-let g:im_surround_visual_key        = 'S'       " 可视模式包裹 (visual)
-let g:im_surround_visual_line_key   = 'gS'      " 可视模式新行包裹 (visual)
-let g:im_surround_insert_key        = '<C-g>s'  " 插入模式插入 (insert)
-let g:im_surround_insert_line_key   = '<C-g>S'  " 插入模式换行插入 (insert)
+let g:im_surround_add_key              = 'ys'     " 加包围 (normal)
+let g:im_surround_add_cur_key          = 'yss'    " 整行加包围 (normal)
+let g:im_surround_add_linewise_key     = 'yS'     " 加包围-新行式 (normal)
+let g:im_surround_add_cur_linewise_key = 'ySS'    " 整行加包围-新行式 (normal)
+let g:im_surround_delete_key           = 'ds'     " 删包围 (normal)
+let g:im_surround_change_key           = 'cs'     " 换包围 (normal)
+let g:im_surround_change_linewise_key  = 'cS'     " 换包围-新行式 (normal)
+let g:im_surround_visual_key           = 'S'      " 可视模式包裹 (visual)
+let g:im_surround_visual_linewise_key  = 'gS'     " 可视模式新行包裹 (visual)
+let g:im_surround_insert_key           = '<C-g>s' " 插入模式插入 (insert)
+let g:im_surround_insert_linewise_key  = '<C-g>S' " 插入模式换行插入 (insert)
 
 " ds / cs 定位到包围对时的闪光高亮时长（毫秒，0 关闭）
 let g:im_surround_flash_ms          = 120

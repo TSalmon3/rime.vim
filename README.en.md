@@ -992,17 +992,17 @@ Common examples (`*` is the cursor):
 let g:im_surround_enable = 1
 
 " Custom keys
-let g:im_surround_add_key           = 'ys'      " add surround (normal)
-let g:im_surround_add_cur_key       = 'yss'     " add surround for current line (normal)
-let g:im_surround_add_line_key      = 'yS'      " add surround with newlines (normal)
-let g:im_surround_add_cur_line_key  = 'ySS'     " add surround for current line with newlines (normal)
-let g:im_surround_delete_key        = 'ds'      " delete surround (normal)
-let g:im_surround_change_key        = 'cs'      " change surround (normal)
-let g:im_surround_change_line_key   = 'cS'      " change surround with newlines (normal)
-let g:im_surround_visual_key        = 'S'       " visual wrap (visual)
-let g:im_surround_visual_line_key   = 'gS'      " visual wrap with newlines (visual)
-let g:im_surround_insert_key        = '<C-g>s'  " insert pair (insert)
-let g:im_surround_insert_line_key   = '<C-g>S'  " insert pair with newlines (insert)
+let g:im_surround_add_key              = 'ys'     " add surround (normal)
+let g:im_surround_add_cur_key          = 'yss'    " add surround for current line (normal)
+let g:im_surround_add_linewise_key     = 'yS'     " add surround with newlines (normal)
+let g:im_surround_add_cur_linewise_key = 'ySS'    " add surround for current line with newlines (normal)
+let g:im_surround_delete_key           = 'ds'     " delete surround (normal)
+let g:im_surround_change_key           = 'cs'     " change surround (normal)
+let g:im_surround_change_linewise_key  = 'cS'     " change surround with newlines (normal)
+let g:im_surround_visual_key           = 'S'      " visual wrap (visual)
+let g:im_surround_visual_linewise_key  = 'gS'     " visual wrap with newlines (visual)
+let g:im_surround_insert_key           = '<C-g>s' " insert pair (insert)
+let g:im_surround_insert_linewise_key  = '<C-g>S' " insert pair with newlines (insert)
 
 " Flash highlight duration when ds / cs lands on a pair (ms, 0 disables)
 let g:im_surround_flash_ms          = 120
