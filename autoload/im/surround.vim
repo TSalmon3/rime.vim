@@ -1,4 +1,3 @@
-let s:p = {}          " 待执行的操作参数
 let s:key_active = 0  " 映射挂载状态
 let s:saved_maps = {} " 被覆盖的用户映射快照
 
@@ -139,6 +138,21 @@ function! s:wrap_block(sl, sc, el, ec, left, right) abort"{{{
     let tail = strcharpart(line, ce + 1)
     call setline(lnum, head . a:left . mid . a:right . tail)
   endfor
+endfunction"}}}
+
+function! s:reindent(sl, el) abort"{{{
+  if !s:opt('indent', 1)
+    return
+  endif
+  if empty(&equalprg) && empty(&indentexpr) && !&cindent && !&smartindent && !&lisp
+    return
+  endif
+  let view = winsaveview()
+  try
+    execute 'silent ' . a:sl . ',' . a:el . 'normal! =='
+  finally
+    call winrestview(view)
+  endtry
 endfunction"}}}
 
 function! s:highlight_show(t, scope) abort"{{{
@@ -295,10 +309,10 @@ function! s:acquire_target(ch, cnt) abort"{{{
   finally
     call cursor(orig[0], orig[1])
   endtry
-  return {'t': t, 'key': found_key, 'keys': keys}
+  return {'target': t, 'found_key': found_key}
 endfunction"}}}
 
-function! s:try_delete_standalone_lines(t, keys) abort"{{{
+function! s:try_delete_standalone_lines(t, do_flash) abort"{{{
   let [fl, fc] = a:t.first_pos
   let [ll, lc] = a:t.last_pos
   if fl == ll
@@ -317,7 +331,9 @@ function! s:try_delete_standalone_lines(t, keys) abort"{{{
         \ && strpart(last, lc) =~# '^\s*$'
         \ && matchstr(first, '^\s*\zs.\{-}\ze\s*$') !=# ''
         \ && matchstr(last, '^\s*\zs.\{-}\ze\s*$') !=# ''
-    call s:highlight_flash(a:t, 'buns')
+    if a:do_flash
+      call s:highlight_flash(a:t, 'buns')
+    endif
     execute ll . 'delete _'
     execute fl . 'delete _'
     call cursor(fl, 1)
@@ -326,22 +342,52 @@ function! s:try_delete_standalone_lines(t, keys) abort"{{{
   return 0
 endfunction"}}}
 
-function! im#surround#delete(...) abort"{{{
-  let cnt = a:0 >= 1 && type(a:1) == v:t_number ? a:1 : 1
-  let ch = s:getchar()
-  if ch ==# ''
+function! s:delete_with(ch, cnt, do_flash) abort"{{{
+  let ac = s:acquire_target(a:ch, a:cnt)
+  if empty(ac.target)
+    return 0
+  endif
+  if s:try_delete_standalone_lines(ac.target, a:do_flash)
+    return 1
+  endif
+  if a:do_flash
+    call s:highlight_flash(ac.target, 'buns')
+  endif
+  call im#surround#unwrap(ac.target)
+  if ac.target.first_pos[0] != ac.target.last_pos[0]
+    call s:reindent(ac.target.first_pos[0], ac.target.last_pos[0])
+  endif
+  call cursor(ac.target.first_pos[0], ac.target.first_pos[1])
+  return 1
+endfunction"}}}
+
+function! im#surround#delete_setup() abort"{{{
+  let cnt = v:count1
+  call im#surround#repeat#pending('delete')
+  call im#surround#repeat#save('delete', {'count': cnt < 1 ? 1 : cnt})
+  set opfunc=im#surround#delete_apply
+  return "\<Esc>g@l"
+endfunction"}}}
+
+function! im#surround#delete_apply(...) abort"{{{
+  let fresh = im#surround#repeat#consume('delete')
+  let rep = im#surround#repeat#load('delete')
+  if empty(rep)
     return
   endif
-  let ac = s:acquire_target(ch, cnt)
-  if empty(ac.t)
-    return
+  if fresh || !has_key(rep, 'ch')
+    let ch = s:getchar()
+    if ch ==# ''
+      call im#surround#repeat#clear('delete')
+      return
+    endif
+    let rep.ch = ch
+    call im#surround#repeat#save('delete', rep)
   endif
-  if s:try_delete_standalone_lines(ac.t, ac.keys)
-    return
+  let ok = s:delete_with(rep.ch, get(rep, 'count', 1), fresh)
+  if !ok && fresh
+    call im#surround#repeat#clear('delete')
   endif
-  call s:highlight_flash(ac.t, 'buns')
-  call im#surround#unwrap(ac.t)
-  call cursor(ac.t.first_pos[0], ac.t.first_pos[1])
 endfunction"}}}
 
 function! s:split_single_to_lines(t, left, right) abort"{{{
@@ -359,77 +405,99 @@ function! s:split_single_to_lines(t, left, right) abort"{{{
   call cursor(fl + 1, 1)
 endfunction"}}}
 
-function! im#surround#change(line_mode, ...) abort"{{{
-  let cnt = a:0 >= 1 && type(a:1) == v:t_number ? a:1 : 1
-  let ch = s:getchar()
-  if ch ==# ''
+function! s:change_apply_target(t, rep, line_mode) abort"{{{
+  let [left, right] = a:rep
+  if a:line_mode && a:t.first_pos[0] == a:t.last_pos[0]
+    call s:split_single_to_lines(a:t, left, right)
+    call s:reindent(a:t.first_pos[0], a:t.first_pos[0] + 2)
     return
   endif
-  let ac = s:acquire_target(ch, cnt)
-  if empty(ac.t)
-    return
+  call im#surround#replace(a:t, left, right)
+  if a:t.first_pos[0] != a:t.last_pos[0]
+    call s:reindent(a:t.first_pos[0], a:t.last_pos[0])
   endif
-  let rep = s:resolve_replacement(ac.key, ac.t)
+  call cursor(a:t.first_pos[0], a:t.first_pos[1])
+endfunction"}}}
+
+function! im#surround#change_setup(line_mode) abort"{{{
+  let cnt = v:count1
+  call im#surround#repeat#pending('change')
+  call im#surround#repeat#save('change',
+        \ {'count': cnt < 1 ? 1 : cnt, 'line_mode': a:line_mode})
+  set opfunc=im#surround#change_apply
+  return "\<Esc>g@l"
+endfunction"}}}
+
+function! im#surround#change_apply(...) abort"{{{
+  let fresh = im#surround#repeat#consume('change')
+  let rep = im#surround#repeat#load('change')
   if empty(rep)
     return
   endif
-  let [left, right] = rep
-
-  if a:line_mode && ac.t.first_pos[0] == ac.t.last_pos[0]
-    call s:split_single_to_lines(ac.t, left, right)
-    return
-  endif
-
-  call im#surround#replace(ac.t, left, right)
-  call cursor(ac.t.first_pos[0], ac.t.first_pos[1])
-endfunction"}}}
-
-function! im#surround#add(line_mode, ...) abort"{{{
-  let cnt = a:0 >= 1 && type(a:1) == v:t_number ? a:1 : 1
-  let s:p = {'kind': a:line_mode ? 'add-line' : 'add', 'count': cnt < 1 ? 1 : cnt}
-  set opfunc=im#surround#opfunc
-endfunction"}}}
-
-function! im#surround#add_current(line_mode, ...) abort"{{{
-  let cnt = a:0 >= 1 && type(a:1) == v:t_number ? a:1 : 1
-  let lnum = line('.')
-  let hid = s:highlight_show({'first_pos': [lnum, 1], 'last_pos': [lnum, col([lnum, '$'])]}, 'full')
-  let ch = s:getchar()
-  call s:highlight_clear(hid)
-  let delim = s:resolve_delims(ch, cnt)
-  if empty(delim)
-    return
-  endif
-  if a:line_mode
-    if empty(getline('.'))
+  if fresh || !has_key(rep, 'ch')
+    let ch = s:getchar()
+    if ch ==# ''
+      call im#surround#repeat#clear('change')
       return
     endif
-    call s:wrap_lines(line('.'), line('.'), delim[0], delim[1])
+    let rep.ch = ch
+  endif
+  let ac = s:acquire_target(rep.ch, get(rep, 'count', 1))
+  if empty(ac.target)
+    if fresh
+      call im#surround#repeat#clear('change')
+    else
+      call im#surround#repeat#save('change', rep)
+    endif
     return
   endif
-  let text = getline('.')
-  let indent = matchstr(text, '^\s*')
-  let body = matchstr(text, '^\s*\zs.\{-}\ze\s*$')
-  if empty(body)
-    return
+  if fresh || empty(get(rep, 'rep', []))
+    let newrep = s:resolve_replacement(ac.found_key, ac.target)
+    if empty(newrep)
+      call im#surround#repeat#clear('change')
+      return
+    endif
+    let rep.rep = newrep
   endif
-  let tail_ws = strpart(text, strlen(indent) + strlen(body))
-  call setline('.', indent . delim[0] . body . delim[1] . tail_ws)
+  call im#surround#repeat#save('change', rep)
+  call s:change_apply_target(ac.target, rep.rep, get(rep, 'line_mode', 0))
 endfunction"}}}
 
-function! im#surround#opfunc(...) abort"{{{
-  let cnt = get(s:p, 'count', 1)
-  let [sl, sc] = [line("'["), col("'[")]
-  let [el, ec] = [line("']"), col("']")]
-  let hid = s:highlight_show({'first_pos': [sl, sc], 'last_pos': [el, ec]}, 'full')
-  let delim = s:resolve_delims(s:getchar(), cnt)
-  call s:highlight_clear(hid)
-  if empty(delim)
+function! im#surround#add_setup(line_mode) abort"{{{
+  let cnt = v:count1
+  call im#surround#repeat#pending('add')
+  call im#surround#repeat#save('add',
+        \ {'line_mode': a:line_mode, 'count': cnt < 1 ? 1 : cnt})
+  set opfunc=im#surround#add_apply
+  return "\<Esc>g@"
+endfunction"}}}
+
+function! im#surround#add_apply(...) abort"{{{
+  let fresh = im#surround#repeat#consume('add')
+  let rep = im#surround#repeat#load('add')
+  if empty(rep)
     return
   endif
+  let cnt = get(rep, 'count', 1)
+  let [sl, sc] = [line("'["), col("'[")]
+  let [el, ec] = [line("']"), col("']")]
+  if fresh || empty(get(rep, 'delim', []))
+    let hid = s:highlight_show({'first_pos': [sl, sc], 'last_pos': [el, ec]}, 'full')
+    let delim = s:resolve_delims(s:getchar(), cnt)
+    call s:highlight_clear(hid)
+    if empty(delim)
+      call im#surround#repeat#clear('add')
+      return
+    endif
+    let rep.delim = delim
+    call im#surround#repeat#save('add', rep)
+  else
+    let delim = rep.delim
+  endif
 
-  if get(s:p, 'kind', 'add') ==# 'add-line'
+  if get(rep, 'line_mode', 0)
     call s:wrap_lines(sl, el, delim[0], delim[1])
+    call s:reindent(sl, el + 2)
     call cursor(sl + 1, 1)
     return
   endif
@@ -438,7 +506,62 @@ function! im#surround#opfunc(...) abort"{{{
   call cursor(sl, sc)
 endfunction"}}}
 
-function! im#surround#visual(force_line, ...) abort"{{{
+function! s:add_current_with(line_mode, delim) abort"{{{
+  if a:line_mode
+    if empty(getline('.'))
+      return 0
+    endif
+    let lnum = line('.')
+    call s:wrap_lines(lnum, lnum, a:delim[0], a:delim[1])
+    call s:reindent(lnum, lnum + 2)
+    return 1
+  endif
+  let text = getline('.')
+  let indent = matchstr(text, '^\s*')
+  let body = matchstr(text, '^\s*\zs.\{-}\ze\s*$')
+  if empty(body)
+    return 0
+  endif
+  let tail_ws = strpart(text, strlen(indent) + strlen(body))
+  call setline('.', indent . a:delim[0] . body . a:delim[1] . tail_ws)
+  return 1
+endfunction"}}}
+
+function! im#surround#add_current_setup(line_mode) abort"{{{
+  let cnt = v:count1
+  call im#surround#repeat#pending('add_cur')
+  call im#surround#repeat#save('add_cur',
+        \ {'count': cnt < 1 ? 1 : cnt, 'line_mode': a:line_mode})
+  set opfunc=im#surround#add_current_apply
+  return "\<Esc>g@l"
+endfunction"}}}
+
+function! im#surround#add_current_apply(...) abort"{{{
+  let fresh = im#surround#repeat#consume('add_cur')
+  let rep = im#surround#repeat#load('add_cur')
+  if empty(rep)
+    return
+  endif
+  if fresh || empty(get(rep, 'delim', []))
+    let lnum = line('.')
+    let hid = s:highlight_show({'first_pos': [lnum, 1], 'last_pos': [lnum, col([lnum, '$'])]}, 'full')
+    let ch = s:getchar()
+    call s:highlight_clear(hid)
+    let delim = s:resolve_delims(ch, get(rep, 'count', 1))
+    if empty(delim)
+      call im#surround#repeat#clear('add_cur')
+      return
+    endif
+    let rep.delim = delim
+    call im#surround#repeat#save('add_cur', rep)
+  endif
+  let ok = s:add_current_with(get(rep, 'line_mode', 0), rep.delim)
+  if !ok && fresh
+    call im#surround#repeat#clear('add_cur')
+  endif
+endfunction"}}}
+
+function! im#surround#visual(line_mode, ...) abort"{{{
   let cnt = a:0 >= 1 && type(a:1) == v:t_number ? a:1 : 1
   let ch = s:getchar()
   if ch ==# ''
@@ -451,12 +574,15 @@ function! im#surround#visual(force_line, ...) abort"{{{
   if empty(delim)
     return
   endif
+  call im#surround#repeat#save('visual',
+        \ {'delim': delim, 'count': cnt, 'line_mode': a:line_mode, 'vm': vm})
 
   if vm ==# "\<C-v>"
     call s:wrap_block(sl, sc, el, ec, delim[0], delim[1])
     call cursor(sl, sc)
-  elseif vm ==# 'V' || a:force_line
+  elseif vm ==# 'V' || a:line_mode
     call s:wrap_lines(sl, el, delim[0], delim[1])
+    call s:reindent(sl, el + 2)
     call cursor(sl + 1, 1)
   else
     call s:wrap_inline(sl, sc, el, ec, delim[0], delim[1])
@@ -473,8 +599,10 @@ function! im#surround#insert(line_mode) abort"{{{
     return
   endif
   if a:line_mode
-    let keys = delim[0] . "\<CR>" . "\<End>\<CR>" . delim[1]
-          \ . repeat("\<Left>", strchars(delim[1])) . "\<Up>"
+    let left = substitute(delim[0], '\s\+$', '', '')
+    let right = substitute(delim[1], '^\s\+', '', '')
+    let keys = left . "\<CR>" . "\<End>\<CR>" . right
+          \ . repeat("\<Left>", strchars(right)) . "\<Up>"
   else
     let keys = delim[0] . delim[1] . repeat("\<Left>", strchars(delim[1]))
   endif
@@ -483,17 +611,17 @@ endfunction"}}}
 
 function! s:key_config() abort"{{{
   return [
-        \ ['n', s:opt('add_key', 'ys'),            'add'],
-        \ ['n', s:opt('add_line_key', 'yS'),       'add_line'],
-        \ ['n', s:opt('add_cur_key', 'yss'),       'add_cur'],
-        \ ['n', s:opt('add_cur_line_key', 'ySS'),  'add_cur_line'],
-        \ ['n', s:opt('delete_key', 'ds'),         'delete'],
-        \ ['n', s:opt('change_key', 'cs'),         'change'],
-        \ ['n', s:opt('change_line_key', 'cS'),    'change_line'],
-        \ ['x', s:opt('visual_key', 'S'),          'visual'],
-        \ ['x', s:opt('visual_line_key', 'gS'),    'visual_line'],
-        \ ['i', s:opt('insert_key', '<c-g>s'),     'insert'],
-        \ ['i', s:opt('insert_line_key', '<c-g>S'),'insert_line'],
+        \ ['n', s:opt('add_key', 'ys'),                '<Plug>(im-surround-add)'],
+        \ ['n', s:opt('add_linewise_key', 'yS'),       '<Plug>(im-surround-add-linewise)'],
+        \ ['n', s:opt('add_cur_key', 'yss'),           '<Plug>(im-surround-add-cur)'],
+        \ ['n', s:opt('add_cur_linewise_key', 'ySS'),  '<Plug>(im-surround-add-cur-linewise)'],
+        \ ['n', s:opt('delete_key', 'ds'),             '<Plug>(im-surround-delete)'],
+        \ ['n', s:opt('change_key', 'cs'),             '<Plug>(im-surround-change)'],
+        \ ['n', s:opt('change_linewise_key', 'cS'),    '<Plug>(im-surround-change-linewise)'],
+        \ ['x', s:opt('visual_key', 'S'),              '<Plug>(im-surround-visual)'],
+        \ ['x', s:opt('visual_linewise_key', 'gS'),    '<Plug>(im-surround-visual-linewise)'],
+        \ ['i', s:opt('insert_key', '<c-g>s'),         '<Plug>(im-surround-insert)'],
+        \ ['i', s:opt('insert_linewise_key', '<c-g>S'),'<Plug>(im-surround-insert-linewise)'],
         \ ]
 endfunction"}}}
 
@@ -509,22 +637,18 @@ function! s:opt(name, default) abort"{{{
   return a:default
 endfunction"}}}
 
-let s:map_rhs_table = {
-      \ 'add':          ":\<C-u>call im#surround#add(0, v:count1)\<CR>g@",
-      \ 'add_line':     ":\<C-u>call im#surround#add(1, v:count1)\<CR>g@",
-      \ 'add_cur':      ":\<C-u>call im#surround#add_current(0, v:count1)\<CR>",
-      \ 'add_cur_line': ":\<C-u>call im#surround#add_current(1, v:count1)\<CR>",
-      \ 'delete':       ":\<C-u>call im#surround#delete(v:count1)\<CR>",
-      \ 'change':       ":\<C-u>call im#surround#change(0, v:count1)\<CR>",
-      \ 'change_line':  ":\<C-u>call im#surround#change(1, v:count1)\<CR>",
-      \ 'visual':       ":\<C-u>call im#surround#visual(0, v:count1)\<CR>",
-      \ 'visual_line':  ":\<C-u>call im#surround#visual(1, v:count1)\<CR>",
-      \ 'insert':       "<Cmd>call im#surround#insert(0)\<CR>",
-      \ 'insert_line':  "<Cmd>call im#surround#insert(1)\<CR>",
-      \ }
-
-function! s:map_rhs(action) abort"{{{
-  return get(s:map_rhs_table, a:action, '')
+function! s:define_plugs() abort"{{{
+  nnoremap <expr>   <silent> <Plug>(im-surround-add)              im#surround#add_setup(0)
+  nnoremap <expr>   <silent> <Plug>(im-surround-add-linewise)     im#surround#add_setup(1)
+  nnoremap <expr>   <silent> <Plug>(im-surround-add-cur)          im#surround#add_current_setup(0)
+  nnoremap <expr>   <silent> <Plug>(im-surround-add-cur-linewise) im#surround#add_current_setup(1)
+  nnoremap <expr>   <silent> <Plug>(im-surround-delete)           im#surround#delete_setup()
+  nnoremap <expr>   <silent> <Plug>(im-surround-change)           im#surround#change_setup(0)
+  nnoremap <expr>   <silent> <Plug>(im-surround-change-linewise)  im#surround#change_setup(1)
+  xnoremap <silent> <Plug>(im-surround-visual)                    :<C-u>call im#surround#visual(0, v:count1)<CR>
+  xnoremap <silent> <Plug>(im-surround-visual-linewise)           :<C-u>call im#surround#visual(1, v:count1)<CR>
+  inoremap <silent> <Plug>(im-surround-insert)                    <Cmd>call im#surround#insert(0)<CR>
+  inoremap <silent> <Plug>(im-surround-insert-linewise)           <Cmd>call im#surround#insert(1)<CR>
 endfunction"}}}
 
 function! s:restore_map(mode, key, mdict) abort"{{{
@@ -546,15 +670,15 @@ function! im#surround#enable() abort"{{{
   if !get(g:, 'im_surround_enable', 0) || s:key_active
     return
   endif
+  call s:define_plugs()
   let s:saved_maps = {}
-  for [mode, key, action] in s:key_config()
+  for [mode, key, rhs] in s:key_config()
     if key ==# ''
       continue
     endif
-    let rhs = s:map_rhs(action)
     let sid = mode . ':' . key
     let old = maparg(key, mode, 0, 1)
-    execute mode . 'noremap <silent> ' . key . ' ' . rhs
+    execute mode . 'map <silent> ' . key . ' ' . rhs
     let s:saved_maps[sid] = {'mode': mode, 'key': key,
           \ 'map': old, 'rhs': maparg(key, mode)}
   endfor
