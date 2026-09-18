@@ -22,16 +22,29 @@
 ---
 
 <details>
-<summary>写在最前面</summary>
-
+<summary><strong>FAQ</strong></summary>
 <br>
-对常见问题的统一说明。
 
 - 是否会跟系统的 Rime 输入法产生冲突？
 
   ```answer
   会产生冲突。建议新建一个独立目录存放你的拼音方案，即你的「用户数据目录」，最好不要与系统输入法共用同一目录。
   ```
+
+  </details>
+
+---
+
+<details>
+<summary><strong>CHANGELOG</strong></summary>
+<br>
+
+## v1.13.0
+
+**Changed**
+
+- `im#pair#should_bs_pair()` 更名为 `im#pair#should_bs()`，旧名无别名保留。
+
 </details>
 
 ---
@@ -193,7 +206,7 @@ let g:im_build_rime_dll     = 'D:/Library/librime/lib/rime.dll'
 ```
 
 | 命令       | 说明                              |
-|------------|-----------------------------------|
+| ---------- | --------------------------------- |
 | `:IMCheck` | 自检：编译器/参数/路径/是否已编译 |
 | `:IMBuild` | 后台异步编译                      |
 | `:IMClean` | 清理编译结果                      |
@@ -368,15 +381,15 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 
 ### 命令
 
-| 命令                           | 说明                                                  |
-|--------------------------------|-------------------------------------------------------|
-| `:IMStart`                     | 启动/重启输入法（连接或拉起共享 `rime-query` daemon） |
-| `:IMStop`                      | 停止输入法（只断开本编辑器的连接）                    |
-| `:IMToggle`                    | 切换输入法开关                                        |
-| `:IMDeploy`                    | 重新部署 Rime（改配置后生效）                         |
-| `:IMSync`                      | 同步用户词库并重新部署                                |
-| `:IMShutdown`                  | 关停共享 daemon（所有编辑器断开）                     |
-| `:IMSchemeDownload <git-url>`  | 下载输入方案到 `g:im_scheme_dir`                      |
+| 命令                          | 说明                                                  |
+| ----------------------------- | ----------------------------------------------------- |
+| `:IMStart`                    | 启动/重启输入法（连接或拉起共享 `rime-query` daemon） |
+| `:IMStop`                     | 停止输入法（只断开本编辑器的连接）                    |
+| `:IMToggle`                   | 切换输入法开关                                        |
+| `:IMDeploy`                   | 重新部署 Rime（改配置后生效）                         |
+| `:IMSync`                     | 同步用户词库并重新部署                                |
+| `:IMShutdown`                 | 关停共享 daemon（所有编辑器断开）                     |
+| `:IMSchemeDownload <git-url>` | 下载输入方案到 `g:im_scheme_dir`                      |
 
 #### 重新部署
 
@@ -394,13 +407,13 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 
 默认按键映射（可设 `g:im_no_default_mappings=1` 关闭，用对应的 `g:im_*_key` 修改）：
 
-| 按键    | 模式                                 | 功能                    |
-|---------|--------------------------------------|-------------------------|
-| `;;`    | normal / insert / command / terminal | 切换输入法开关          |
-| `;,`    | normal / insert                      | 切换中/英模式           |
-| `;a`    | normal / insert                      | 切换中英文标点          |
-| `;f`    | normal / insert                      | 切换简/繁体             |
-| `;e`    | normal / insert                      | 切换 emoji              |
+| 按键 | 模式                                 | 功能           |
+| ---- | ------------------------------------ | -------------- |
+| `;;` | normal / insert / command / terminal | 切换输入法开关 |
+| `;,` | normal / insert                      | 切换中/英模式  |
+| `;a` | normal / insert                      | 切换中英文标点 |
+| `;f` | normal / insert                      | 切换简/繁体    |
+| `;e` | normal / insert                      | 切换 emoji     |
 
 组词过程中的按键和组合键基本兼容系统级输入法：
 
@@ -759,12 +772,11 @@ let g:im_replace_mode = 1
 
 设为 `1` 后，进入 `R` / `gR` 即开启一个替换会话，期间上屏的内容可按原生 Replace 的方式撤销还原：
 
-| 按键    | 功能                               |
-| ------- | ---------------------------------- |
-| `<bs>`  | 撤销上一步覆盖的字符               |
-| `<c-w>` | 撤销上一个空格分隔词所覆盖的字符   |
-| `<c-u>` | 撤销本次会话中覆盖的全部字符       |
-
+| 按键    | 功能                             |
+| ------- | -------------------------------- |
+| `<bs>`  | 撤销上一步覆盖的字符             |
+| `<c-w>` | 撤销上一个空格分隔词所覆盖的字符 |
+| `<c-u>` | 撤销本次会话中覆盖的全部字符     |
 
 移动光标会终止当前会话的撤销能力（与原生 Replace 行为一致），此后将从新位置重新开始覆盖。
 
@@ -779,40 +791,43 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 > [!Tip]
 > 替换模式下会自动关闭成对功能
 
-| 功能     | 按键         | 效果                       | 说明                                               |
-| -------- | ------------ | -------------------------- | --------------------------------------------------- |
-| 成对补全 | `(` `「` `"` | (\|)　「\|」　"\|"         | 输入开符时自动补全闭符，并将光标移回中间             |
-| 闭符跳出 | `)` `」` `"` | ()\|　「」\|　""\|         | 光标右侧已有相同闭符/引号时直接跳出，不重复插入      |
-| 空对删除 | `<BS>`       | (\|) → 删除 → \|           | 在空对（开符紧邻闭符）中一次性删除整对               |
-| 只删开符 | `<s-bs>`     | (\|) → 删除 → \|)          | 在空对（开符紧邻闭符）中只删除开符，保留闭符         |
-| 手动跳过 | `;j`         | (\|) → 越过一个 → ()\|     | 跳过右侧一个闭符/引号（`im#pair#jump_any`）          |
-| 手动连跳 | `;J`         | (\|))) → 越过全部 → ()))\| | 跳过右侧连续多个闭符/引号（`im#pair#jump_many`）     |
+| 功能     | 按键         | 效果                       | 说明                                             |
+| -------- | ------------ | -------------------------- | ------------------------------------------------ |
+| 成对补全 | `(` `「` `"` | (\|)　「\|」　"\|"         | 输入开符时自动补全闭符，并将光标移回中间         |
+| 闭符跳出 | `)` `」` `"` | ()\|　「」\|　""\|         | 光标右侧已有相同闭符/引号时直接跳出，不重复插入  |
+| 空对删除 | `<bs>`       | (\|) → 删除 → \|           | 在空对（开符紧邻闭符）中一次性删除整对           |
+| 只删开符 | `<s-bs>`     | (\|) → 删除 → \|)          | 在空对（开符紧邻闭符）中只删除开符，保留闭符     |
+| 回车展开 | `<cr>`       | (\|) → 回车 → (⏎\|⏎)       | 空对中分三行，光标留中行；只管分行不管缩进       |
+| 空格展开 | `<space>`    | (\|) → 空格 → ( \| )       | 空对中两侧各垫一空格；需自配含空格规则           |
+| 手动跳过 | `;j`         | (\|) → 越过一个 → ()\|     | 跳过右侧一个闭符/引号（`im#pair#jump_any`）      |
+| 手动连跳 | `;J`         | (\|))) → 越过全部 → ()))\| | 跳过右侧连续多个闭符/引号（`im#pair#jump_many`） |
 
-- 默认配对：`()` `[]` `{}` `<>` `"` `'`，以及全角 `（）` `【】` `「」` `『』` `《》` `“”` `‘’`
+- 默认配对：`()` `[]` `{}` `"` `'`，以及全角 `（）` `【】` `「」` `『』` `《》` `“”` `‘’`
 - 无论半角标点直接上屏，还是全角标点经 Rime 上屏，两种情况均可正确识别配对
 - 配置优先级：`b:im_pair_rules` > `g:im_pair_rules` > 默认值（仅 `im_pair_rules` 支持 `b:` 局部配置，其余选项均为全局 `g:`）
-- 高亮黑名单：当光标位于名单内的高亮组（如注释、字符串）时，自动成对会临时关闭，离开后自动恢复。**默认关闭**，未设置或设为空列表时不生效：
+- 高亮黑名单：当光标位于名单内的高亮组（如注释、字符串）时，自动补全/删除/展开临时关闭，离开后自动恢复，但跳过（自动跳出与 `;j` / `;J`）不受影响。**默认关闭**，未设置或设为空列表时不生效：
 
 #### 配置
 
 ```vim
 " 自动成对开关（默认 0）
 let g:im_pair_enabled = 0
-" 配对规则列表，每条包含 open/close 与 kind（'matchpair' 表示开闭符不同，'quote' 表示开闭符相同）
+" 拦截 ([{'" 等 imap 映射（默认1）
+let g:im_pair_imap_enabled = 1
+" 配对规则列表，每条包含 open/close、kind 与可选的 with_* 门控
 let g:im_pair_rules = [
       \ {'open': '(',  'close': ')',  'kind': 'matchpair'},
       \ {'open': '[',  'close': ']',  'kind': 'matchpair'},
       \ {'open': '{',  'close': '}',  'kind': 'matchpair'},
-      \ {'open': '<',  'close': '>',  'kind': 'matchpair'},
-      \ {'open': '（', 'close': '）', 'kind': 'matchpair'},
-      \ {'open': '【', 'close': '】', 'kind': 'matchpair'},
-      \ {'open': '「', 'close': '」', 'kind': 'matchpair'},
-      \ {'open': '『', 'close': '』', 'kind': 'matchpair'},
-      \ {'open': '《', 'close': '》', 'kind': 'matchpair'},
-      \ {'open': "‘",  'close': "’",  'kind': 'matchpair'},
-      \ {'open': "“",  'close': "”",  'kind': 'matchpair'},
-      \ {'open': '"',  'close': '"',  'kind': 'quote'},
-      \ {'open': "'",  'close': "'",  'kind': 'quote'},
+      \ {'open': '（', 'close': '）', 'kind': 'matchpair', 'with_cr': im#pair#cond#never()},
+      \ {'open': '【', 'close': '】', 'kind': 'matchpair', 'with_cr': im#pair#cond#never()},
+      \ {'open': '「', 'close': '」', 'kind': 'matchpair', 'with_cr': im#pair#cond#never()},
+      \ {'open': '『', 'close': '』', 'kind': 'matchpair', 'with_cr': im#pair#cond#never()},
+      \ {'open': '《', 'close': '》', 'kind': 'matchpair', 'with_cr': im#pair#cond#never()},
+      \ {'open': "‘",  'close': "’",  'kind': 'matchpair', 'with_cr': im#pair#cond#never()},
+      \ {'open': "“",  'close': "”",  'kind': 'matchpair', 'with_cr': im#pair#cond#never()},
+      \ {'open': '"',  'close': '"',  'kind': 'quote', 'with_cr': im#pair#cond#never()},
+      \ {'open': "'",  'close': "'",  'kind': 'quote', 'with_cr': im#pair#cond#never()},
       \ ]
 
 " 等价于
@@ -820,12 +835,6 @@ let g:im_pair_rules = im#pair#default_rules()
 
 
 " 作用域黑名单
-" 键为 &filetype，'*' 为全局默认；命中具体 filetype 则只用该条，不与 '*' 合并
-" 值字段：
-"   disabled: 1 则该 filetype 下完全关闭自动成对
-"   syntax: vim 高亮组名的正则列表（大小写不敏感，如 'comment' 可命中 Comment/vimCommentTitle）
-"   ts: treesitter 节点类型的子串列表（大小写不敏感，仅 Neovim 生效，Vim 下忽略）
-" syntax 与 ts 为“或”关系，命中任一即暂停；两者皆空则不生效
 let g:im_pair_config = {
       \ '*': {'syntax': ['comment', 'string'], 'ts': ['comment', 'string']},
       \ 'txt': {'disabled': 1}
@@ -833,32 +842,76 @@ let g:im_pair_config = {
 
 ```
 
+#### `g:im_pair_config`
+
+按作用域暂停自动成对。键名可为具体 `filetype` 或 `*`（全局通配）；命中具体 `filetype` 时整体覆盖 `*`，不合并。
+
+| 字段       | 类型     | 含义                           |
+| ---------- | -------- | ------------------------------ |
+| `disabled` | `Number` | 该 `filetype` 全停             |
+| `syntax`   | `List`   | 高亮组命中即暂停               |
+| `ts`       | `List`   | TS 节点命中即暂停（仅 Neovim） |
+
+- `syntax` / `ts` 命中仅暂停改字类动作（补全、删对、回车/空格展开），跳过不受影响：右侧已有闭符仍可自动跳出，`im#pair#jump_any()` / `im#pair#jump_many()` 照常可用（如字符串 `"foo|"` 处按 `"` 直接跳到外面）。只有 `disabled: 1` 才会完全停用（含跳过），且此时忽略同条目下的 `syntax` / `ts`。
+- `ts` 与 `syntax` 为“或”关系，命中任一即暂停；同时配置时先判定 `ts`；两者均为空时不生效；匹配大小写不敏感。
+
 #### `g:im_pair_rules`
 
-- `open` : 开符
-- `close` : 闭符
-- `kind` : `matchpair` 表示开闭符不同，`quote` 表示开闭符相同
+| 参数        | 默认值     | 类型                                               | 说明                                               |
+| ----------- | ---------- | -------------------------------------------------- | -------------------------------------------------- |
+| `open`      | 无（必填） | `String`                                           | 开符                                               |
+| `close`     | 无（必填） | `String`                                           | 闭符                                               |
+| `kind`      | 自动推断   | `String`                                           | `matchpair` 表示开闭符不同，`quote` 表示开闭符相同 |
+| `with_pair` | `v:null`   | `Funcref(ctx) -> Bool` 或其列表（列表按 AND 求值） | 成对补全门控（ctx 参数说明见下表）                 |
+| `with_move` | `v:null`   | `Funcref(ctx) -> Bool` 或其列表（列表按 AND 求值） | 闭符跳出门控（ctx 参数说明见下表）                 |
+| `with_del`  | `v:null`   | `Funcref(ctx) -> Bool` 或其列表（列表按 AND 求值） | 空对删除门控（ctx 参数说明见下表）                 |
+| `with_cr`   | `v:null`   | `Funcref(ctx) -> Bool` 或其列表（列表按 AND 求值） | 回车展开门控（ctx 参数说明见下表）                 |
+
+其中 `ctx` 为 `Dict` 键值如下表：
+
+| 字段       | 类型     | 说明                     |
+| ---------- | -------- | ------------------------ |
+| `before`   | `String` | 光标左侧的当前行字符切片 |
+| `after`    | `String` | 光标右侧的当前行字符切片 |
+| `line`     | `String` | 当前整行                 |
+| `col`      | `Number` | 字节列号，即 `col('.')`  |
+| `filetype` | `String` | 即 `&filetype`，可能为空 |
 
 > [!Note]：
 > 优先级 `b:im_pair_rules` > `g:im_pair_rules` > 默认
 
+#### 内置函数一览
 
-#### `g:im_pair_config`
+| 接口                               | 参数                 | 返回值                 | 说明                                        |
+| ---------------------------------- | -------------------- | ---------------------- | ------------------------------------------- |
+| `im#pair#cond#always()`            | —                    | `Funcref(ctx) -> Bool` | 恒为真，始终放行                            |
+| `im#pair#cond#done()`              | —                    | `Funcref(ctx) -> Bool` | 恒为真（`always` 别名）                     |
+| `im#pair#cond#never()`             | —                    | `Funcref(ctx) -> Bool` | 恒为假，始终拦截                            |
+| `im#pair#cond#none()`              | —                    | `Funcref(ctx) -> Bool` | 恒为假（`never` 别名）                      |
+| `im#pair#cond#before_text(t)`      | `t: String` 字面文本 | `Funcref(ctx) -> Bool` | `before` 以 `t` 结尾时放行                  |
+| `im#pair#cond#before_regex(p)`     | `p: String` Vim 正则 | `Funcref(ctx) -> Bool` | `before` 按正则 `p` 匹配（自动补 `$` 锚尾） |
+| `im#pair#cond#after_text(t)`       | `t: String` 字面文本 | `Funcref(ctx) -> Bool` | `after` 以 `t` 开头时放行                   |
+| `im#pair#cond#after_regex(p)`      | `p: String` Vim 正则 | `Funcref(ctx) -> Bool` | `after` 按正则 `p` 匹配（自动补 `^` 锚首）  |
+| `im#pair#cond#not_before_text(t)`  | `t: String` 字面文本 | `Funcref(ctx) -> Bool` | `before_text` 取反                          |
+| `im#pair#cond#not_before_regex(p)` | `p: String` Vim 正则 | `Funcref(ctx) -> Bool` | `before_regex` 取反                         |
+| `im#pair#cond#not_after_text(t)`   | `t: String` 字面文本 | `Funcref(ctx) -> Bool` | `after_text` 取反                           |
+| `im#pair#cond#not_after_regex(p)`  | `p: String` Vim 正则 | `Funcref(ctx) -> Bool` | `after_regex` 取反                          |
+| `im#pair#cond#is_inside_quote()`   | —                    | `Funcref(ctx) -> Bool` | 在未转义引号内时放行                        |
+| `im#pair#cond#not_inside_quote()`  | —                    | `Funcref(ctx) -> Bool` | 不在引号内时放行                            |
 
-按作用域关闭自动成对。键名可为具体 `filetype` 或 `*`（表示全局通配）；特定 `filetype` 的配置会整体覆盖 `*` 的设置。
+```vim
+" 引号内不再补全括号
+let g:im_pair_rules = [
+      \ {'open': '(', 'close': ')', 'with_pair': im#pair#cond#not_inside_quote()},
+      \ {'open': '"', 'close': '"', 'with_move': im#pair#cond#always()},
+      \ ]
+" 按 filetype 覆盖：vim 下 `"` 在注释行行首不补全
+autocmd FileType vim let b:im_pair_rules = [
+      \ {'open': '"', 'close': '"', 'with_pair': im#pair#cond#not_vim_comment()},
+      \ ]
+```
 
-可用字段：
-
-- `disabled`：布尔值。设为 1 时直接关闭该 filetype 下的自动成对，并短路其余字段。
-- `syntax`：列表。大小写不敏感地匹配光标处的高亮组名（Syntax Group）。
-- `ts`：列表。匹配 Tree-sitter 节点类型（仅 Neovim 生效）。
-
-> [!note]
-> `ts` 与 `syntax` 之间为「或」的关系，命中任一即可触发关闭；两者同时配置时优先判定 ts。
-
-
-#### 快捷键
-
+#### 按键映射
 
 ```vim
 " 自动成对切换快捷键
@@ -868,17 +921,6 @@ nnoremap <silent> ;p <cmd>call im#pair#toggle()<cr>
 function RimeKeymapRemap()
   inoremap <expr> ;j im#pair#jump_any()   " 跳过右侧一个闭符/引号
   inoremap <expr> ;J im#pair#jump_many()  " 跳过右侧连续一串闭符/引号
-
-  lnoremap <silent><expr> <bs> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
-        \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
-        \ im#pair#should_bs_pair() ? im#pair#bs() : "\<bs>"
-
-  lnoremap <silent><expr> <s-bs> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
-        \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
-        \ im#pair#should_bs_pair() ? "\<bs>" : "\<s-bs>"
-
 endfunction
 
 function RimeKeymapClear()
@@ -892,6 +934,164 @@ augroup RimeGroup
   autocmd User RimeKeymapClear call RimeKeymapClear()
 augroup END
 ```
+
+**backspace**
+
+```vim
+function RimePairImapRemap()
+  inoremap <buffer><expr> <bs> im#pair#should_bs() ? im#pair#bs() : "\<bs>"
+  inoremap <buffer> <s-bs> <bs>
+endfunction
+
+function RimePairImapRestore()
+  inoremap <buffer> <bs> <bs>
+  inoremap <buffer> <s-bs> <bs>
+endfunction
+
+function RimeKeymapRemap()
+  lnoremap <silent><expr> <bs> im#state#composing() ?
+        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
+        \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
+        \ im#pair#should_bs() ? im#pair#bs() : "\<bs>"
+
+  lnoremap <silent><expr> <s-bs> im#state#composing() ?
+        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
+        \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
+        \ im#pair#should_bs() ? "\<bs>" : "\<s-bs>"
+
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimePairImapSetup call RimePairImapRemap()
+  autocmd User RimePairImapRestore call RimePairImapRestore()
+augroup END
+```
+
+**return**
+
+```vim
+function RimePairImapRemap()
+  inoremap <buffer><expr> <cr> luaeval("require('blink.cmp').is_menu_visible()") && luaeval("require('blink.cmp').get_selected_item() ~= nil") ?
+          \ "\<cmd>lua require('blink.cmp').accept()\<cr>"
+          \ : pumvisible() && complete_info()['selected'] != -1 ? "\<c-y>"
+          \ : im#pair#should_cr() ? im#pair#cr() : "\<cr>"
+endfunction
+
+function RimePairImapRestore()
+  inoremap <silent><expr> <cr> luaeval("require('blink.cmp').is_menu_visible()") && luaeval("require('blink.cmp').get_selected_item() ~= nil") ?
+        \ "\<cmd>lua require('blink.cmp').accept()\<cr>"
+        \ : pumvisible() && complete_info()['selected'] != -1 ?
+        \ "\<c-y>" : "\<cr>"
+endfunction
+
+function RimeKeymapRemap()
+  lnoremap <silent><expr> <cr> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>"
+          \ : im#pair#should_cr() ? im#pair#cr() : "\<cr>"
+
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimePairImapSetup call RimePairImapRemap()
+  autocmd User RimePairImapRestore call RimePairImapRestore()
+augroup END
+
+```
+
+**space**
+
+```vim
+
+let g:im_pair_rules += [
+      \ {'open': ' ', 'close': ' ',
+      \  'with_pair': {c -> c.before[-1:] ==# '(' && c.after[:0] ==# ')'}},
+      \ ]
+
+function RimePairImapRemap()
+  inoremap <buffer><expr> <space> im#pair#space()
+endfunction
+
+function RimePairImapRestore()
+  inoremap <buffer> <space> <space>
+endfunction
+
+function RimeKeymapRemap()
+  lnoremap <silent><expr> <space> im#state#composing() ?
+        \ "\<cmd>call im#key(g:RIME_KEYCODE.Space, 0)\<CR>" : im#pair#space()
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimePairImapSetup call RimePairImapRemap()
+  autocmd User RimePairImapRestore call RimePairImapRestore()
+augroup END
+
+
+```
+
+#### 事件
+
+| 事件                  | 用途                                     |
+| --------------------- | ---------------------------------------- |
+| `RimePairImapSetup`   | 拦截：接管当前文件的退格 / 回车 / 空格键 |
+| `RimePairImapRestore` | 还原：离开时恢复原状                     |
+
+#### 进阶使用案例
+
+**markdown**
+
+```vim
+autocmd FileType markdown call IMPairMarkdown()
+function! IMPairMarkdown() abort
+  let b:im_pair_rules = deepcopy(g:im_pair_rules) + [
+        \ {'open': "`",  'close': "`",  'kind': 'quote'},
+        \ ]
+endfunction
+```
+
+**vim**
+
+```vim
+function! s:ctx_get(c, key) abort
+  if type(a:c) != v:t_dict
+    return ''
+  endif
+  return get(a:c, a:key, '')
+endfunction
+
+function! s:is_vim_comment(c) abort
+  if type(a:c) != v:t_dict
+    return 0
+  endif
+  if index(split(get(a:c, 'filetype', ''), '\.'), 'vim') < 0
+    return 0
+  endif
+  return s:ctx_get(a:c, 'before') =~# '^\s*$'
+endfunction
+
+function! im#pair#cond#is_vim_comment() abort
+  return {c -> s:is_vim_comment(c)}
+endfunction
+
+function! im#pair#cond#not_vim_comment() abort
+  return {c -> !s:is_vim_comment(c)}
+endfunction
+
+autocmd FileType markdown call IMPairVim()
+function! IMPairVim() abort
+  let b:im_pair_rules = deepcopy(g:im_pair_rules)
+  call filter(b:im_pair_rules, {i, v -> v.open !=# '"'})
+  call insert(b:im_pair_rules, {'open': '"',  'close': '"',  'kind': 'quote', 'with_cr': im#pair#cond#never(),
+        \  'with_pair': im#pair#cond#not_vim_comment(), 'with_move': im#pair#cond#not_vim_comment()})
+        \ ]
+endfunction
+```
+
 ### Surround 包围编辑
 
 为选区、文本对象或整行**添加、删除、替换**成对分隔符（括号、引号、HTML 标签、函数调用等），并额外支持全角符号。
@@ -899,7 +1099,7 @@ augroup END
 默认按键映射（均可用对应的 `g:im_surround_*_key` 定制）：
 
 | 按键                | 模式   | 说明                               |
-|---------------------|--------|------------------------------------|
+| ------------------- | ------ | ---------------------------------- |
 | `ys{motion}{char}`  | normal | 为 motion 选中的内容添加分隔符     |
 | `yS{motion}{char}`  | normal | 同上，但分隔符独占首尾新行         |
 | `yss` / `ySS`       | normal | 为整行添加分隔符（`ySS` 独占新行） |
@@ -912,7 +1112,7 @@ augroup END
 常见用法示例（`*` 为光标位置）：
 
 | 旧文本                       | 按键    | 新文本                |
-|:-----------------------------|:--------|:----------------------|
+| :--------------------------- | :------ | :-------------------- |
 | `surr*ound_words`            | `ysiw)` | `(surr*ound_words)`   |
 | `surr*ound_words`            | `ysiw(` | `( surr*ound_words )` |
 | `*make strings`              | `ys$"`  | `"*make strings"`     |
@@ -1007,58 +1207,55 @@ let g:im_surround_aliases += [
 
 #### g:im_surround_surrounds
 
-该项为 `List` 类型，推荐基于 `im#surround#config#default_surrounds()` 进行扩展和修改。
+该项为 `List`，推荐基于 `im#surround#config#default_surrounds()` 扩展。
 
-每项为一个字典，包含以下核心字段：
+| 字段      | 类型                              | 含义                                      |
+| --------- | --------------------------------- | ----------------------------------------- |
+| `key`     | `String`                          | 触发字符；为空或类型不符整项失效          |
+| `add`     | `List` 或 `Funcref(char) -> List` | 添加时分隔符来源                          |
+| `find`    | `Funcref(char) -> Dict`           | `ds` / `cs` 定位旧包围                    |
+| `replace` | `Funcref() -> List`               | `cs` 生成新分隔符；缺省则高亮旧包围等新键 |
 
-| 字段      | 赋值要求                 | 说明                                                                        |
-| --------- | ------------------------ | --------------------------------------------------------------------------- |
-| `key`     | Char（必填，支持 CJK）   | 触发字符，即 `ys` / `ds` / `cs` 之后键入的字符；为空或类型不符时该项整体失效|
-| `add`     | List<String> 或 Funcref  | 添加包围时分隔符的来源，见下                                                |
-| `find`    | Funcref                  | 定位光标所在的包围对，供 `ds` / `cs` 使用，见下                             |
-| `replace` | Funcref（可选）          | `cs` 时生成新分隔符，见下；缺省则高亮原包围并等待键入新分隔符               |
+`add` 只管添加，`find` 只管 `ds` / `cs` 定位，`replace` 只管 `cs` 生成。
 
+**`add`**
 
-> [!note]
-> - `add` 只在**添加**时使用
-> - `find` 只在 `ds` / `cs` **定位旧包围**时使用
-> - `replace` 只在 `cs` **生成新包围**时使用。
+| 形式      | 入参   | 返回值                    | 含义               |
+| --------- | ------ | ------------------------- | ------------------ |
+| `List`    | —      | `[String, String]`        | 直接赋值左右分隔符 |
+| `Funcref` | `char` | `[String, String]` / `[]` | 动态生成，空表放弃 |
 
-1. `add`（添加分隔符）
+**`find`**
 
-- **List<String>** ：左右分割符 `[left, right]`
-- **Funcref**：
-  - 入参：`char`，当前键入的触发字符。
-  - 出参：`[left, right]`（二元字符串列表），返回空列表表示放弃操作。
+| 形式      | 入参   | 返回值        | 含义                                  |
+| --------- | ------ | ------------- | ------------------------------------- |
+| `Funcref` | `char` | `Dict` / `{}` | 定位光标处旧包围，供 `ds` / `cs` 使用 |
 
-2. `find`（定位包围对）
+命中返回 `Dict` 键值如下：
 
-- 入参：`char`，当前键入的触发字符。
-- 出参：命中时返回包围字典，未命中返回 `{}`；字典各键如下：
+| 键          | 类型               | 必填 | 含义                          |
+| ----------- | ------------------ | ---- | ----------------------------- |
+| `first_pos` | `[Number, Number]` | 是   | 开分隔符首字节 `[行, 字节列]` |
+| `last_pos`  | `[Number, Number]` | 是   | 闭分隔符末字节 `[行, 字节列]` |
+| `open_len`  | `Number`           | 否   | 开分隔符字节数                |
+| `close_len` | `Number`           | 否   | 闭分隔符字节数                |
 
-| 键          | 类型               | 必填 | 含义                                             |
-| ----------- | ------------------ | ---- | ------------------------------------------------ |
-| `first_pos` | `[Number, Number]` | 是   | 外框起点：开分隔符首字节，`[行, 字节列]`         |
-| `last_pos`  | `[Number, Number]` | 是   | 外框终点：闭分隔符末字节，`[行, 字节列]`         |
-| `open_len`  | `Number`           | 否   | 开分隔符占几字节，建议都写                       |
-| `close_len` | `Number`           | 否   | 闭分隔符占几字节，建议都写                       |
+**`replace`**
 
-3. `replace`（替换分隔符）
-
-- 出参：`[left, right]`（新的左右分隔符）；返回空列表表示放弃本次替换。
-- 例：`function('im#surround#change#tag')`。
-
+| 形式      | 入参 | 返回值                 | 含义                   |
+| --------- | ---- | ---------------------- | ---------------------- |
+| `Funcref` | —    | `[left, right]` / `[]` | 新左右分隔符，空表放弃 |
 
 #### g:im_surround_aliases
 
-List 类型，建议先用 `im#surround#config#default_aliases()` 取默认值再改。
+该项为 `List`，建议先用 `im#surround#config#default_aliases()` 取默认再改。
 
-| 字段      | 赋值要求                 | 说明            |
-| --------- | ------------------------ | --------------- |
-| `key`     | Char（必填，支持CJK）    | 别名触发字符    |
-| `targets` | List<String>（必填）     | 目标 `key` 列表 |
+| 字段      | 类型     | 含义            |
+| --------- | -------- | --------------- |
+| `key`     | `String` | 别名触发字符    |
+| `targets` | `List`   | 目标 `key` 列表 |
 
-`ds` / `cs` 时输入别名键，会在 `targets` 列出的所有目标中，挑选光标处**最内层**的那一对。
+`ds` / `cs` 输入别名键时，在 `targets` 的所有目标中挑光标处最内层的一对。
 
 默认别名如下：
 
@@ -1071,36 +1268,32 @@ let s:default_aliases = [
       \ ]
 ```
 
-> [!NOTE]
-> 所有 g:im_surround_* 选项均支持 b:（buffer 级别）局部覆盖，优先级规则为：b: > g: > 默认值。
-> surrounds 与 aliases 均采用整体替换语义：一旦自定义设置，默认表将被完全取代，因此如需保留默认项建议先通过函数获取再拼接。
-
+所有 g:im*surround*\* 支持 b: 局部覆盖，优先级为 b: > g: > 默认值。surrounds 与 aliases 为整体替换语义，自定义后默认全被取代，需先取默认再拼接。
 
 #### 内置函数一览
 
-内置 `add` / `replace` 函数：
+内置 `add` / `replace` 函数（`add` 入参均为 `ch`，`replace` 均无入参，出参均为 `[left, right]` / `[]`）：
 
-| 函数                          | 入参 → 出参            | 用途                                          |
-| ----------------------------- | ---------------------- | --------------------------------------------- |
-| `im#surround#add#tag`         | `ch` → `[left, right]` | 输入标签名与属性，生成 `<tag ...>` / `</tag>` |
-| `im#surround#add#func`        | `ch` → `[left, right]` | 输入函数名，生成 `name(...)`                  |
-| `im#surround#add#input`       | `ch` → `[left, right]` | 分别输入左右分隔符                            |
-| `im#surround#add#invalid`     | `ch` → `[left, right]` | 直接使用所键入的字符作为左右分隔符            |
-| `im#surround#change#tag`      | 无 → `[left, right]`   | 替换标签名，保留原属性                        |
-| `im#surround#change#tag_full` | 无 → `[left, right]`   | 替换标签名，丢弃原属性                        |
-| `im#surround#change#func`     | 无 → `[left, right]`   | 替换函数名                                    |
+| 函数                          | 入参 | 返回值                 | 含义                 |
+| ----------------------------- | ---- | ---------------------- | -------------------- |
+| `im#surround#add#tag`         | `ch` | `[left, right]` / `[]` | 输标签名与属性       |
+| `im#surround#add#func`        | `ch` | `[left, right]` / `[]` | 输函数名             |
+| `im#surround#add#input`       | `ch` | `[left, right]` / `[]` | 各输左右分隔符       |
+| `im#surround#add#invalid`     | `ch` | `[left, right]` / `[]` | 所键字符作左右分隔符 |
+| `im#surround#change#tag`      | —    | `[left, right]` / `[]` | 换标签名，留属性     |
+| `im#surround#change#tag_full` | —    | `[left, right]` / `[]` | 换标签名，去属性     |
+| `im#surround#change#func`     | —    | `[left, right]` / `[]` | 换函数名             |
 
-内置 `find` 函数：
+内置 `find` 函数（入参均为 `ch`，`pattern` 多一个 `opt`）：
 
-| 函数                          | 适用场景                                             |
-| ----------------------------- | ---------------------------------------------------- |
-| `im#surround#find#matchpair`  | 左右不同的定界符（`()` `[]` `{}` `<>` 及全角括号等） |
-| `im#surround#find#quote`      | 左右相同的引号                                       |
-| `im#surround#find#tag`        | HTML / XML 标签（复用原生 `at`）                     |
-| `im#surround#find#func`       | 函数调用                                             |
-| `im#surround#find#invalid`    | 兜底：光标左右最近的同名字符成对                     |
-| `im#surround#find#pattern`    | 自定义正则，签名为 `fun(ch, opt)`，见下              |
-
+| 函数                         | 入参      | 返回值        | 含义                         |
+| ---------------------------- | --------- | ------------- | ---------------------------- |
+| `im#surround#find#matchpair` | `ch`      | `Dict` / `{}` | 左右不同定界符               |
+| `im#surround#find#quote`     | `ch`      | `Dict` / `{}` | 左右相同引号                 |
+| `im#surround#find#tag`       | `ch`      | `Dict` / `{}` | HTML / XML 标签（复用 `at`） |
+| `im#surround#find#func`      | `ch`      | `Dict` / `{}` | 函数调用                     |
+| `im#surround#find#invalid`   | `ch`      | `Dict` / `{}` | 兜底同字符成对               |
+| `im#surround#find#pattern`   | `ch, opt` | `Dict` / `{}` | 自定义正则，见下             |
 
 用 `im#surround#find#pattern` 自定义正则包围（`add` / `ds` / `cs` 均可）：
 
@@ -1112,16 +1305,19 @@ let b:im_surround_surrounds = [
       \ ]
 ```
 
-- 入参 `opt` 为一个字典：
-  - `open_pat` / `close_pat`：左右两侧的 Vim 正则，字面量建议加 `\V` 前缀。
-  - `scope`：`'line'`（默认）只在当前行内匹配；`'buffer'` 允许跨行匹配。
+其中 `opt` 字段键值如下
 
+| 字段        | 含义                                     |
+| ----------- | ---------------------------------------- |
+| `open_pat`  | 左侧 Vim 正则，字面加 `\V`               |
+| `close_pat` | 右侧 Vim 正则，字面加 `\V`               |
+| `scope`     | `line` 仅当前行（默认），`buffer` 可跨行 |
 
-#### 进阶使用案例：Markdown 专属快捷键
+#### 进阶使用案例
 
 你可以通过 FileType 自动命令为特定文件类型（如 Markdown）动态扩展包围规则：
 
-```vim
+````vim
 augroup RimeGroup
   autocmd!
   autocmd FileType markdown call IMSurroundMarkdown()
@@ -1140,21 +1336,19 @@ function! IMSurroundMarkdown() abort
         \ {'key': 'L', 'add': ['![', ']()'],  'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V![', 'close_pat': '\V](\.\{-})', 'scope': 'line'})}},
         \ {'key': 'w', 'add': ['[[', ']]'],   'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V[[', 'close_pat': '\V]]', 'scope': 'line'})}},
         \ {'key': 'W', 'add': ['![[', ']]'],  'find': {ch -> im#surround#find#pattern(ch, {'open_pat': '\V![[', 'close_pat': '\V]]', 'scope': 'line'})}},
-      \ ]
+        \ ]
 endfunction
-
-```
-
+````
 
 ### Context 自动切换
 
 根据光标所在的高亮（语法作用域）自动切换【Rime 接管】与【原生直通】模式。
 
 > [!note]
+>
 > - 仅在光标跨越高亮区域边界时才会触发切换判断
 > - 进入插入模式时强制校准一次；离开插入模式后状态复位；组词过程中不会切换
 > - 插入模式下用 `;;` 重启输入法时，同样会强制校准一次
-
 
 #### 配置
 
@@ -1180,7 +1374,7 @@ let g:im_context_config = {
 状态变化时会触发以下 `autocmd`，可用于联动第三方插件（如补全、AI 续写等）：
 
 | 事件                 | 触发时机                                          |
-|----------------------|---------------------------------------------------|
+| -------------------- | ------------------------------------------------- |
 | `RimeContextChinese` | 进入【Rime 接管】模式时触发，常用于关闭第三方补全 |
 | `RimeContextEnglish` | 回到【原生直通】模式时触发，常用于恢复第三方补全  |
 | `RimeContextChanged` | 接管状态发生变化时触发（不区分方向）              |
@@ -1265,7 +1459,7 @@ run-shell '/path/to/rime.vim/rime.tmux'
 #### 按键
 
 | 按键                | 功能                |
-|---------------------|---------------------|
+| ------------------- | ------------------- |
 | `prefix + ;`        | 打开 / 关闭弹窗     |
 | `Space`             | 选择候选            |
 | `Enter`             | 拼音上屏            |
@@ -1278,7 +1472,7 @@ run-shell '/path/to/rime.vim/rime.tmux'
 | `Ctrl-w`            | 删除一个音节        |
 | `Ctrl-d`            | 删除自造词          |
 | `Ctrl-a` / `Ctrl-e` | 光标到拼音首 / 尾   |
-| `Ctrl+p`            | 切换半角/全角标点    |
+| `Ctrl+p`            | 切换半角/全角标点   |
 | `Ctrl+f`            | 切换简体/繁体       |
 | `Esc`               | 取消组合 / 关闭弹窗 |
 | `Ctrl-c`            | 退出弹窗            |
@@ -1287,14 +1481,14 @@ run-shell '/path/to/rime.vim/rime.tmux'
 
 通过 tmux 选项设置（在 `.tmux.conf` 中 `run-shell` 之前）：
 
-| 选项                        | 默认值       | 说明                               |
-| --------------------------- | ------------ | ---------------------------------- |
-| `@rime_key`                 | `;`          | 绑定的前缀键                       |
-| `@rime_bin`                 | `rime-query` | `rime-query` 可执行文件路径        |
-| `@rime_socket`              | 空           | Unix socket 路径，留空自动检测     |
-| `@rime_popup`               | 空           | 自定义 `display-popup` 参数        |
-| `@rime_option_ascii_punct`  | 空           | 初始标点状态（0=全角，1=半角）     |
-| `@rime_option_traditional`  | 空           | 初始简繁状态（0=简体，1=繁体）     |
+| 选项                       | 默认值       | 说明                           |
+| -------------------------- | ------------ | ------------------------------ |
+| `@rime_key`                | `;`          | 绑定的前缀键                   |
+| `@rime_bin`                | `rime-query` | `rime-query` 可执行文件路径    |
+| `@rime_socket`             | 空           | Unix socket 路径，留空自动检测 |
+| `@rime_popup`              | 空           | 自定义 `display-popup` 参数    |
+| `@rime_option_ascii_punct` | 空           | 初始标点状态（0=全角，1=半角） |
+| `@rime_option_traditional` | 空           | 初始简繁状态（0=简体，1=繁体） |
 
 ```tmux
 set -g @rime_key ";"
@@ -1345,6 +1539,7 @@ set-environment -g RIME_TMUX_LOG "$HOME/.local/state/log/tmux/rime.log"
 - [ZFVimIM](https://github.com/ZSaberLv0/ZFVimIM) — vim 输入法 / Vim Input Method by pure vim script, support: user word, dynamic word priority, cloud db files
 - [rime-ls](https://github.com/wlh320/rime-ls) — A language server that provides input method functionality using librime，通过 LSP 代码补全使用 Rime 输入法
 - [rime.nvim](https://github.com/rimeinn/rime.nvim) — ㄓ rime for neovim
+- [nvim-autopair](https://github.com/windwp/nvim-autopairs) - autopairs for neovim written in lua
 - [delimitMate](https://github.com/Raimondi/delimitMate) - Vim plugin, provides insert mode auto-completion for quotes, parens, brackets, etc.
 - [nvim-surround](https://github.com/kylechui/nvim-surround) - Add/change/delete surrounding delimiter pairs with ease. Written with ❤️ in Lua.
 - [vim-surround](https://github.com/tpope/vim-surround) - surround.vim: Delete/change/add parentheses/quotes/XML-tags/much more with ease
@@ -1355,3 +1550,6 @@ set-environment -g RIME_TMUX_LOG "$HOME/.local/state/log/tmux/rime.log"
 
 MIT
 
+```
+
+```

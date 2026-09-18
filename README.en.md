@@ -933,12 +933,12 @@ function RimeKeymapRemap()
   lnoremap <silent><expr> <bs> im#state#composing() ?
         \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
-        \ im#pair#should_bs_pair() ? im#pair#bs() : "\<bs>"
+        \ im#pair#should_bs() ? im#pair#bs() : "\<bs>"
 
   lnoremap <silent><expr> <s-bs> im#state#composing() ?
         \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
-        \ im#pair#should_bs_pair() ? "\<bs>" : "\<s-bs>"
+        \ im#pair#should_bs() ? "\<bs>" : "\<s-bs>"
 
 endfunction
 
