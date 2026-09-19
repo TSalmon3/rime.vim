@@ -1137,7 +1137,7 @@ let g:im_surround_insert_linewise_key  = '<C-g>S' " 插入模式换行插入 (in
 " ds / cs 定位到包围对时的闪光高亮时长（毫秒，0 关闭）
 let g:im_surround_flash_ms          = 120
 
-" 独占新行 / 跨行操作后自动重缩进（默认 1，0 关闭）
+" 独占新行 / 跨行操作后自动重缩进（默认 1）
 let g:im_surround_indent            = 1
 
 " 自定义包围规则
