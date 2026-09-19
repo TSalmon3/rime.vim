@@ -39,7 +39,7 @@
 <summary><strong>CHANGELOG</strong></summary>
 <br>
 
-## v1.15.0（未发布）
+## v1.15.0
 
 **Changed**
 
