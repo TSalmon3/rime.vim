@@ -909,6 +909,8 @@ let g:im_pair_config = {
 | `im#pair#cond#not_after_regex(p)`  | `p: String` Vim 正则 | `Funcref(ctx) -> Bool` | `after_regex` 取反                          |
 | `im#pair#cond#is_inside_quote()`   | —                    | `Funcref(ctx) -> Bool` | 在未转义引号内时放行                        |
 | `im#pair#cond#not_inside_quote()`  | —                    | `Funcref(ctx) -> Bool` | 不在引号内时放行                            |
+| `im#pair#cond#is_vim_comment()`    | —                    | `Funcref(ctx) -> Bool` | vim 文件行首（仅空白时）放行，即注释行      |
+| `im#pair#cond#not_vim_comment()`   | —                    | `Funcref(ctx) -> Bool` | 不在 vim 注释行行首时放行                   |
 
 ```vim
 " 引号内不再补全括号
@@ -1084,28 +1086,34 @@ endfunction
 
 默认按键映射（均可用对应的 `g:im_surround_*_key` 定制）：
 
-| 按键                | 模式   | 说明                               |
-| ------------------- | ------ | ---------------------------------- |
-| `ys{motion}{char}`  | normal | 为 motion 选中的内容添加分隔符     |
-| `yS{motion}{char}`  | normal | 同上，但分隔符独占首尾新行         |
-| `yss` / `ySS`       | normal | 为整行添加分隔符（`ySS` 独占新行） |
-| `ds{char}`          | normal | 删除光标处最近的分隔符             |
-| `cs{old}{new}`      | normal | 将旧分隔符替换为新分隔符           |
-| `cS{old}{new}`      | normal | 同上，新分隔符独占首尾新行         |
-| `S` / `gS`          | visual | 为选区添加分隔符（`gS` 独占新行）  |
-| `<c-g>s` / `<c-g>S` | insert | 插入一对分隔符并将光标置于中间     |
+| 按键                        | 模式   | 说明                               |
+| --------------------------- | ------ | ---------------------------------- |
+| `[count]ys{motion}{char}`   | normal | 为 motion 选中的内容添加分隔符     |
+| `[count]yS{motion}{char}`   | normal | 同上，但分隔符独占首尾新行         |
+| `[count]yss` / `[count]ySS` | normal | 为整行添加分隔符（`ySS` 独占新行） |
+| `[count]ds{char}`           | normal | 删除光标处最近的分隔符             |
+| `[count]cs{old}{new}`       | normal | 将旧分隔符替换为新分隔符           |
+| `[count]cS{old}{new}`       | normal | 同上，新分隔符独占首尾新行         |
+| `S` / `gS`                  | visual | 为选区添加分隔符（`gS` 独占新行）  |
+| `<c-g>s` / `<c-g>S`         | insert | 插入一对分隔符并将光标置于中间     |
 
 常见用法示例（`*` 为光标位置）：
 
-| 旧文本                       | 按键    | 新文本                |
-| :--------------------------- | :------ | :-------------------- |
-| `surr*ound_words`            | `ysiw)` | `(surr*ound_words)`   |
-| `surr*ound_words`            | `ysiw(` | `( surr*ound_words )` |
-| `*make strings`              | `ys$"`  | `"*make strings"`     |
-| `[delete ar*ound me!]`       | `ds]`   | `delete ar*ound me!`  |
-| `remove \<b>HTML t*ags\</b>` | `dst`   | `remove HTML t*ags`   |
-| `'change quot*es'`           | `cs'"`  | `"change quot*es"`    |
-| `delete(functi*on calls)`    | `dsf`   | `functi*on calls`     |
+| 旧文本                       | 按键     | 新文本                 |
+| :--------------------------- | :------- | :--------------------- |
+| `surr*ound_words`            | `ysiw)`  | `(surr*ound_words)`    |
+| `surr*ound_words`            | `ysiw(`  | `( surr*ound_words )`  |
+| `*make strings`              | `ys$"`   | `"*make strings"`      |
+| `[delete ar*ound me!]`       | `ds]`    | `delete ar*ound me!`   |
+| `remove \<b>HTML t*ags\</b>` | `dst`    | `remove HTML t*ags`    |
+| `'change quot*es'`           | `cs'"`   | `"change quot*es"`     |
+| `delete(functi*on calls)`    | `dsf`    | `functi*on calls`      |
+| `surr*ound_words`            | `2ysiw)` | `((surr*ound_words))`  |
+| `((delete ar*ound me!))`     | `2ds)`   | `(delete ar*ound me!)` |
+
+**前置计数**：在 `ys / yss / ds / cs` 前加数字。`ys` 系一次套多层，如 `2ysiw)` 得到 `((word))`；`ds / cs` 系操作由内向外第 N 层，如嵌套括号内 `2ds)` 删外层、`2cs)]` 换外层。
+
+**点重复**：`ys / yss / ds / cs` 做完后按 `.` 可在别处重复上一次操作，不用重输符号，如 `ysiw)` 后移动光标按 `.` 直接套同种括号。`S / gS` 可视包裹和 `insert` 的 `<C-g>s / <C-g>S` 不支持 `.`。
 
 #### 配置
 
@@ -1128,6 +1136,9 @@ let g:im_surround_insert_linewise_key  = '<C-g>S' " 插入模式换行插入 (in
 
 " ds / cs 定位到包围对时的闪光高亮时长（毫秒，0 关闭）
 let g:im_surround_flash_ms          = 120
+
+" 独占新行 / 跨行操作后自动重缩进（默认 1，0 关闭）
+let g:im_surround_indent            = 1
 
 " 自定义包围规则
 let g:im_surround_surrounds = im#surround#config#default_surrounds()
