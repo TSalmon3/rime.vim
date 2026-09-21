@@ -1630,7 +1630,7 @@ set-environment -g RIME_TMUX_LOG "$HOME/.local/state/log/tmux/rime.log"
 - [vim-easymotion-zh](https://github.com/zzhirong/vim-easymotion-zh) — 基于小鹤双拼让 EasyMotion 识别中文
 - [nvim-autopair](https://github.com/windwp/nvim-autopairs) - autopairs for neovim written in lua
 - [delimitMate](https://github.com/Raimondi/delimitMate) - Vim plugin, provides insert mode auto-completion for quotes, parens, brackets, etc.
-- [nvim-surround](https://github.com/kylechui/nvim-surround/change/delete surrounding delimiter pairs with ease. Written with ❤️ in Lua.
+- [nvim-surround](https://github.com/kylechui/nvim-surround) - Add/change/delete surrounding delimiter pairs with ease. Written with ❤️ in Lua.
 - [vim-surround](https://github.com/tpope/vim-surround) - surround.vim: Delete/change/add parentheses/quotes/XML-tags/much more with ease
 - [vim-sandwich](https://github.com/machakann/vim-sandwich) - Set of operators and textobjects to search/select/edit sandwiched texts.
 - [tmux-rime](https://github.com/rimeinn/tmux-rime) - ㄓ rime for tmux
