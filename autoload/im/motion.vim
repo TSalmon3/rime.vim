@@ -273,9 +273,11 @@ function! s:jump(dir, inclusive, keys, cnt, ...) abort"{{{
   if !reuse && !a:inclusive
     call s:shift(-a:dir)
   endif
-  let tp = s:target_pat(a:keys, lnum)
-  if tp !=# ''
-    call s:mark(tp)
+  if s:mode() !=# 'o'
+    let tp = s:target_pat(a:keys, lnum)
+    if tp !=# ''
+      call s:mark(tp)
+    endif
   endif
   let cur = getpos('.')
   let s:last[s:mode()] = {'keys': a:keys, 'dir': a:dir, 'inclusive': a:inclusive,
