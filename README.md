@@ -820,24 +820,25 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 
 ### Motion 行内跳转
 
-替代原生 `f / F / t / T` 的行内跳转，支持 `normal / visual / operator-pending`：键入一个 ASCII 键即可跳到该字母或同拼音汉字，行为参考 [clever-f.vim](https://github.com/rhysd/clever-f.vim)。
+替代原生 `f / F / t / T` 的行内跳转，支持 `normal / visual / operator-pending`，行为参考 [clever-f.vim](https://github.com/rhysd/clever-f.vim)：键入一个 ASCII 字符，即可跳到该字符、拼音以它开头的汉字或对应的全角符号上。
 
-| 按键             | 说明                                                       |
-| ---------------- | ---------------------------------------------------------- |
-| `f{char}`        | 向后跳到 `{char}` 上                                       |
-| `F{char}`        | 向前跳到 `{char}` 上                                       |
-| `t{char}`        | 向后跳到 `{char}` 之前                                     |
-| `T{char}`        | 向前跳到 `{char}` 之后                                     |
-| `[count]`        | 如 `2fa` 跳到第 2 个匹配                                   |
-| 复按             | 同位置再按 `f / t` 继续同向，按 `F / T` 反向，无需重输字符 |
-| `;` / `,`        | 重复上次同向 / 反向跳转                                    |
-| 与 operator 组合 | 如 `dfa` 删除至 `a`，`yta` 复制至 `a` 之前                 |
+| 按键                 | 说明                                                                 |
+| -------------------- | -------------------------------------------------------------------- |
+| `f{char}`            | 向右跳到 `{char}` 上                                                 |
+| `F{char}`            | 向左跳到 `{char}` 上                                                 |
+| `t{char}`            | 向右跳到 `{char}` 之前                                               |
+| `T{char}`            | 向左跳到 `{char}` 之后                                               |
+| `[count]` 前缀       | 如 `2fa` 跳到第 2 个匹配（对 `;` / `,` 同样有效）                    |
+| 复按 `f / F / t / T` | 在落点原地再按，沿用上次的字符：`f / t` 向右、`F / T` 向左，无需重输 |
+| `;` / `,`            | 沿上次方向重复 / 反向重复                                            |
+| 与 operator 组合     | 如 `dfa` 删除至 `a`（含），`yta` 复制至 `a` 之前                     |
 
 拼音匹配与限制：
 
-- 字母键同时匹配该字母与同拼音汉字，如 `fa` 可跳到 `a` 或 `啊阿` 等；符号键同时匹配半角与全角，如 `f.` 可跳到 `.。`。
-- `quanpin`（默认）：`c` 兼匹配 `ch` 开头汉字，`s` 兼匹配 `sh`，`z` 兼匹配 `zh`；`flypy`：按键与拼音一一对应。
-- 大小写敏感，只搜当前行，找不到时光标不动；`Esc` / `<C-c>` / 非 ASCII 取消；记忆功能随光标移动而失效。
+- 字母键同时匹配该字母本身与拼音以它开头的汉字，如 `fa` 可跳到 `a`、`啊`、`阿` 等；符号键同时匹配半角与全角，如 `f.` 可跳到 `.` 或 `。`。
+- `quanpin`（默认）：`c` 兼匹配 `ch` 开头汉字，`s` 兼匹配 `sh`，`z` 兼匹配 `zh`；`flypy`：按键与拼音严格一一对应。
+- 大小写敏感，只搜索当前行，找不到时光标不动。
+- 按 `Esc` / `<C-c>` 或输入非 ASCII 字符取消；跳转记忆与光标位置绑定，光标移动后即失效。
 
 #### 配置
 
@@ -845,10 +846,10 @@ nnoremap r <Cmd>call im#keymap#r()<CR>
 " 等键时 shade 整行（0 关闭）
 let g:im_motion_shade = 1
 
-" 跳后高亮当行目标字（0 关闭）
+" 跳转后高亮当行目标字（0 关闭）
 let g:im_motion_mark = 1
 
-" mark 高亮持续毫秒数（默认 0=只靠移动清除，>0 再加定时）
+" 标记高亮持续毫秒数（默认 0=只靠移动清除，>0 再加定时）
 let g:im_motion_mark_ms = 0
 
 " 记忆过期毫秒数（默认 0=不过期，过期后复按重新读键）
@@ -1368,7 +1369,7 @@ let s:default_aliases = [
       \ ]
 ```
 
-所有 g:im*surround*\* 支持 b: 局部覆盖，优先级为 b: > g: > 默认值。surrounds 与 aliases 为整体替换语义，自定义后默认全被取代，需先取默认再拼接。
+所有 g:im_surround_\* 支持 b: 局部覆盖，优先级为 b: > g: > 默认值。surrounds 与 aliases 为整体替换语义，自定义后默认全被取代，需先取默认再拼接。
 
 #### 内置函数一览
 
@@ -1536,6 +1537,7 @@ inoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
   - 手动执行 `:IMTypeset`
   - 离开插入模式时自动触发（受 `g:im_typeset_insert_leave` 控制）
   - 回车换行时格式化上一行（映射 `<Plug>(im-typeset-line)`）
+  - 回车换行时格式化上一行，忽略 ts 和 syntax（映射 `<Plug>(im-typeset-line-force)`)
 
 #### 配置
 
@@ -1558,7 +1560,7 @@ let g:im_typeset_ignore_words = ['豆瓣FM']
 
 * **`ts`**（`List`）：treesitter 节点类型子串（大小写不敏感），命中即视为保护区域
 * **`syntax`**（`List`）：高亮组名子串（大小写不敏感），命中即视为保护区域
-* **`rules`**(`List`）：格式化规则链，类型为 `Funcref(ctx, sin) -> sout`，按数组顺序依次执行
+* **`rules`**(`List`）：格式化规则链，类型为 `Funcref(ctx, in) -> out`，按数组顺序依次执行
   * **`ctx`**（`Dict`）：上下文信息，包含以下字段
     * `filetype`：当前 buffer 的文件类型（`&filetype`）
     * `bufnr`：当前 buffer 编号（`bufnr()`）
@@ -1566,8 +1568,9 @@ let g:im_typeset_ignore_words = ['豆瓣FM']
     * `lnum`：当前行号
     * `left_char`：当前片段左边界外的一个字符；若片段位于行首，则为 `''`
     * `right_char`：当前片段右边界外的一个字符；若片段位于行尾，则为 `''`
-  * **`sin`**(`String`）：待处理的文本片段，同时是上一条规则的输出。
-  * **`sout`**(`String`)：已处理的文本片段，同时是下一条规则的输入
+  * **`in`**(`String`）：待处理的文本片段，同时是上一条规则的输出。
+  * **`out`**(`String`)：已处理的文本片段，同时是下一条规则的输入
+* **`rules_force`**(`List`）：格式化规则链，忽略 ts 和 syntax；不配则沿用 `rules`.
 
 **内置规则 API**（完整函数名为 `im#typeset#rule#<规则名>(ctx, s)`，下面只列出 `<规则名>` 部分）：
 
@@ -1582,7 +1585,6 @@ let g:im_typeset_ignore_words = ['豆瓣FM']
 * **`space_punctuation`**：`!` + CJK 间补空格
 * **`repeated_punct`**：叠标归一（`。。。` → `······`，`！？` 至多连 3）
 * **`markdown_space_at_bounds`**：仅 markdown，正文与行内代码/公式/链接接缝处补空格
-
 
 ```vim
 function! im#typeset#rule#default_rules() abort
@@ -1620,6 +1622,7 @@ xnoremap <silent> ;T :IMTypesetForce<cr>
 ```
 
 绑定 `<Plug>(im-typeset-line)`，使回车键在换行的同时自动排版当前行。
+绑定 `<Plug>(im-typeset-line-force)`，使回车键在换行的同时自动排版当前行，忽略 ts 和 syntax。
 
 ```vim
 function RimePairImapRemap()

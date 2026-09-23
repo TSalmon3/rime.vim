@@ -35,7 +35,7 @@ function! s:IMTypeset(l1, l2) abort
 endfunction
 
 function! s:IMTypesetForce(l1, l2) abort
-  if !im#typeset#is_enabled()
+  if !im#typeset#is_enabled_force()
     echohl WarningMsg
     echom '[IM] typeset: filetype not enabled'
     echohl None
@@ -50,6 +50,7 @@ command! -range IMTypesetForce call s:IMTypesetForce(<line1>, <line2>)
 " command! IMTypesetAll call s:IMTypeset(1, line('$'))
 
 inoremap <silent> <Plug>(im-typeset-line) <Cmd>call im#typeset#line()<CR>
+inoremap <silent> <Plug>(im-typeset-line-force) <Cmd>call im#typeset#line_force()<CR>
 
 if !get(g:, 'im_no_default_mappings', 0)
   let s:toggle_key = get(g:, 'im_toggle_key', ';;')

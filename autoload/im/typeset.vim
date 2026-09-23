@@ -21,7 +21,14 @@ function! im#typeset#config() abort"{{{
     return {}
   endif
   let rules = get(raw, 'rules', [])
-  if type(rules) != v:t_list || empty(rules)
+  if type(rules) != v:t_list
+    let rules = []
+  endif
+  let rules_force = get(raw, 'rules_force', [])
+  if type(rules_force) != v:t_list || empty(rules_force)
+    let rules_force = rules
+  endif
+  if empty(rules) && empty(rules_force)
     return {}
   endif
   let ts = []
@@ -36,7 +43,7 @@ function! im#typeset#config() abort"{{{
       call add(syntax, tolower(pat))
     endif
   endfor
-  return {'ts': ts, 'syntax': syntax, 'rules': rules}
+  return {'ts': ts, 'syntax': syntax, 'rules': rules, 'rules_force': rules_force}
 endfunction"}}}
 
 function! im#typeset#is_enabled() abort"{{{
@@ -54,6 +61,10 @@ function! im#typeset#is_enabled() abort"{{{
   endif
   let rules = get(raw, 'rules', [])
   return type(rules) == v:t_list && !empty(rules)
+endfunction"}}}
+
+function! im#typeset#is_enabled_force() abort"{{{
+  return !empty(get(im#typeset#config(), 'rules_force', []))
 endfunction"}}}
 
 function! s:ts_map(bufnr, l1, l2, pats) abort"{{{
@@ -136,12 +147,12 @@ function! s:invert(len, merged) abort"{{{
   return out
 endfunction"}}}
 
-function! im#typeset#apply_chain(text, ctx, entry) abort"{{{
-  if empty(a:entry)
+function! im#typeset#apply_chain(text, ctx, rules) abort"{{{
+  if empty(a:rules)
     return a:text
   endif
   let s = a:text
-  for F in a:entry.rules
+  for F in a:rules
     if type(F) != v:t_func
       continue
     endif
@@ -162,7 +173,7 @@ function! im#typeset#text(text) abort"{{{
   let ctx = {'filetype': &filetype,
         \ 'bufnr': bufnr('%'), 'bufname': bufname('%'), 'lnum': -1,
         \ 'left_char': '', 'right_char': ''}
-  return im#typeset#apply_chain(a:text, ctx, entry)
+  return empty(entry) ? a:text : im#typeset#apply_chain(a:text, ctx, entry.rules)
 endfunction"}}}
 
 function! s:base_ctx(lnum) abort"{{{
@@ -226,7 +237,7 @@ function! s:format_line(lnum, tsmap, entry) abort"{{{
     let ctx = s:base_ctx(a:lnum)
     let ctx.left_char = gap[0] == 0 ? '' : s:last_char(strpart(line, 0, gap[0]))
     let ctx.right_char = gap[1] >= len ? '' : s:first_char(strpart(line, gap[1]))
-    call add(parts, im#typeset#apply_chain(seg, ctx, a:entry))
+    call add(parts, im#typeset#apply_chain(seg, ctx, a:entry.rules))
   endfor
   let new = s:rebuild(line, gaps, parts)
   if new ==# line
@@ -245,7 +256,7 @@ function! s:format_line_force(lnum, entry) abort"{{{
     return 0
   endif
   let ctx = s:base_ctx(a:lnum)
-  let new = im#typeset#apply_chain(line, ctx, a:entry)
+  let new = im#typeset#apply_chain(line, ctx, a:entry.rules_force)
   if new ==# line
     return 0
   endif
