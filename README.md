@@ -1540,7 +1540,7 @@ let g:im_typeset_config = {
       \     + [function('im#typeset#rule#markdown_space_at_bounds')]},
       \ }
 
-" 产品名词等例外：命中词内部不断空格（默认空即无例外）
+" 例外词表：产品名等专有名词内部不插入空格（默认为空，即不设任何例外）
 let g:im_typeset_ignore_words = ['豆瓣FM']
 ```
 
