@@ -60,18 +60,24 @@ function! im#typeset#rule#halfwidth_word(ctx, s) abort"{{{
         \ '\=nr2char(char2nr(submatch(0)) - 65248)', 'g')
 endfunction"}}}
 
+function! s:fullwidth_special(s, C, hw, fw) abort"{{{
+  let s = a:s
+  let prev = ''
+  while s !=# prev
+    let prev = s
+    let s = substitute(s, '\(' . a:C . '\)' . a:hw . '\s*\(' . a:C . '\)', '\1' . a:fw . '\2', 'g')
+  endwhile
+  return substitute(s, '\(' . a:C . '\)' . a:hw . '\s*\(["'']\?\)$', '\1' . a:fw . '\2', '')
+endfunction"}}}
+
 function! im#typeset#rule#fullwidth_punctuation(ctx, s) abort"{{{
   let s = a:s
   let C = '[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]'
-  let s = substitute(s, '\(' . C . '\)\.\($\|\s\)', '\1。', 'g')
+  let s = s:fullwidth_special(s, C, '\.', '。')
   let s = substitute(s, '\(' . C . '\),\s*', '\1，', 'g')
   let s = substitute(s, '\(' . C . '\);\s*', '\1；', 'g')
-  if a:ctx.filetype ==# 'markdown'
-    let s = substitute(s, '\(' . C . '\)!\([^[]\|$\)', '\1！\2', 'g')
-  else
-    let s = substitute(s, '\(' . C . '\)!\s*', '\1！', 'g')
-  endif
-  let s = substitute(s, '\(' . C . '\):\s*', '\1：', 'g')
+  let s = s:fullwidth_special(s, C, '!', '！')
+  let s = s:fullwidth_special(s, C, ':', '：')
   let s = substitute(s, '\(' . C . '\)?\s*', '\1？', 'g')
   let s = substitute(s, '\(' . C . '\)\\\s*', '\1、', 'g')
   let s = substitute(s, '(\(' . C . '[^()]*\|[^()]*' . C . '\))', '（\1）', 'g')
@@ -148,9 +154,6 @@ function! im#typeset#rule#space_punctuation(ctx, s) abort"{{{
   let [s, saved] = s:protect_ignored(a:s)
   let C = '[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]'
   let s = substitute(s, '\(!\)\(' . C . '\)', '\1 \2', 'g')
-  if a:ctx.filetype ==# 'markdown'
-    let s = substitute(s, '\(' . C . '\)\(!\[\)', '\1 \2', 'g')
-  endif
   return s:restore_ignored(s, saved)
 endfunction"}}}
 
