@@ -1519,16 +1519,17 @@ inoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
 
 ### Typeset 自动排版
 
-遵循 [中文文案排版指北](https://github.com/sparanoid/chinese-copywriting-guidelines)，自动规范中英混排文本：中英文与数字之间补空格、全半角标点与字母数字归一、清理零宽字符与行尾空白、去除叠标点等。
+遵循 [中文文案排版指北](https://github.com/sparanoid/chinese-copywriting-guidelines)，自动规范中英文混排文本：中英文、数字之间自动补空格，全角 / 半角标点与字母数字自动归一，清理零宽字符与行尾空白，合并连续重复的标点符号。
 
-- 按 `filetype` 配置，默认仅对 `markdown` 启用
-- 格式化时跳过 treesitter / syntax 保护区域（代码块、链接等），`:IMTypesetForce` 可强制忽略
-- 触发方式：手动 `:IMTypeset`、离开插入模式（`g:im_typeset_insert_leave`）、回车换行时格式化上一行（`<Plug>(im-typeset-line)`）
+* **触发方式**：
+  - 手动执行 `:IMTypeset`
+  - 离开插入模式时自动触发（受 `g:im_typeset_insert_leave` 控制）
+  - 回车换行时格式化上一行（映射 `<Plug>(im-typeset-line)`）
 
 #### 配置
 
 ```vim
-" 退出插入模式（InsertLeave）时是否自动格式化当前行，默认关闭（0）
+" 退出插入模式时自动格式化当前行，默认关闭（0）
 let g:im_typeset_insert_leave = 1
 
 let g:im_typeset_config = {
@@ -1542,27 +1543,35 @@ let g:im_typeset_config = {
 let g:im_typeset_ignore_words = ['豆瓣FM']
 ```
 
-| 字段     | 类型   | 含义                                                |
-| -------- | ------ | --------------------------------------------------- |
-| `ts`     | `List` | treesitter 节点类型子串（大小写不敏感），命中即保护 |
-| `syntax` | `List` | 高亮组名子串（大小写不敏感），命中即保护            |
-| `rules`  | `List` | `Funcref(ctx, s) -> s` 格式化链，按顺序依次执行     |
+**配置字段：**
 
-内置规则 API（`X` 均为 `im#typeset#rule#X(ctx, s)`）：
+* **`ts`**（`List`）：treesitter 节点类型子串（大小写不敏感），命中即视为保护区域
+* **`syntax`**（`List`）：高亮组名子串（大小写不敏感），命中即视为保护区域
+* **`rules`**(`List`）：格式化规则链，类型为 `Funcref(ctx, sin) -> sout`，按数组顺序依次执行
+  * **`ctx`**（`Dict`）：上下文信息，包含以下字段
+    * `filetype`：当前 buffer 的文件类型（`&filetype`）
+    * `bufnr`：当前 buffer 编号（`bufnr()`）
+    * `bufname`：当前 buffer 文件名（`bufname()`）
+    * `lnum`：当前行号
+    * `left_char`：当前片段左边界外的一个字符；若片段位于行首，则为 `''`
+    * `right_char`：当前片段右边界外的一个字符；若片段位于行尾，则为 `''`
+  * **`sin`**(`String`）：待处理的文本片段，同时是上一条规则的输出。
+  * **`sout`**(`String`)：已处理的文本片段，同时是下一条规则的输入
 
-| API                        | 说明                                                           |
-| -------------------------- | ------------------------------------------------------------   |
-| `invisible_spaces`         | 删零宽字符；行尾空白清理                                       |
-| `halfwidth_word`           | 全角字母数字 → 半角                                            |
-| `fullwidth_punctuation`    | CJK 旁半角标点 → 全角（括号/书名号；`html` 跳过书名号）        |
-| `halfwidth_punctuation`    | 纯英文段全角标点 → 半角（`,;:!?` 后补空格；含 CJK 整段跳过）   |
-| `no_space_fullwidth`       | 宽字符之间删空格（含 ASCII 侧、全角引号；缩进保留）            |
-| `space_word`               | 段内 CJK ↔ 字母数字间补空格                                    |
-| `space_bracket`            | 段内 CJK ↔ 半角 `[]()` 间补空格（拉丁侧不动；`{}` 不管）       |
-| `space_number_affix`       | 符号数字（`±n` 双向）、`n%`、后缀（`C++`/`+`/`#`）后 CJK 补空格|
-| `space_punctuation`        | `!` + CJK 间补空格                                             |
-| `repeated_punct`           | 叠标归一（`。。。→······`，`！？` 至多连 3）                   |
-| `markdown_space_at_bounds` | 仅 markdown：正文与行内代码/公式/链接接缝处补空格              |
+**内置规则 API**（完整函数名为 `im#typeset#rule#<规则名>(ctx, s)`，下面只列出 `<规则名>` 部分）：
+
+* **`invisible_spaces`**：删零宽字符；行尾空白清理
+* **`halfwidth_word`**：全角字母数字 → 半角
+* **`fullwidth_punctuation`**：CJK 旁半角标点 → 全角（括号/书名号；`html` 跳过书名号）
+* **`halfwidth_punctuation`**：纯英文段全角标点 → 半角（`,;:!?` 后补空格；含 CJK 整段跳过）
+* **`no_space_fullwidth`**：宽字符之间删空格（含 ASCII 侧、全角引号；缩进保留）
+* **`space_word`**：段内 CJK ↔ 字母数字间补空格
+* **`space_bracket`**：段内 CJK ↔ 半角 `[]()` 间补空格（拉丁侧不动；`{}` 不管）
+* **`space_number_affix`**：符号数字（`±n` 双向）、`n%`、后缀（`C++`/`+`/`#`）后 CJK 补空格
+* **`space_punctuation`**：`!` + CJK 间补空格
+* **`repeated_punct`**：叠标归一（`。。。` → `······`，`！？` 至多连 3）
+* **`markdown_space_at_bounds`**：仅 markdown，正文与行内代码/公式/链接接缝处补空格
+
 
 ```vim
 function! im#typeset#rule#default_rules() abort
