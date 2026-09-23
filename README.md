@@ -966,18 +966,18 @@ let g:im_pair_config = {
 
 参数说明：
 
-* `open`（`String`，必填）：开符
-* `close`（`String`，必填）：闭符
-* `kind`（`String`，默认自动推断）：`matchpair` 表示开闭符不同，`quote` 表示开闭符相同
-* `with_pair`（`Funcref(ctx) -> Bool` 或其列表，默认 `v:null`）：成对补全门控
-* `with_move`（`Funcref(ctx) -> Bool` 或其列表，默认 `v:null`）：闭符跳出门控
-* `with_del`（`Funcref(ctx) -> Bool` 或其列表，默认 `v:null`）：空对删除门控
-* `with_cr`（`Funcref(ctx) -> Bool` 或其列表，默认 `v:null`）：回车展开门控
+* `open`（`String`）：开符
+* `close`（`String`）：闭符
+* `kind`（`String`）：`matchpair` 表示开闭符不同，`quote` 表示开闭符相同
+* `with_pair`（`Funcref(ctx) -> Bool` 或其列表）：成对补全门控
+* `with_move`（`Funcref(ctx) -> Bool` 或其列表）：闭符跳出门控
+* `with_del`（`Funcref(ctx) -> Bool` 或其列表）：空对删除门控
+* `with_cr`（`Funcref(ctx) -> Bool` 或其列表）：回车展开门控
 
 其中 `ctx` 为 `Dict`，键值如下：
 
-* `before`（`String`）：光标左侧的当前行字符切片
-* `after`（`String`）：光标右侧的当前行字符切片
+* `before`(`String`）：光标左侧的当前行文本片段
+* `after`(`String`）：光标右侧的当前行文本片段
 * `line`（`String`）：当前整行
 * `col`（`Number`）：字节列号，即 `col('.')`
 * `filetype`（`String`）：即 `&filetype`，可能为空
@@ -1020,7 +1020,8 @@ let g:im_pair_rules = [
       \ {'open': '(', 'close': ')', 'with_pair': im#pair#cond#not_inside_quote()},
       \ {'open': '"', 'close': '"', 'with_move': im#pair#cond#always()},
       \ ]
-" 按 filetype 覆盖：vim 下 `"` 在注释行行首不补全
+
+" vim 中 `"` 在注释行行首不补全
 autocmd FileType vim let b:im_pair_rules = [
       \ {'open': '"', 'close': '"', 'with_pair': im#pair#cond#not_vim_comment()},
       \ ]
@@ -1317,14 +1318,14 @@ let g:im_surround_aliases += [
 
 `add` 只管添加，`find` 只管 `ds` / `cs` 定位，`replace` 只管 `cs` 生成。
 
-**`add`**
+**add**
 
 | 形式      | 入参   | 返回值                    | 含义               |
 | --------- | ------ | ------------------------- | ------------------ |
 | `List`    | —      | `[String, String]`        | 直接赋值左右分隔符 |
 | `Funcref` | `char` | `[String, String]` / `[]` | 动态生成，空表放弃 |
 
-**`find`**
+**find**
 
 | 形式      | 入参   | 返回值        | 含义                                  |
 | --------- | ------ | ------------- | ------------------------------------- |
@@ -1339,7 +1340,7 @@ let g:im_surround_aliases += [
 | `open_len`  | `Number`           | 否   | 开分隔符字节数                |
 | `close_len` | `Number`           | 否   | 闭分隔符字节数                |
 
-**`replace`**
+**replace**
 
 | 形式      | 入参 | 返回值                 | 含义                   |
 | --------- | ---- | ---------------------- | ---------------------- |
