@@ -85,6 +85,7 @@
   - [Auto Pair 自动成对](#auto-pair-自动成对)
   - [Surround 包围编辑](#surround-包围编辑)
   - [Context 自动切换](#context-自动切换)
+  - [Typeset 自动排版](#typeset-自动排版)
   - [Tmux 弹窗输入](#tmux-弹窗输入)
   - [其他搭配插件](#其他搭配插件)
 - [致谢](#致谢)
@@ -143,6 +144,7 @@ Plug 'TSalmon3/rime.vim'
 
 ```bash
 cd /path/to/rime.vim/cpp
+mkdir -p build
 brew install librime
 clang++ -std=c++17 -I./3rd -I/opt/homebrew/include -L/opt/homebrew/lib -lstdc++ -lrime -o build/rime-query rime-query.cc
 ```
@@ -420,6 +422,8 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 | `:IMSync`                     | 同步用户词库并重新部署                                |
 | `:IMShutdown`                 | 关停共享 daemon（所有编辑器断开）                     |
 | `:IMSchemeDownload <git-url>` | 下载输入方案到 `g:im_scheme_dir`                      |
+| `:IMTypeset`                  | 格式化当前行（见[排版 Typeset](#排版-typeset)）       |
+| `:IMTypesetAll`               | 格式化整个 buffer                                     |
 
 #### 重新部署
 
@@ -1502,7 +1506,7 @@ augroup END
 
 手动切换【Rime 接管】与【原生直通】模式：
 
-```
+```vim
 inoremap <silent> ;u <cmd>call im#context#set('chinese')<cr>
 inoremap <silent> ;n <cmd>call im#context#set('english')<cr>
 inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
@@ -1510,9 +1514,124 @@ inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
 
 开关整个自动切换功能：
 
-```
+```vim
 nnoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
 inoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
+```
+
+### Typeset 自动排版
+
+遵循 [中文文案排版指北](https://github.com/sparanoid/chinese-copywriting-guidelines)，自动规范中英混排文本：中英文与数字之间补空格、全半角标点与字母数字归一、清理零宽字符与行尾空白、去除叠标点等。
+
+- 按 `filetype` 配置，默认仅对 `markdown` 启用
+- 格式化时跳过 treesitter / syntax 保护区域（代码块、链接等），`:IMTypesetForce` 可强制忽略
+- 触发方式：手动 `:IMTypeset`、离开插入模式（`g:im_typeset_insert_leave`）、回车换行时格式化上一行（`<Plug>(im-typeset-line)`）
+
+#### 配置
+
+```vim
+" 退出插入模式（InsertLeave）时是否自动格式化当前行，默认关闭（0）
+let g:im_typeset_insert_leave = 1
+
+let g:im_typeset_config = {
+      \ 'markdown': {
+      \   'syntax': ['link', 'code', 'math', 'table', 'bold', 'italic'],
+      \   'rules': im#typeset#rule#default_rules()
+      \     + [function('im#typeset#rule#markdown_space_at_bounds')]},
+      \ }
+
+" 产品名词等例外：命中词内部不断空格（默认空即无例外）
+let g:im_typeset_ignore_words = ['豆瓣FM']
+```
+
+| 字段     | 类型   | 含义                                                |
+| -------- | ------ | --------------------------------------------------- |
+| `ts`     | `List` | treesitter 节点类型子串（大小写不敏感），命中即保护 |
+| `syntax` | `List` | 高亮组名子串（大小写不敏感），命中即保护            |
+| `rules`  | `List` | `Funcref(ctx, s) -> s` 格式化链，按顺序依次执行     |
+
+内置规则 API（`X` 均为 `im#typeset#rule#X(ctx, s)`）：
+
+| API                        | 说明                                                           |
+| -------------------------- | ------------------------------------------------------------   |
+| `invisible_spaces`         | 删零宽字符；行尾空白清理                                       |
+| `halfwidth_word`           | 全角字母数字 → 半角                                            |
+| `fullwidth_punctuation`    | CJK 旁半角标点 → 全角（括号/书名号；`html` 跳过书名号）        |
+| `halfwidth_punctuation`    | 纯英文段全角标点 → 半角（`,;:!?` 后补空格；含 CJK 整段跳过）   |
+| `no_space_fullwidth`       | 宽字符之间删空格（含 ASCII 侧、全角引号；缩进保留）            |
+| `space_word`               | 段内 CJK ↔ 字母数字间补空格                                    |
+| `space_bracket`            | 段内 CJK ↔ 半角 `[]()` 间补空格（拉丁侧不动；`{}` 不管）       |
+| `space_number_affix`       | 符号数字（`±n` 双向）、`n%`、后缀（`C++`/`+`/`#`）后 CJK 补空格|
+| `space_punctuation`        | `!` + CJK 间补空格                                             |
+| `repeated_punct`           | 叠标归一（`。。。→······`，`！？` 至多连 3）                   |
+| `markdown_space_at_bounds` | 仅 markdown：正文与行内代码/公式/链接接缝处补空格              |
+
+```vim
+function! im#typeset#rule#default_rules() abort
+  return [
+        \ function('im#typeset#rule#invisible_spaces'),
+        \ function('im#typeset#rule#halfwidth_word'),
+        \ function('im#typeset#rule#fullwidth_punctuation'),
+        \ function('im#typeset#rule#halfwidth_punctuation'),
+        \ function('im#typeset#rule#no_space_fullwidth'),
+        \ function('im#typeset#rule#space_word'),
+        \ function('im#typeset#rule#space_bracket'),
+        \ function('im#typeset#rule#space_number_affix'),
+        \ function('im#typeset#rule#space_punctuation'),
+        \ function('im#typeset#rule#repeated_punct'),
+        \ ]
+endfunction
+```
+
+#### 命令
+
+| 命令                     | 说明                                              |
+| ------------------------ | ------------------------------------------------- |
+| `:IMTypeset`             | 格式化当前行                                      |
+| `:IMTypesetForce`        | 格式化当前行（忽略 `ts` 和 `syntax` 保护规则)     |
+| `:{range}IMTypeset`      | 格式化指定行范围                                  |
+| `:{range}imtypesetforce` | 格式化指定行范围（忽略 `ts` 和 `syntax` 保护规则) |
+
+#### 按键映射
+
+```vim
+nnoremap <silent> ;t <cmd>IMTypeset<cr>
+nnoremap <silent> ;T <cmd>IMTypesetForce<cr>
+xnoremap <silent> ;t :IMTypeset<cr>
+xnoremap <silent> ;T :IMTypesetForce<cr>
+```
+
+绑定 `<Plug>(im-typeset-line)`，使回车键在换行的同时自动排版当前行。
+
+```vim
+function RimePairImapRemap()
+  inoremap <buffer><expr> <cr> luaeval("require('blink.cmp').is_menu_visible()") && luaeval("require('blink.cmp').get_selected_item() ~= nil") ?
+          \ "\<cmd>lua require('blink.cmp').accept()\<cr>"
+          \ : pumvisible() && complete_info()['selected'] != -1 ? "\<c-y>"
+          \ : im#pair#should_cr() ? im#pair#cr() : "\<Plug>(im-typeset-line)\<cr>"
+endfunction
+
+function RimePairImapRestore()
+  inoremap <silent><expr> <cr> luaeval("require('blink.cmp').is_menu_visible()") && luaeval("require('blink.cmp').get_selected_item() ~= nil") ?
+        \ "\<cmd>lua require('blink.cmp').accept()\<cr>"
+        \ : pumvisible() && complete_info()['selected'] != -1 ?
+        \ "\<c-y>" : "\<cr>"
+endfunction
+
+function RimeKeymapRemap()
+  lnoremap <silent><expr> <cr> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>"
+          \ : im#pair#should_cr() ? im#pair#cr() : "\<Plug>(im-typeset-line)\<cr>"
+
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimePairImapSetup call RimePairImapRemap()
+  autocmd User RimePairImapRestore call RimePairImapRestore()
+augroup END
+
 ```
 
 ### Tmux 弹窗输入
@@ -1619,7 +1738,6 @@ set-environment -g RIME_TMUX_LOG "$HOME/.local/state/log/tmux/rime.log"
 
 - [jieba.vim](https://github.com/kkew3/jieba.vim) — jieba 的 Vim/Nvim 按词跳转插件
 - [pangu.vim](https://github.com/hotoo/pangu.vim) — 中文排版自动规范化的 Vim 插件
-- [vim-easymotion-zh](https://github.com/zzhirong/vim-easymotion-zh) — 基于小鹤双拼让 EasyMotion 识别中文
 
 ## 致谢
 
@@ -1633,6 +1751,8 @@ set-environment -g RIME_TMUX_LOG "$HOME/.local/state/log/tmux/rime.log"
 - [nvim-surround](https://github.com/kylechui/nvim-surround) - Add/change/delete surrounding delimiter pairs with ease. Written with ❤️ in Lua.
 - [vim-surround](https://github.com/tpope/vim-surround) - surround.vim: Delete/change/add parentheses/quotes/XML-tags/much more with ease
 - [vim-sandwich](https://github.com/machakann/vim-sandwich) - Set of operators and textobjects to search/select/edit sandwiched texts.
+- [pangu.vim](https://github.com/hotoo/pangu.vim) — 中文排版自动规范化的 Vim 插件
+- [autocorrect](https://github.com/huacnlee/autocorrect) - A linter and formatter to help you to improve copywriting, correct spaces, words, and punctuations between CJK (Chinese, Japanese, Korean).
 - [tmux-rime](https://github.com/rimeinn/tmux-rime) - ㄓ rime for tmux
 
 ## License

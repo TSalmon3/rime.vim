@@ -40,6 +40,7 @@ Plug 'TSalmon3/rime.vim'
 ```bash
 cd /path/to/rime.vim/cpp
 brew install librime
+mkdir -p build
 clang++ -std=c++17 -I./3rd -I/opt/homebrew/include -L/opt/homebrew/lib -lstdc++ -lrime -o build/rime-query rime-query.cc
 ```
 
