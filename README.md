@@ -955,11 +955,10 @@ let g:im_pair_config = {
 * `syntax`（`List`）：高亮组命中即暂停
 * `ts`（`List`）：TS 节点命中即暂停（仅 Neovim）
 
-补充说明：
-
-* `syntax` / `ts` 命中时，仅暂停**改字类动作**（自动补全、成对删除、回车 / 空格展开），**跳出动作不受影响**：光标右侧已有闭符时仍可自动跳出，`im#pair#jump_any()` / `im#pair#jump_many()` 照常可用（例如字符串 `"foo|"` 处按 `"` 会直接跳到引号外）
-* 只有 `disabled: 1` 才会完全停用（含跳出动作），且此时会忽略同条目下的 `syntax` / `ts` 配置
-* `ts` 与 `syntax` 为“或”关系，命中任一即暂停；两者同时配置时优先判定 `ts`；两者均为空时不生效；匹配均不区分大小写
+> [!Tip]
+> * `syntax` / `ts` 命中时，仅暂停**改字类动作**（自动补全、成对删除、回车 / 空格展开），**跳出动作不受影响**：光标右侧已有闭符时仍可自动跳出，`im#pair#jump_any()` / `im#pair#jump_many()` 照常可用（例如字符串 `"foo|"` 处按 `"` 会直接跳到引号外）
+> * 只有 `disabled: 1` 才会完全停用（含跳出动作），且此时会忽略同条目下的 `syntax` / `ts` 配置
+> * `ts` 与 `syntax` 为“或”关系，命中任一即暂停；两者同时配置时优先判定 `ts`；两者均为空时不生效；匹配均不区分大小写
 
 #### `g:im_pair_rules`
 
@@ -983,7 +982,7 @@ let g:im_pair_config = {
 * `col`（`Number`）：字节列号，即 `col('.')`
 * `filetype`（`String`）：即 `&filetype`，可能为空
 
-> [!NOTE]
+> [!Tip]
 > 优先级：`b:im_pair_rules` > `g:im_pair_rules` > 默认值
 
 #### 内置函数一览
