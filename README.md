@@ -422,8 +422,6 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 | `:IMSync`                     | 同步用户词库并重新部署                                |
 | `:IMShutdown`                 | 关停共享 daemon（所有编辑器断开）                     |
 | `:IMSchemeDownload <git-url>` | 下载输入方案到 `g:im_scheme_dir`                      |
-| `:IMTypeset`                  | 格式化当前行（见[排版 Typeset](#排版-typeset)）       |
-| `:IMTypesetAll`               | 格式化整个 buffer                                     |
 
 #### 重新部署
 
@@ -1590,7 +1588,7 @@ endfunction
 | `:IMTypeset`             | 格式化当前行                                      |
 | `:IMTypesetForce`        | 格式化当前行（忽略 `ts` 和 `syntax` 保护规则)     |
 | `:{range}IMTypeset`      | 格式化指定行范围                                  |
-| `:{range}imtypesetforce` | 格式化指定行范围（忽略 `ts` 和 `syntax` 保护规则) |
+| `:{range}IMTypesetForce` | 格式化指定行范围（忽略 `ts` 和 `syntax` 保护规则) |
 
 #### 按键映射
 
