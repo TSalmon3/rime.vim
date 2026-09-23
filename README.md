@@ -947,62 +947,73 @@ let g:im_pair_config = {
 
 #### `g:im_pair_config`
 
-按作用域暂停自动成对。键名可为具体 `filetype` 或 `*`（全局通配）；命中具体 `filetype` 时整体覆盖 `*`，不合并。
+按 `filetype` 暂停自动成对功能。键名可为具体 `filetype`，也可用 `*` 表示全局默认；命中具体 `filetype` 时整体覆盖 `*` 对应配置，两者不合并。
 
-| 字段       | 类型     | 含义                           |
-| ---------- | -------- | ------------------------------ |
-| `disabled` | `Number` | 该 `filetype` 全停             |
-| `syntax`   | `List`   | 高亮组命中即暂停               |
-| `ts`       | `List`   | TS 节点命中即暂停（仅 Neovim） |
+字段说明：
 
-- `syntax` / `ts` 命中仅暂停改字类动作（补全、删对、回车/空格展开），跳过不受影响：右侧已有闭符仍可自动跳出，`im#pair#jump_any()` / `im#pair#jump_many()` 照常可用（如字符串 `"foo|"` 处按 `"` 直接跳到外面）。只有 `disabled: 1` 才会完全停用（含跳过），且此时忽略同条目下的 `syntax` / `ts`。
-- `ts` 与 `syntax` 为“或”关系，命中任一即暂停；同时配置时先判定 `ts`；两者均为空时不生效；匹配大小写不敏感。
+* `disabled`（`Number`）：为 `1` 时该 `filetype` 完全停用
+* `syntax`（`List`）：高亮组命中即暂停
+* `ts`（`List`）：TS 节点命中即暂停（仅 Neovim）
+
+补充说明：
+
+* `syntax` / `ts` 命中时，仅暂停**改字类动作**（自动补全、成对删除、回车 / 空格展开），**跳出动作不受影响**：光标右侧已有闭符时仍可自动跳出，`im#pair#jump_any()` / `im#pair#jump_many()` 照常可用（例如字符串 `"foo|"` 处按 `"` 会直接跳到引号外）
+* 只有 `disabled: 1` 才会完全停用（含跳出动作），且此时会忽略同条目下的 `syntax` / `ts` 配置
+* `ts` 与 `syntax` 为“或”关系，命中任一即暂停；两者同时配置时优先判定 `ts`；两者均为空时不生效；匹配均不区分大小写
 
 #### `g:im_pair_rules`
 
-| 参数        | 默认值     | 类型                                               | 说明                                               |
-| ----------- | ---------- | -------------------------------------------------- | -------------------------------------------------- |
-| `open`      | 无（必填） | `String`                                           | 开符                                               |
-| `close`     | 无（必填） | `String`                                           | 闭符                                               |
-| `kind`      | 自动推断   | `String`                                           | `matchpair` 表示开闭符不同，`quote` 表示开闭符相同 |
-| `with_pair` | `v:null`   | `Funcref(ctx) -> Bool` 或其列表（列表按 AND 求值） | 成对补全门控（ctx 参数说明见下表）                 |
-| `with_move` | `v:null`   | `Funcref(ctx) -> Bool` 或其列表（列表按 AND 求值） | 闭符跳出门控（ctx 参数说明见下表）                 |
-| `with_del`  | `v:null`   | `Funcref(ctx) -> Bool` 或其列表（列表按 AND 求值） | 空对删除门控（ctx 参数说明见下表）                 |
-| `with_cr`   | `v:null`   | `Funcref(ctx) -> Bool` 或其列表（列表按 AND 求值） | 回车展开门控（ctx 参数说明见下表）                 |
+`with_pair` / `with_move` / `with_del` / `with_cr` 均为“门控函数”：返回 `true` 时放行对应动作，返回 `false` 时拦截；传入列表时按 AND 求值（全部为真才放行）。
 
-其中 `ctx` 为 `Dict` 键值如下表：
+参数说明：
 
-| 字段       | 类型     | 说明                     |
-| ---------- | -------- | ------------------------ |
-| `before`   | `String` | 光标左侧的当前行字符切片 |
-| `after`    | `String` | 光标右侧的当前行字符切片 |
-| `line`     | `String` | 当前整行                 |
-| `col`      | `Number` | 字节列号，即 `col('.')`  |
-| `filetype` | `String` | 即 `&filetype`，可能为空 |
+* `open`（`String`，必填）：开符
+* `close`（`String`，必填）：闭符
+* `kind`（`String`，默认自动推断）：`matchpair` 表示开闭符不同，`quote` 表示开闭符相同
+* `with_pair`（`Funcref(ctx) -> Bool` 或其列表，默认 `v:null`）：成对补全门控
+* `with_move`（`Funcref(ctx) -> Bool` 或其列表，默认 `v:null`）：闭符跳出门控
+* `with_del`（`Funcref(ctx) -> Bool` 或其列表，默认 `v:null`）：空对删除门控
+* `with_cr`（`Funcref(ctx) -> Bool` 或其列表，默认 `v:null`）：回车展开门控
 
-> [!Note]：
-> 优先级 `b:im_pair_rules` > `g:im_pair_rules` > 默认
+其中 `ctx` 为 `Dict`，键值如下：
+
+* `before`（`String`）：光标左侧的当前行字符切片
+* `after`（`String`）：光标右侧的当前行字符切片
+* `line`（`String`）：当前整行
+* `col`（`Number`）：字节列号，即 `col('.')`
+* `filetype`（`String`）：即 `&filetype`，可能为空
+
+> [!NOTE]
+> 优先级：`b:im_pair_rules` > `g:im_pair_rules` > 默认值
 
 #### 内置函数一览
 
-| 接口                               | 参数                 | 返回值                 | 说明                                        |
-| ---------------------------------- | -------------------- | ---------------------- | ------------------------------------------- |
-| `im#pair#cond#always()`            | —                    | `Funcref(ctx) -> Bool` | 恒为真，始终放行                            |
-| `im#pair#cond#done()`              | —                    | `Funcref(ctx) -> Bool` | 恒为真（`always` 别名）                     |
-| `im#pair#cond#never()`             | —                    | `Funcref(ctx) -> Bool` | 恒为假，始终拦截                            |
-| `im#pair#cond#none()`              | —                    | `Funcref(ctx) -> Bool` | 恒为假（`never` 别名）                      |
-| `im#pair#cond#before_text(t)`      | `t: String` 字面文本 | `Funcref(ctx) -> Bool` | `before` 以 `t` 结尾时放行                  |
-| `im#pair#cond#before_regex(p)`     | `p: String` Vim 正则 | `Funcref(ctx) -> Bool` | `before` 按正则 `p` 匹配（自动补 `$` 锚尾） |
-| `im#pair#cond#after_text(t)`       | `t: String` 字面文本 | `Funcref(ctx) -> Bool` | `after` 以 `t` 开头时放行                   |
-| `im#pair#cond#after_regex(p)`      | `p: String` Vim 正则 | `Funcref(ctx) -> Bool` | `after` 按正则 `p` 匹配（自动补 `^` 锚首）  |
-| `im#pair#cond#not_before_text(t)`  | `t: String` 字面文本 | `Funcref(ctx) -> Bool` | `before_text` 取反                          |
-| `im#pair#cond#not_before_regex(p)` | `p: String` Vim 正则 | `Funcref(ctx) -> Bool` | `before_regex` 取反                         |
-| `im#pair#cond#not_after_text(t)`   | `t: String` 字面文本 | `Funcref(ctx) -> Bool` | `after_text` 取反                           |
-| `im#pair#cond#not_after_regex(p)`  | `p: String` Vim 正则 | `Funcref(ctx) -> Bool` | `after_regex` 取反                          |
-| `im#pair#cond#is_inside_quote()`   | —                    | `Funcref(ctx) -> Bool` | 在未转义引号内时放行                        |
-| `im#pair#cond#not_inside_quote()`  | —                    | `Funcref(ctx) -> Bool` | 不在引号内时放行                            |
-| `im#pair#cond#is_vim_comment()`    | —                    | `Funcref(ctx) -> Bool` | vim 文件行首（仅空白时）放行，即注释行      |
-| `im#pair#cond#not_vim_comment()`   | —                    | `Funcref(ctx) -> Bool` | 不在 vim 注释行行首时放行                   |
+以下函数均返回 `Funcref(ctx) -> Bool`，用于 `with_pair` / `with_move` / `with_del` / `with_cr`。
+
+**恒定结果：**
+
+* `im#pair#cond#always()`：恒为真，始终放行
+* `im#pair#cond#done()`：恒为真，与 `always()` 等价
+* `im#pair#cond#never()`：恒为假，始终拦截
+* `im#pair#cond#none()`：恒为假，与 `never()` 等价
+
+**基于光标前后文本：**
+
+* `im#pair#cond#before_text(t)`：`before` 以字符串 `t` 结尾时放行
+* `im#pair#cond#not_before_text(t)`：上一条取反
+* `im#pair#cond#before_regex(p)`：`before` 匹配 Vim 正则 `p` 时放行（自动补 `$` 锚尾）
+* `im#pair#cond#not_before_regex(p)`：上一条取反
+* `im#pair#cond#after_text(t)`：`after` 以字符串 `t` 开头时放行
+* `im#pair#cond#not_after_text(t)`：上一条取反
+* `im#pair#cond#after_regex(p)`：`after` 匹配 Vim 正则 `p` 时放行（自动补 `^` 锚首）
+* `im#pair#cond#not_after_regex(p)`：上一条取反
+
+**基于语法上下文：**
+
+* `im#pair#cond#is_inside_quote()`：光标处于未转义引号内时放行
+* `im#pair#cond#not_inside_quote()`：上一条取反
+* `im#pair#cond#is_vim_comment()`：光标位于 vim 文件的注释行行首（该行仅有空白）时放行
+* `im#pair#cond#not_vim_comment()`：上一条取反
 
 ```vim
 " 引号内不再补全括号
