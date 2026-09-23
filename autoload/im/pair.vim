@@ -248,7 +248,7 @@ function! s:syntax_hit(pats) abort"{{{
   endif
   let ids = synstack(lnum, scol)
   for id in ids
-    let name = synIDattr(synIDtrans(id), 'name')
+    let name = synIDattr(id, 'name')
     if empty(name)
       continue
     endif
