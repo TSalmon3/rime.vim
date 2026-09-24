@@ -78,14 +78,14 @@
   - [状态栏](#状态栏)
 - [高级主题](#高级主题)
   - [rime-ice 配置示例](#rime-ice-配置示例)
-  - [让中文编辑更加丝滑](#让中文编辑更加丝滑)
   - [定制中英切换与方案选单](#定制中英切换与方案选单)
   - [Replace Mode 替换模式](#replace-mode-替换模式)
   - [Motion 行内跳转](#motion-行内跳转)
   - [Auto Pair 自动成对](#auto-pair-自动成对)
-  - [Surround 包围编辑](#surround-包围编辑)
   - [Context 自动切换](#context-自动切换)
   - [Typeset 自动排版](#typeset-自动排版)
+  - [Surround 包围编辑](#surround-包围编辑)
+  - [Extend 外部集成](#Extend-外部集成)
   - [Tmux 弹窗输入](#tmux-弹窗输入)
   - [其他搭配插件](#其他搭配插件)
 - [致谢](#致谢)
@@ -652,82 +652,6 @@ patch:
     - xlit/ⓆⓌⓇⓉⓎⓊⒾⓄⓅⓈⒹⒻⒼⒽⒿⓀⓁⓏⓍⒸⓋⒷⓃⓂ/qwrtyuiopsdfghjklzxcvbnm/
 ```
 
-### 让中文编辑更加丝滑
-
-如果你安装了 [ultisnips](https://github.com/SirVer/ultisnips) 和 [bullets.vim](https://github.com/bullets-vim/bullets.vim)，可以这样配置：
-
-```vim
-function RimeKeymapRemap()
-  if &filetype ==# 'markdown'
-    lnoremap <silent><expr> <tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
-          \ UltiSnips#CanJumpForwards() ?
-          \"\<c-r>=UltiSnips#JumpForwards()\<cr>" :  bullet#is_bullet() ?
-          \ "\<C-o>\<Plug>(bullets-demote)\<C-o>$" :  "\<tab>"
-
-    lnoremap <silent><expr> <s-tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
-          \ UltiSnips#CanJumpBackwards() ?
-          \ "\<c-r>=UltiSnips#JumpBackwards()\<cr>" : bullet#is_bullet()?
-          \ "\<C-o>\<Plug>(bullets-promote)\<C-o>$" : "\<s-tab>"
-
-    lnoremap <silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
-          \ delimitMate#WithinEmptyPair() ?
-          \ "\<c-r>=delimitMate#ExpandReturn()\<cr>" : "\<Plug>(bullets-newline)"
-  else
-    lnoremap <silent><expr> <tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
-          \ UltiSnips#CanJumpForwards() ?
-          \"\<c-r>=UltiSnips#JumpForwards()\<cr>" : "\<tab>"
-
-    lnoremap <silent><expr> <s-tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
-          \ UltiSnips#CanJumpBackwards() ?
-          \ "\<c-r>=UltiSnips#JumpBackwards()\<cr>" : "\<s-tab>"
-
-    lnoremap <silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
-          \ delimitMate#WithinEmptyPair() ?
-          \ "\<c-r>=delimitMate#ExpandReturn()\<cr>" : "\<cr>"
-  endif
-endfunction
-
-function RimeKeymapClear()
-
-endfunction
-
-augroup RimeGroup
-  autocmd!
-  autocmd User RimeKeymapSetup call RimeKeymapRemap()
-  autocmd User RimeKeymapClear call RimeKeymapClear()
-augroup END
-```
-
-![demo3](https://github.com/user-attachments/assets/093e5089-0b8c-4528-854f-5d4aee85328d)
-
-如果你安装了 [jieba.vim](https://github.com/kkew3/jieba.vim)，还可以对 `<c-w>` 进行增强：
-
-```vim
-function RimeKeymapRemap()
-  lnoremap <silent><expr> <c-w> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
-        \ im#replace#can_restore() ? "\<cmd>call im#replace#ctrl_w()\<cr>" :
-        \ "<Plug>(Jieba_C_w)"
-endfunction
-
-function RimeKeymapClear()
-
-endfunction
-
-augroup RimeGroup
-  autocmd!
-  autocmd User RimeKeymapSetup call RimeKeymapRemap()
-  autocmd User RimeKeymapClear call RimeKeymapClear()
-augroup END
-
-```
-
 ### 定制中英切换与方案选单
 
 #### 方案选单
@@ -1184,6 +1108,219 @@ function! IMPairVim() abort
 endfunction
 ```
 
+### Context 自动切换
+
+根据光标所在的高亮（语法作用域）自动切换【Rime 接管】与【原生直通】模式。
+
+> [!note]
+>
+> - 仅在光标跨越高亮区域边界时才会触发切换判断
+> - 进入插入模式时强制校准一次；离开插入模式后状态复位；组词过程中不会切换
+> - 插入模式下用 `;;` 重启输入法时，同样会强制校准一次
+
+#### 配置
+
+```vim
+" 上下文自动切换总开关（默认关闭）
+let g:im_context_enabled = 1
+
+" '*' 为全局默认规则，具体 filetype 的配置优先级更高
+let g:im_context_config = {
+      \ '*':        {'mode': 'blacklist'},
+      \ 'vim':      {'mode': 'whitelist', 'ts': ['comment', 'string'], 'syntax': ['comment', 'string']},
+      \ 'markdown': {'mode': 'blacklist', 'syntax': ['math', 'code']},
+      \ }
+```
+
+- `mode` 为 `whitelist` 时，仅在列出的高亮区域内接管为 Rime，其余区域保持直通；为 `blacklist` 时反之。
+- `ts` 对应 treesitter capture 名称。
+- `syntax` 对应 vim syntax 高亮组名称。
+- `ts` 与 `syntax` 之间为「或」的关系，命中任一即生效；两者同时配置时 `ts` 优先级更高。
+
+#### 事件
+
+状态变化时会触发以下 `autocmd`，可用于联动第三方插件（如补全、AI 续写等）：
+
+| 事件                 | 触发时机                                          |
+| -------------------- | ------------------------------------------------- |
+| `RimeContextChinese` | 进入【Rime 接管】模式时触发，常用于关闭第三方补全 |
+| `RimeContextEnglish` | 回到【原生直通】模式时触发，常用于恢复第三方补全  |
+| `RimeContextChanged` | 接管状态发生变化时触发（不区分方向）              |
+
+```vim
+function! im#hooks#suppress_completion() abort
+  if exists('*coc#config')
+    call coc#config('suggest.autoTrigger', 'none')
+  endif
+  if exists(':Codeium')
+    Codeium Disable
+  endif
+  if exists('g:blink_cmp_enabled')
+    let g:blink_cmp_enabled = v:false
+  endif
+endfunction
+
+function! im#hooks#restore_completion() abort
+  if exists('*coc#config')
+    call coc#config('suggest.autoTrigger', 'always')
+  endif
+  if exists(':Codeium')
+    Codeium Enable
+  endif
+  if exists('g:blink_cmp_enabled')
+    let g:blink_cmp_enabled = v:true
+  endif
+endfunction
+
+augroup IMGroup
+  autocmd!
+  autocmd User RimeContextChinese  call im#hooks#suppress_completion()
+  autocmd User RimeContextEnglish call im#hooks#restore_completion()
+augroup END
+```
+
+#### 快捷键
+
+手动切换【Rime 接管】与【原生直通】模式：
+
+```vim
+inoremap <silent> ;u <cmd>call im#context#set('chinese')<cr>
+inoremap <silent> ;n <cmd>call im#context#set('english')<cr>
+inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
+```
+
+开关整个自动切换功能：
+
+```vim
+nnoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
+inoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
+```
+
+### Typeset 自动排版
+
+遵循 [中文文案排版指北](https://github.com/sparanoid/chinese-copywriting-guidelines)，自动规范中英文混排文本：中英文、数字之间自动补空格，全角 / 半角标点与字母数字自动归一，清理零宽字符与行尾空白，合并连续重复的标点符号。
+
+* **触发方式**：
+  - 手动执行 `:IMTypeset`
+  - 离开插入模式时自动触发（受 `g:im_typeset_insert_leave` 控制）
+  - 回车换行时格式化上一行（映射 `<Plug>(im-typeset-line)`）
+
+> [!Tip]
+> 本插件仅提供轻量、启发式的行内排版，不保证高精度结果；如需高精度排版推荐使用 autocorrect (https://github.com/huacnlee/autocorrect)。
+
+#### 配置
+
+```vim
+" 退出插入模式时自动格式化当前行，默认关闭（0）
+let g:im_typeset_insert_leave = 1
+
+let g:im_typeset_config = {
+      \ 'markdown': {
+      \   'syntax': ['link', 'code', 'math', 'table', 'bold', 'italic'],
+      \   'rules': im#typeset#rule#default_rules()
+      \     + [function('im#typeset#rule#markdown_space_at_bounds')]},
+      \ }
+
+" 例外词表：产品名等专有名词内部不受排版影响（默认为空）；保护机制详见下文 Note
+let g:im_typeset_ignore_words = ['豆瓣FM']
+```
+
+**配置字段：**
+
+* **`ts`**（`List`）：treesitter 节点类型子串（大小写不敏感），命中即视为保护区域
+* **`syntax`**（`List`）：高亮组名子串（大小写不敏感），命中即视为保护区域
+* **`rules`**(`List`）：格式化规则链，类型为 `Funcref(ctx, in) -> out`，按数组顺序依次执行
+  * **`ctx`**（`Dict`）：上下文信息，包含以下字段
+    * `filetype`：当前 buffer 的文件类型（`&filetype`）
+    * `bufnr`：当前 buffer 编号（`bufnr()`）
+    * `bufname`：当前 buffer 文件名（`bufname()`）
+    * `lnum`：当前行号
+    * `left_char`：当前片段左边界外的一个字符；若片段位于行首，则为 `''`
+    * `right_char`：当前片段右边界外的一个字符；若片段位于行尾，则为 `''`
+  * **`in`**(`String`）：待处理的文本片段，同时是上一条规则的输出。
+  * **`out`**(`String`)：已处理的文本片段，同时是下一条规则的输入
+
+
+**内置规则 API**（完整函数名为 `im#typeset#rule#<规则名>(ctx, s)`，下面只列出 `<规则名>` 部分）：
+
+* **`invisible_spaces`**：删零宽字符；行尾空白清理
+* **`halfwidth_word`**：全角字母数字 → 半角（含全角空格、数字间时间冒号）
+* **`fullwidth_punctuation`**：CJK 旁半角标点 → 全角（括号/书名号；`html` 跳过书名号）
+* **`halfwidth_punctuation`**：纯英文段全角标点 → 半角（`,;:!?` 后补空格；含 CJK 整段跳过）
+* **`no_space_fullwidth`**：宽字符之间删空格（含 ASCII 侧、全角引号；缩进保留）
+* **`space_word`**：段内 CJK ↔ 字母数字间补空格（含 `±n` 双向、`n%`、`C++`/`+`/`#` 后缀；`%s`/`$1`/`\d` 占位符不碰）
+* **`space_bracket`**：段内 CJK ↔ 半角 `[]()` 间补空格（拉丁侧不动；`{}` 不管）
+* **`space_punctuation`**：`!` + CJK 间补空格
+* **`space_pipe_plus`**：段内 CJK/引号旁 `|`/`+` 两侧补空格（`3+5`/`C++`/行首 `+` 不动）
+* **`space_backticks`**：段内 CJK ↔ 整对行内代码补空格（孤反引号/围栏不动；跨保护区接缝由 `markdown_space_at_bounds` 处理）
+* **`space_dash`**：段内 CJK/引号/括号间 `-` 两侧补空格（`3-5` / `e-mail` 等不动）
+* **`space_dollar`**：段内 CJK 旁 `$` 两侧补空格
+* **`repeated_punct`**：叠标归一（`。。。` → `······`，`！？` 至多连 3）
+* **`markdown_space_at_bounds`**：仅 markdown，正文与行内代码/公式/链接接缝处补空格
+
+```vim
+function! im#typeset#rule#default_rules() abort
+  return [
+        \ function('im#typeset#rule#invisible_spaces'),
+        \ function('im#typeset#rule#space_word'),
+        \ function('im#typeset#rule#space_punctuation'),
+        \ function('im#typeset#rule#space_bracket'),
+        \ function('im#typeset#rule#fullwidth_punctuation'),
+        \ function('im#typeset#rule#halfwidth_word'),
+        \ function('im#typeset#rule#halfwidth_punctuation'),
+        \ function('im#typeset#rule#no_space_fullwidth'),
+        \ function('im#typeset#rule#repeated_punct'),
+        \ ]
+endfunction
+```
+
+#### 命令
+
+| 命令                | 说明             |
+| ------------------- | ---------------- |
+| `:IMTypeset`        | 格式化当前行     |
+| `:{range}IMTypeset` | 格式化指定行范围 |
+
+#### 按键映射
+
+```vim
+nnoremap <silent> ;t <cmd>IMTypeset<cr>
+xnoremap <silent> ;t :IMTypeset<cr>
+```
+
+绑定 `<Plug>(im-typeset-line)`，使回车键在换行的同时自动排版当前行。
+
+```vim
+function RimePairImapRemap()
+  inoremap <buffer><expr> <cr> luaeval("require('blink.cmp').is_menu_visible()") && luaeval("require('blink.cmp').get_selected_item() ~= nil") ?
+          \ "\<cmd>lua require('blink.cmp').accept()\<cr>"
+          \ : pumvisible() && complete_info()['selected'] != -1 ? "\<c-y>"
+          \ : im#pair#should_cr() ? im#pair#cr() : "\<Plug>(im-typeset-line)\<cr>"
+endfunction
+
+function RimePairImapRestore()
+  inoremap <silent><expr> <cr> luaeval("require('blink.cmp').is_menu_visible()") && luaeval("require('blink.cmp').get_selected_item() ~= nil") ?
+        \ "\<cmd>lua require('blink.cmp').accept()\<cr>"
+        \ : pumvisible() && complete_info()['selected'] != -1 ?
+        \ "\<c-y>" : "\<cr>"
+endfunction
+
+function RimeKeymapRemap()
+  lnoremap <silent><expr> <cr> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>"
+          \ : im#pair#should_cr() ? im#pair#cr() : "\<Plug>(im-typeset-line)\<cr>"
+
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimePairImapSetup call RimePairImapRemap()
+  autocmd User RimePairImapRestore call RimePairImapRestore()
+augroup END
+
+```
+
 ### Surround 包围编辑
 
 为选区、文本对象或整行**添加、删除、替换**成对分隔符（括号、引号、HTML 标签、函数调用等），并额外支持全角符号。
@@ -1441,216 +1578,78 @@ function! IMSurroundMarkdown() abort
 endfunction
 ````
 
-### Context 自动切换
+### Extend 外部集成
 
-根据光标所在的高亮（语法作用域）自动切换【Rime 接管】与【原生直通】模式。
-
-> [!note]
->
-> - 仅在光标跨越高亮区域边界时才会触发切换判断
-> - 进入插入模式时强制校准一次；离开插入模式后状态复位；组词过程中不会切换
-> - 插入模式下用 `;;` 重启输入法时，同样会强制校准一次
-
-#### 配置
+如果你安装了 [ultisnips](https://github.com/SirVer/ultisnips) 和 [bullets.vim](https://github.com/bullets-vim/bullets.vim)，可以这样配置：
 
 ```vim
-" 上下文自动切换总开关（默认关闭）
-let g:im_context_enabled = 1
-
-" '*' 为全局默认规则，具体 filetype 的配置优先级更高
-let g:im_context_config = {
-      \ '*':        {'mode': 'blacklist'},
-      \ 'vim':      {'mode': 'whitelist', 'ts': ['comment', 'string'], 'syntax': ['comment', 'string']},
-      \ 'markdown': {'mode': 'blacklist', 'syntax': ['math', 'code']},
-      \ }
-```
-
-- `mode` 为 `whitelist` 时，仅在列出的高亮区域内接管为 Rime，其余区域保持直通；为 `blacklist` 时反之。
-- `ts` 对应 treesitter capture 名称。
-- `syntax` 对应 vim syntax 高亮组名称。
-- `ts` 与 `syntax` 之间为「或」的关系，命中任一即生效；两者同时配置时 `ts` 优先级更高。
-
-#### 事件
-
-状态变化时会触发以下 `autocmd`，可用于联动第三方插件（如补全、AI 续写等）：
-
-| 事件                 | 触发时机                                          |
-| -------------------- | ------------------------------------------------- |
-| `RimeContextChinese` | 进入【Rime 接管】模式时触发，常用于关闭第三方补全 |
-| `RimeContextEnglish` | 回到【原生直通】模式时触发，常用于恢复第三方补全  |
-| `RimeContextChanged` | 接管状态发生变化时触发（不区分方向）              |
-
-```vim
-function! im#hooks#suppress_completion() abort
-  if exists('*coc#config')
-    call coc#config('suggest.autoTrigger', 'none')
-  endif
-  if exists(':Codeium')
-    Codeium Disable
-  endif
-  if exists('g:blink_cmp_enabled')
-    let g:blink_cmp_enabled = v:false
-  endif
-endfunction
-
-function! im#hooks#restore_completion() abort
-  if exists('*coc#config')
-    call coc#config('suggest.autoTrigger', 'always')
-  endif
-  if exists(':Codeium')
-    Codeium Enable
-  endif
-  if exists('g:blink_cmp_enabled')
-    let g:blink_cmp_enabled = v:true
-  endif
-endfunction
-
-augroup IMGroup
-  autocmd!
-  autocmd User RimeContextChinese  call im#hooks#suppress_completion()
-  autocmd User RimeContextEnglish call im#hooks#restore_completion()
-augroup END
-```
-
-#### 快捷键
-
-手动切换【Rime 接管】与【原生直通】模式：
-
-```vim
-inoremap <silent> ;u <cmd>call im#context#set('chinese')<cr>
-inoremap <silent> ;n <cmd>call im#context#set('english')<cr>
-inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
-```
-
-开关整个自动切换功能：
-
-```vim
-nnoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
-inoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
-```
-
-### Typeset 自动排版
-
-遵循 [中文文案排版指北](https://github.com/sparanoid/chinese-copywriting-guidelines)，自动规范中英文混排文本：中英文、数字之间自动补空格，全角 / 半角标点与字母数字自动归一，清理零宽字符与行尾空白，合并连续重复的标点符号。
-
-* **触发方式**：
-  - 手动执行 `:IMTypeset`
-  - 离开插入模式时自动触发（受 `g:im_typeset_insert_leave` 控制）
-  - 回车换行时格式化上一行（映射 `<Plug>(im-typeset-line)`）
-  - 回车换行时格式化上一行，忽略 ts 和 syntax（映射 `<Plug>(im-typeset-line-force)`)
-
-#### 配置
-
-```vim
-" 退出插入模式时自动格式化当前行，默认关闭（0）
-let g:im_typeset_insert_leave = 1
-
-let g:im_typeset_config = {
-      \ 'markdown': {
-      \   'syntax': ['link', 'code', 'math', 'table', 'bold', 'italic'],
-      \   'rules': im#typeset#rule#default_rules()
-      \     + [function('im#typeset#rule#markdown_space_at_bounds')]},
-      \ }
-
-" 例外词表：产品名等专有名词内部不插入空格（默认为空，即不设任何例外）
-let g:im_typeset_ignore_words = ['豆瓣FM']
-```
-
-**配置字段：**
-
-* **`ts`**（`List`）：treesitter 节点类型子串（大小写不敏感），命中即视为保护区域
-* **`syntax`**（`List`）：高亮组名子串（大小写不敏感），命中即视为保护区域
-* **`rules`**(`List`）：格式化规则链，类型为 `Funcref(ctx, in) -> out`，按数组顺序依次执行
-  * **`ctx`**（`Dict`）：上下文信息，包含以下字段
-    * `filetype`：当前 buffer 的文件类型（`&filetype`）
-    * `bufnr`：当前 buffer 编号（`bufnr()`）
-    * `bufname`：当前 buffer 文件名（`bufname()`）
-    * `lnum`：当前行号
-    * `left_char`：当前片段左边界外的一个字符；若片段位于行首，则为 `''`
-    * `right_char`：当前片段右边界外的一个字符；若片段位于行尾，则为 `''`
-  * **`in`**(`String`）：待处理的文本片段，同时是上一条规则的输出。
-  * **`out`**(`String`)：已处理的文本片段，同时是下一条规则的输入
-* **`rules_force`**(`List`）：格式化规则链，忽略 ts 和 syntax；不配则沿用 `rules`.
-
-**内置规则 API**（完整函数名为 `im#typeset#rule#<规则名>(ctx, s)`，下面只列出 `<规则名>` 部分）：
-
-* **`invisible_spaces`**：删零宽字符；行尾空白清理
-* **`halfwidth_word`**：全角字母数字 → 半角
-* **`fullwidth_punctuation`**：CJK 旁半角标点 → 全角（括号/书名号；`html` 跳过书名号）
-* **`halfwidth_punctuation`**：纯英文段全角标点 → 半角（`,;:!?` 后补空格；含 CJK 整段跳过）
-* **`no_space_fullwidth`**：宽字符之间删空格（含 ASCII 侧、全角引号；缩进保留）
-* **`space_word`**：段内 CJK ↔ 字母数字间补空格
-* **`space_bracket`**：段内 CJK ↔ 半角 `[]()` 间补空格（拉丁侧不动；`{}` 不管）
-* **`space_number_affix`**：符号数字（`±n` 双向）、`n%`、后缀（`C++`/`+`/`#`）后 CJK 补空格
-* **`space_punctuation`**：`!` + CJK 间补空格
-* **`repeated_punct`**：叠标归一（`。。。` → `······`，`！？` 至多连 3）
-* **`markdown_space_at_bounds`**：仅 markdown，正文与行内代码/公式/链接接缝处补空格
-
-```vim
-function! im#typeset#rule#default_rules() abort
-  return [
-        \ function('im#typeset#rule#invisible_spaces'),
-        \ function('im#typeset#rule#halfwidth_word'),
-        \ function('im#typeset#rule#fullwidth_punctuation'),
-        \ function('im#typeset#rule#halfwidth_punctuation'),
-        \ function('im#typeset#rule#no_space_fullwidth'),
-        \ function('im#typeset#rule#space_word'),
-        \ function('im#typeset#rule#space_bracket'),
-        \ function('im#typeset#rule#space_number_affix'),
-        \ function('im#typeset#rule#space_punctuation'),
-        \ function('im#typeset#rule#repeated_punct'),
-        \ ]
-endfunction
-```
-
-#### 命令
-
-| 命令                     | 说明                                              |
-| ------------------------ | ------------------------------------------------- |
-| `:IMTypeset`             | 格式化当前行                                      |
-| `:IMTypesetForce`        | 格式化当前行（忽略 `ts` 和 `syntax` 保护规则)     |
-| `:{range}IMTypeset`      | 格式化指定行范围                                  |
-| `:{range}IMTypesetForce` | 格式化指定行范围（忽略 `ts` 和 `syntax` 保护规则) |
-
-#### 按键映射
-
-```vim
-nnoremap <silent> ;t <cmd>IMTypeset<cr>
-nnoremap <silent> ;T <cmd>IMTypesetForce<cr>
-xnoremap <silent> ;t :IMTypeset<cr>
-xnoremap <silent> ;T :IMTypesetForce<cr>
-```
-
-绑定 `<Plug>(im-typeset-line)`，使回车键在换行的同时自动排版当前行。
-绑定 `<Plug>(im-typeset-line-force)`，使回车键在换行的同时自动排版当前行，忽略 ts 和 syntax。
-
-```vim
-function RimePairImapRemap()
-  inoremap <buffer><expr> <cr> luaeval("require('blink.cmp').is_menu_visible()") && luaeval("require('blink.cmp').get_selected_item() ~= nil") ?
-          \ "\<cmd>lua require('blink.cmp').accept()\<cr>"
-          \ : pumvisible() && complete_info()['selected'] != -1 ? "\<c-y>"
-          \ : im#pair#should_cr() ? im#pair#cr() : "\<Plug>(im-typeset-line)\<cr>"
-endfunction
-
-function RimePairImapRestore()
-  inoremap <silent><expr> <cr> luaeval("require('blink.cmp').is_menu_visible()") && luaeval("require('blink.cmp').get_selected_item() ~= nil") ?
-        \ "\<cmd>lua require('blink.cmp').accept()\<cr>"
-        \ : pumvisible() && complete_info()['selected'] != -1 ?
-        \ "\<c-y>" : "\<cr>"
-endfunction
-
 function RimeKeymapRemap()
-  lnoremap <silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>"
-          \ : im#pair#should_cr() ? im#pair#cr() : "\<Plug>(im-typeset-line)\<cr>"
+  if &filetype ==# 'markdown'
+    lnoremap <silent><expr> <tab> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
+          \ UltiSnips#CanJumpForwards() ?
+          \"\<c-r>=UltiSnips#JumpForwards()\<cr>" :  bullet#is_bullet() ?
+          \ "\<C-o>\<Plug>(bullets-demote)\<C-o>$" :  "\<tab>"
+
+    lnoremap <silent><expr> <s-tab> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
+          \ UltiSnips#CanJumpBackwards() ?
+          \ "\<c-r>=UltiSnips#JumpBackwards()\<cr>" : bullet#is_bullet()?
+          \ "\<C-o>\<Plug>(bullets-promote)\<C-o>$" : "\<s-tab>"
+
+    lnoremap <silent><expr> <cr> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
+          \ delimitMate#WithinEmptyPair() ?
+          \ "\<c-r>=delimitMate#ExpandReturn()\<cr>" : "\<Plug>(bullets-newline)"
+  else
+    lnoremap <silent><expr> <tab> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
+          \ UltiSnips#CanJumpForwards() ?
+          \"\<c-r>=UltiSnips#JumpForwards()\<cr>" : "\<tab>"
+
+    lnoremap <silent><expr> <s-tab> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
+          \ UltiSnips#CanJumpBackwards() ?
+          \ "\<c-r>=UltiSnips#JumpBackwards()\<cr>" : "\<s-tab>"
+
+    lnoremap <silent><expr> <cr> im#state#composing() ?
+          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
+          \ delimitMate#WithinEmptyPair() ?
+          \ "\<c-r>=delimitMate#ExpandReturn()\<cr>" : "\<cr>"
+  endif
+endfunction
+
+function RimeKeymapClear()
 
 endfunction
 
 augroup RimeGroup
   autocmd!
   autocmd User RimeKeymapSetup call RimeKeymapRemap()
-  autocmd User RimePairImapSetup call RimePairImapRemap()
-  autocmd User RimePairImapRestore call RimePairImapRestore()
+  autocmd User RimeKeymapClear call RimeKeymapClear()
+augroup END
+```
+
+![demo3](https://github.com/user-attachments/assets/093e5089-0b8c-4528-854f-5d4aee85328d)
+
+如果你安装了 [jieba.vim](https://github.com/kkew3/jieba.vim)，还可以对 `<c-w>` 进行增强：
+
+```vim
+function RimeKeymapRemap()
+  lnoremap <silent><expr> <c-w> im#state#composing() ?
+        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
+        \ im#replace#can_restore() ? "\<cmd>call im#replace#ctrl_w()\<cr>" :
+        \ "<Plug>(Jieba_C_w)"
+endfunction
+
+function RimeKeymapClear()
+
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimeKeymapClear call RimeKeymapClear()
 augroup END
 
 ```
