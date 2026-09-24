@@ -1206,7 +1206,7 @@ inoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
   - 回车换行时格式化上一行（映射 `<Plug>(im-typeset-line)`）
 
 > [!Tip]
-> 本插件仅提供轻量、启发式的行内排版，不保证高精度结果；如需高精度排版推荐使用 autocorrect (https://github.com/huacnlee/autocorrect)。
+> 本插件仅提供轻量、启发式的行内排版，不保证高精度结果；如需高精度排版推荐使用 [autocorrect](https://github.com/huacnlee/autocorrect)。
 
 #### 配置
 
