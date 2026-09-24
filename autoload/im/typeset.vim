@@ -280,6 +280,9 @@ function! s:restore_cursor(lnum, at_eol, cidx) abort"{{{
 endfunction"}}}
 
 function! im#typeset#line() abort"{{{
+  if !get(g:, 'im_typeset_enabled', 0)
+    return 0
+  endif
   let entry = im#typeset#config()
   if empty(entry)
     return 0
@@ -335,6 +338,12 @@ function! im#typeset#buffer() abort"{{{
   return im#typeset#range(1, line('$'))
 endfunction"}}}
 
+function! im#typeset#toggle() abort"{{{
+  let g:im_typeset_enabled = !get(g:, 'im_typeset_enabled', 0)
+  echom '[IM] typeset ' . (g:im_typeset_enabled ? 'on' : 'off')
+  return g:im_typeset_enabled ? 1 : 0
+endfunction"}}}
+
 function! im#typeset#on_insert_leave() abort"{{{
   if !get(g:, 'im_typeset_insert_leave', 0)
     return 0
@@ -349,6 +358,9 @@ function! im#typeset#on_insert_leave() abort"{{{
 endfunction"}}}
 
 function! im#typeset#on_save() abort"{{{
+  if !get(g:, 'im_typeset_enabled', 0)
+    return 0
+  endif
   if !im#typeset#is_enabled()
     return 0
   endif

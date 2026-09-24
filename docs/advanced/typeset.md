@@ -10,9 +10,9 @@ description: 中英文混排自动规范
 遵循 [中文文案排版指北](https://github.com/sparanoid/chinese-copywriting-guidelines)，自动规范中英文混排文本：中英文、数字之间自动补空格，全角 / 半角标点与字母数字自动归一，清理零宽字符与行尾空白，合并连续重复的标点符号。
 
 * **触发方式**：
-  - 手动执行 `:IMTypeset`
-  - 离开插入模式时自动触发（受 `g:im_typeset_insert_leave` 控制）
-  - 回车换行时格式化上一行（映射 `<Plug>(im-typeset-line)`）
+  - 手动执行 `:IMTypeset`（不受总开关影响）
+  - 离开插入模式时自动触发（受 `g:im_typeset_enabled` 总开关与 `g:im_typeset_insert_leave` 控制）
+  - 回车换行时格式化上一行（映射 `<Plug>(im-typeset-line)`，受总开关控制）
 
 ::: tip
 本插件仅提供轻量、启发式的行内排版，不保证高精度结果；如需高精度排版推荐使用 [autocorrect](https://github.com/huacnlee/autocorrect)。
@@ -21,6 +21,10 @@ description: 中英文混排自动规范
 ## 配置
 
 ```vim
+" 自动排版总开关，默认关闭（0）；门控自动触发及回车映射，
+" 只有手动 :IMTypeset 不受影响
+let g:im_typeset_enabled = 1
+
 " 退出插入模式时自动格式化当前行，默认关闭（0）
 let g:im_typeset_insert_leave = 1
 
@@ -96,6 +100,10 @@ endfunction
 ```vim
 nnoremap <silent> ;t <cmd>IMTypeset<cr>
 xnoremap <silent> ;t :IMTypeset<cr>
+
+" 开关自动排版总闸
+nnoremap <silent> ;T <cmd>call im#typeset#toggle()<cr>
+inoremap <silent> ;T <cmd>call im#typeset#toggle()<cr>
 ```
 
 绑定 `<Plug>(im-typeset-line)`，使回车键在换行的同时自动排版当前行。
