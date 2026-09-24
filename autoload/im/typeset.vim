@@ -24,11 +24,7 @@ function! im#typeset#config() abort"{{{
   if type(rules) != v:t_list
     let rules = []
   endif
-  let rules_force = get(raw, 'rules_force', [])
-  if type(rules_force) != v:t_list || empty(rules_force)
-    let rules_force = rules
-  endif
-  if empty(rules) && empty(rules_force)
+  if empty(rules)
     return {}
   endif
   let ts = []
@@ -43,7 +39,7 @@ function! im#typeset#config() abort"{{{
       call add(syntax, tolower(pat))
     endif
   endfor
-  return {'ts': ts, 'syntax': syntax, 'rules': rules, 'rules_force': rules_force}
+  return {'ts': ts, 'syntax': syntax, 'rules': rules}
 endfunction"}}}
 
 function! im#typeset#is_enabled() abort"{{{
@@ -61,10 +57,6 @@ function! im#typeset#is_enabled() abort"{{{
   endif
   let rules = get(raw, 'rules', [])
   return type(rules) == v:t_list && !empty(rules)
-endfunction"}}}
-
-function! im#typeset#is_enabled_force() abort"{{{
-  return !empty(get(im#typeset#config(), 'rules_force', []))
 endfunction"}}}
 
 function! s:ts_map(bufnr, l1, l2, pats) abort"{{{
@@ -147,6 +139,15 @@ function! s:invert(len, merged) abort"{{{
   return out
 endfunction"}}}
 
+function! s:valid_ignore_words() abort"{{{
+  let words = get(g:, 'im_typeset_ignore_words', [])
+  if type(words) != v:t_list || empty(words)
+    return []
+  endif
+  return filter(copy(words),
+        \ 'type(v:val) == v:t_string && v:val !=# "" && strchars(v:val) > 1')
+endfunction"}}}
+
 function! im#typeset#apply_chain(text, ctx, rules) abort"{{{
   if empty(a:rules)
     return a:text
@@ -163,6 +164,14 @@ function! im#typeset#apply_chain(text, ctx, rules) abort"{{{
     if type(s) != v:t_string
       let s = a:text
       break
+    endif
+  endfor
+  for w in s:valid_ignore_words()
+    if stridx(a:text, w) >= 0
+      let flat = substitute(s, ' ', '', 'g')
+      if stridx(flat, substitute(w, ' ', '', 'g')) < 0
+        return a:text
+      endif
     endif
   endfor
   return s
@@ -247,23 +256,6 @@ function! s:format_line(lnum, tsmap, entry) abort"{{{
   return 1
 endfunction"}}}
 
-function! s:format_line_force(lnum, entry) abort"{{{
-  if empty(a:entry)
-    return 0
-  endif
-  let line = getline(a:lnum)
-  if line ==# ''
-    return 0
-  endif
-  let ctx = s:base_ctx(a:lnum)
-  let new = im#typeset#apply_chain(line, ctx, a:entry.rules_force)
-  if new ==# line
-    return 0
-  endif
-  call setline(a:lnum, new)
-  return 1
-endfunction"}}}
-
 function! s:snapshot_cursor(line) abort"{{{
   let at_eol = col('.') > strlen(a:line)
   let cidx = charidx(a:line, col('.') - 1)
@@ -303,21 +295,6 @@ function! im#typeset#line() abort"{{{
   return changed
 endfunction"}}}
 
-function! im#typeset#line_force() abort"{{{
-  let entry = im#typeset#config()
-  if empty(entry)
-    return 0
-  endif
-  let lnum = line('.')
-  let line = getline(lnum)
-  let [at_eol, cidx] = s:snapshot_cursor(line)
-  let changed = s:format_line_force(lnum, entry)
-  if changed
-    call s:restore_cursor(lnum, at_eol, cidx)
-  endif
-  return changed
-endfunction"}}}
-
 function! im#typeset#range(l1, l2) abort"{{{
   let entry = im#typeset#config()
   if empty(entry)
@@ -339,41 +316,6 @@ function! im#typeset#range(l1, l2) abort"{{{
     let lnum = l1
     while lnum <= l2
       let n += s:format_line(lnum, tsmap, entry)
-      let lnum += 1
-    endwhile
-  finally
-    let &regexpengine = save_re
-    if save_gd
-      set gdefault
-    endif
-    call setpos('.', save_pos)
-    if col('.') > strlen(getline('.')) + 1
-      call cursor(line('.'), strlen(getline('.')) + 1)
-    endif
-  endtry
-  return n
-endfunction"}}}
-
-function! im#typeset#range_force(l1, l2) abort"{{{
-  let entry = im#typeset#config()
-  if empty(entry)
-    return 0
-  endif
-  let l1 = max([1, a:l1])
-  let l2 = min([line('$'), a:l2])
-  if l1 > l2
-    let [l1, l2] = [l2, l1]
-  endif
-  let save_re = &regexpengine
-  let save_gd = &gdefault
-  let save_pos = getpos('.')
-  let &regexpengine = 2
-  set nogdefault
-  try
-    let n = 0
-    let lnum = l1
-    while lnum <= l2
-      let n += s:format_line_force(lnum, entry)
       let lnum += 1
     endwhile
   finally

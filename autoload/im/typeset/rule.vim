@@ -15,37 +15,6 @@ function! s:is_alnum(ch) abort"{{{
   return a:ch !=# '' && a:ch =~# '^[A-Za-z0-9]$'
 endfunction"}}}
 
-function! s:protect_ignored(s) abort"{{{
-  let words = get(g:, 'im_typeset_ignore_words', [])
-  let words = type(words) == v:t_list ? words : []
-  if empty(words)
-    return [a:s, []]
-  endif
-  let s = a:s
-  let saved = []
-  let i = 0
-  for w in words
-    if type(w) != v:t_string || w ==# '' || strchars(w) <= 1 || stridx(s, w) < 0
-      continue
-    endif
-    " 单字无内部可冻，已在上行守卫跳过；首尾字保留作边界判定，内部用占位符冻结
-    let proxy = strcharpart(w, 0, 1) . "\x01" . i . "\x02"
-            \ . strcharpart(w, strchars(w) - 1, 1)
-    call add(saved, [proxy, w])
-    let s = substitute(s, '\V' . escape(w, '\'), escape(proxy, '\&'), 'g')
-    let i += 1
-  endfor
-  return [s, saved]
-endfunction"}}}
-
-function! s:restore_ignored(s, saved) abort"{{{
-  let s = a:s
-  for [proxy, w] in a:saved
-    let s = substitute(s, '\V' . escape(proxy, '\'), escape(w, '\&'), 'g')
-  endfor
-  return s
-endfunction"}}}
-
 function! im#typeset#rule#invisible_spaces(ctx, s) abort"{{{
   let s = a:s
   let s = substitute(s, '[\u200b\u200c\u200d\u202c\u2060\u2061\u2062\u2063\u2064\ufeff]', '', 'g')
@@ -56,8 +25,11 @@ function! im#typeset#rule#invisible_spaces(ctx, s) abort"{{{
 endfunction"}}}
 
 function! im#typeset#rule#halfwidth_word(ctx, s) abort"{{{
-  return substitute(a:s, '[Ａ-Ｚａ-ｚ０-９]',
+  let s = substitute(a:s, '[Ａ-Ｚａ-ｚ０-９]',
         \ '\=nr2char(char2nr(submatch(0)) - 65248)', 'g')
+  let s = substitute(s, '　', ' ', 'g')
+  let s = substitute(s, '\([0-9]\)：\([0-9]\)', '\1:\2', 'g')
+  return s
 endfunction"}}}
 
 function! s:fullwidth_special(s, C, hw, fw) abort"{{{
@@ -124,37 +96,64 @@ function! im#typeset#rule#no_space_fullwidth(ctx, s) abort"{{{
 endfunction"}}}
 
 function! im#typeset#rule#space_word(ctx, s) abort"{{{
-  let [s, saved] = s:protect_ignored(a:s)
+  let s = a:s
   let C = '[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]'
-  let A = '[A-Za-z0-9]'
+  let A = '[A-Za-z0-9Ａ-Ｚａ-ｚ０-９]'
   let s = substitute(s, '\(' . C . '\)\(' . A . '\)', '\1 \2', 'g')
-  let s = substitute(s, '\(' . A . '\)\(' . C . '\)', '\1 \2', 'g')
-  return s:restore_ignored(s, saved)
+  let s = substitute(s, '\%([%$\\]\)\@<!\([A-Za-z0-9Ａ-Ｚａ-ｚ０-９]\)\(' . C . '\)', '\1 \2', 'g')
+  let s = substitute(s, '\(' . C . '\)\([+-][0-9０-９]\+\)', '\1 \2', 'g')
+  let s = substitute(s, '\([0-9０-９]%\)\(' . C . '\)', '\1 \2', 'g')
+  let s = substitute(s, '\([A-Za-z0-9Ａ-Ｚａ-ｚ０-９][+#]\+\)\(' . C . '\)', '\1 \2', 'g')
+  return s
 endfunction"}}}
 
 function! im#typeset#rule#space_bracket(ctx, s) abort"{{{
-  let [s, saved] = s:protect_ignored(a:s)
+  let s = a:s
   let C = '[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]'
   let s = substitute(s, '\(' . C . '\)\([(\[]\)', '\1 \2', 'g')
   let s = substitute(s, '\([)\]]\)\(' . C . '\)', '\1 \2', 'g')
-  return s:restore_ignored(s, saved)
-endfunction"}}}
-
-function! im#typeset#rule#space_number_affix(ctx, s) abort"{{{
-  let [s, saved] = s:protect_ignored(a:s)
-  let C = '[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]'
-  let s = substitute(s, '\(' . C . '\)\([+-][0-9]\+\)', '\1 \2', 'g')
-  let s = substitute(s, '\([+-][0-9]\+\)\(' . C . '\)', '\1 \2', 'g')
-  let s = substitute(s, '\([0-9]%\)\(' . C . '\)', '\1 \2', 'g')
-  let s = substitute(s, '\([A-Za-z0-9][+#]\+\)\(' . C . '\)', '\1 \2', 'g')
-  return s:restore_ignored(s, saved)
+  return s
 endfunction"}}}
 
 function! im#typeset#rule#space_punctuation(ctx, s) abort"{{{
-  let [s, saved] = s:protect_ignored(a:s)
+  let s = a:s
   let C = '[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]'
   let s = substitute(s, '\(!\)\(' . C . '\)', '\1 \2', 'g')
-  return s:restore_ignored(s, saved)
+  return s
+endfunction"}}}
+
+function! im#typeset#rule#space_pipe_plus(ctx, s) abort"{{{
+  let s = a:s
+  let C = '[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]'
+  let R = C[1:-2]
+  let s = substitute(s, '\([' . R . '”’]\)\s*\([|+]\)', '\1 \2', 'g')
+  let s = substitute(s, '\([' . R . ' ）】」”’》][|+]\)\s*\([' . R . '“‘]\)', '\1 \2', 'g')
+  return s
+endfunction"}}}
+
+function! im#typeset#rule#space_backticks(ctx, s) abort"{{{
+  let s = a:s
+  let C = '[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]'
+  let s = substitute(s, '\(' . C . '\)\s*\(`[^`]\+`\)', '\1 \2', 'g')
+  let s = substitute(s, '\(`[^`]\+`\)\s*\(' . C . '\)', '\1 \2', 'g')
+  return s
+endfunction"}}}
+
+function! im#typeset#rule#space_dash(ctx, s) abort"{{{
+  let s = a:s
+  let C = '[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]'
+  let R = C[1:-2]
+  let s = substitute(s, '\([' . R . '”’]\)\s*-\s*\([' . R . '（【「《“‘]\)', '\1 - \2', 'g')
+  let s = substitute(s, '\([）】」”’》]\)\s*-\s*\([' . R . '“‘]\)', '\1- \2', 'g')
+  return s
+endfunction"}}}
+
+function! im#typeset#rule#space_dollar(ctx, s) abort"{{{
+  let s = a:s
+  let C = '[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]'
+  let s = substitute(s, '\(' . C . '\)\s*\$', '\1 $', 'g')
+  let s = substitute(s, '\$\s*\(' . C . '\)', '$ \1', 'g')
+  return s
 endfunction"}}}
 
 function! im#typeset#rule#repeated_punct(ctx, s) abort"{{{
@@ -188,14 +187,13 @@ endfunction"}}}
 function! im#typeset#rule#default_rules() abort"{{{
   return [
         \ function('im#typeset#rule#invisible_spaces'),
-        \ function('im#typeset#rule#halfwidth_word'),
+        \ function('im#typeset#rule#space_word'),
+        \ function('im#typeset#rule#space_punctuation'),
+        \ function('im#typeset#rule#space_bracket'),
         \ function('im#typeset#rule#fullwidth_punctuation'),
+        \ function('im#typeset#rule#halfwidth_word'),
         \ function('im#typeset#rule#halfwidth_punctuation'),
         \ function('im#typeset#rule#no_space_fullwidth'),
-        \ function('im#typeset#rule#space_word'),
-        \ function('im#typeset#rule#space_bracket'),
-        \ function('im#typeset#rule#space_number_affix'),
-        \ function('im#typeset#rule#space_punctuation'),
         \ function('im#typeset#rule#repeated_punct'),
         \ ]
 endfunction"}}}
