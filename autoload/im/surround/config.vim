@@ -13,6 +13,7 @@ let s:default_surrounds = [
       \ {'key': 't',  'add': function('im#surround#add#tag'),     'find': function('im#surround#find#tag'),       'replace': function('im#surround#change#tag')},
       \ {'key': 'T',  'add': function('im#surround#add#tag'),     'find': function('im#surround#find#tag'),       'replace': function('im#surround#change#tag_full')},
       \ {'key': 'f',  'add': function('im#surround#add#func'),    'find': function('im#surround#find#func'),      'replace': function('im#surround#change#func')},
+      \ {'key': 'a',  'find': function('im#surround#find#auto')},
       \ {'key': 'i',  'add': function('im#surround#add#input')},
       \ {'key': '‘', 'add': ['‘', '’'], 'find': function('im#surround#find#matchpair')},
       \ {'key': '’', 'add': ['‘', '’'], 'find': function('im#surround#find#matchpair')},

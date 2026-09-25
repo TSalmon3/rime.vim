@@ -622,6 +622,10 @@ function! s:key_config() abort"{{{
         \ ['x', s:opt('visual_linewise_key', 'gS'),    '<Plug>(im-surround-visual-linewise)'],
         \ ['i', s:opt('insert_key', '<c-g>s'),         '<Plug>(im-surround-insert)'],
         \ ['i', s:opt('insert_linewise_key', '<c-g>S'),'<Plug>(im-surround-insert-linewise)'],
+        \ ['x', s:opt('ib_key', 'ib'),                   '<Plug>(im-surround-ib)'],
+        \ ['o', s:opt('ib_key', 'ib'),                   '<Plug>(im-surround-ib)'],
+        \ ['x', s:opt('ab_key', 'ab'),                   '<Plug>(im-surround-ab)'],
+        \ ['o', s:opt('ab_key', 'ab'),                   '<Plug>(im-surround-ab)'],
         \ ]
 endfunction"}}}
 
@@ -649,6 +653,10 @@ function! s:define_plugs() abort"{{{
   xnoremap <silent> <Plug>(im-surround-visual-linewise)           :<C-u>call im#surround#visual(1, v:count1)<CR>
   inoremap <silent> <Plug>(im-surround-insert)                    <Cmd>call im#surround#insert(0)<CR>
   inoremap <silent> <Plug>(im-surround-insert-linewise)           <Cmd>call im#surround#insert(1)<CR>
+  xnoremap <silent> <Plug>(im-surround-ib)                        :<C-u>call im#surround#textobj#auto(1)<CR>
+  xnoremap <silent> <Plug>(im-surround-ab)                        :<C-u>call im#surround#textobj#auto(0)<CR>
+  onoremap <silent> <Plug>(im-surround-ib)                        :<C-u>call im#surround#textobj#auto(1)<CR>
+  onoremap <silent> <Plug>(im-surround-ab)                        :<C-u>call im#surround#textobj#auto(0)<CR>
 endfunction"}}}
 
 function! s:restore_map(mode, key, mdict) abort"{{{

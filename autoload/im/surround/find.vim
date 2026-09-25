@@ -8,6 +8,10 @@ function! s:finish(first, last, open_len, close_len) abort"{{{
   return s:pos_le(a:first, pos) && s:pos_le(pos, a:last) ? t : {}
 endfunction"}}}
 
+function! s:inside(pos, t) abort"{{{
+  return s:pos_le(a:t.first_pos, a:pos) && s:pos_le(a:pos, a:t.last_pos)
+endfunction"}}}
+
 function! s:mp_parse_pair(raw_add) abort"{{{
   if type(a:raw_add) != v:t_list || len(a:raw_add) != 2
     return []
@@ -77,19 +81,6 @@ function! s:mp_step_before(open_pos) abort"{{{
     endif
     return 0
   endif
-function! s:mp_step_before(open_pos) abort"{{{
-  call cursor(a:open_pos[0], a:open_pos[1])
-  let before = getpos('.')[1:2]
-  silent! normal! h
-  if getpos('.')[1:2] == before
-    if a:open_pos[0] > 1
-      call cursor(a:open_pos[0] - 1, col([a:open_pos[0] - 1, '$']))
-      return 1
-    endif
-    return 0
-  endif
-  return 1
-endfunction"}}}
   return 1
 endfunction"}}}
 
@@ -375,4 +366,66 @@ function! im#surround#find#tag_ts(ch) abort"{{{
     return {}
   endif
   return s:finish(r.first_pos, r.last_pos, r.open_len, r.close_len)
+endfunction"}}}
+
+function! im#surround#find#auto(ch) abort"{{{
+  let self_mark = string(function('im#surround#find#auto'))
+  let all = im#surround#config#surrounds()
+  if type(all) != v:t_list
+    return {}
+  endif
+  let view = winsaveview()
+  try
+    let cur = getpos('.')[1:2]
+    let best = {}
+    for entry in all
+      call cursor(cur[0], cur[1])
+      if type(entry) != v:t_dict
+        continue
+      endif
+      let k = get(entry, 'key', '')
+      if type(k) != v:t_string || k ==# '' || k ==# 'invalid_key_behavior'
+        continue
+      endif
+      let cfg = im#surround#config#lookup(k)
+      if empty(cfg) || type(get(cfg, 'find', v:null)) != v:t_func
+        continue
+      endif
+      if string(cfg.find) ==# self_mark
+        continue
+      endif
+      try
+        let r = call(cfg.find, [k])
+      catch
+        continue
+      endtry
+      if type(r) != v:t_dict || !has_key(r, 'first_pos') || !has_key(r, 'last_pos')
+        continue
+      endif
+      if empty(best)
+        let best = r
+      elseif s:inside(cur, best)
+        if s:inside(cur, r)
+              \ && s:pos_le(best.first_pos, r.first_pos)
+              \ && s:pos_le(r.last_pos, best.last_pos)
+          let best = r
+        endif
+      elseif s:pos_le(cur, best.first_pos)
+        if s:inside(cur, r)
+              \ || (s:pos_le(cur, r.first_pos) && s:pos_le(r.first_pos, best.first_pos))
+          let best = r
+        endif
+      else
+        if s:inside(cur, r) || s:pos_le(best.last_pos, r.last_pos)
+          let best = r
+        endif
+      endif
+    endfor
+    if !empty(best) && !s:inside(cur, best)
+      return {}
+    endif
+    return best
+  finally
+    call winrestview(view)
+  endtry
 endfunction"}}}
