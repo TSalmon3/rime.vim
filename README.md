@@ -1335,30 +1335,34 @@ augroup END
 
 默认按键映射（均可用对应的 `g:im_surround_*_key` 定制）：
 
-| 按键                        | 模式   | 说明                               |
-| --------------------------- | ------ | ---------------------------------- |
-| `[count]ys{motion}{char}`   | normal | 为 motion 选中的内容添加分隔符     |
-| `[count]yS{motion}{char}`   | normal | 同上，但分隔符独占首尾新行         |
-| `[count]yss` / `[count]ySS` | normal | 为整行添加分隔符（`ySS` 独占新行） |
-| `[count]ds{char}`           | normal | 删除光标处最近的分隔符             |
-| `[count]cs{old}{new}`       | normal | 将旧分隔符替换为新分隔符           |
-| `[count]cS{old}{new}`       | normal | 同上，新分隔符独占首尾新行         |
-| `S` / `gS`                  | visual | 为选区添加分隔符（`gS` 独占新行）  |
-| `<c-g>s` / `<c-g>S`         | insert | 插入一对分隔符并将光标置于中间     |
+| 按键                        | 模式                    | 说明                                   |
+| --------------------------- | ----------------------- | -------------------------------------- |
+| `[count]ys{motion}{char}`   | normal                  | 为 motion 选中的内容添加分隔符         |
+| `[count]yS{motion}{char}`   | normal                  | 同上，但分隔符独占首尾新行             |
+| `[count]yss` / `[count]ySS` | normal                  | 为整行添加分隔符（`ySS` 独占新行）     |
+| `[count]ds{char}`           | normal                  | 删除光标处最近的分隔符                 |
+| `[count]cs{old}{new}`       | normal                  | 将旧分隔符替换为新分隔符               |
+| `[count]cS{old}{new}`       | normal                  | 同上，新分隔符独占首尾新行             |
+| `S` / `gS`                  | visual                  | 为选区添加分隔符（`gS` 独占新行）      |
+| `<c-g>s` / `<c-g>S`         | insert                  | 插入一对分隔符并将光标置于中间         |
+| `ib` / `ab`                 | visual/operator-pending | 自动识别最近包围，选中其内部/整体      |
 
 常见用法示例（`*` 为光标位置）：
 
-| 旧文本                       | 按键     | 新文本                 |
-| :--------------------------- | :------- | :--------------------- |
-| `surr*ound_words`            | `ysiw)`  | `(surr*ound_words)`    |
-| `surr*ound_words`            | `ysiw(`  | `( surr*ound_words )`  |
-| `*make strings`              | `ys$"`   | `"*make strings"`      |
-| `[delete ar*ound me!]`       | `ds]`    | `delete ar*ound me!`   |
-| `remove \<b>HTML t*ags\</b>` | `dst`    | `remove HTML t*ags`    |
-| `'change quot*es'`           | `cs'"`   | `"change quot*es"`     |
-| `delete(functi*on calls)`    | `dsf`    | `functi*on calls`      |
-| `surr*ound_words`            | `2ysiw)` | `((surr*ound_words))`  |
-| `((delete ar*ound me!))`     | `2ds)`   | `(delete ar*ound me!)` |
+| 旧文本                       | 按键     | 新文本                 | 说明                   |
+| :--------------------------- | :------- | :--------------------- | :--------------------- |
+| `surr*ound_words`            | `ysiw)`  | `(surr*ound_words)`    | 紧凑括号包裹单词       |
+| `surr*ound_words`            | `ysiw(`  | `( surr*ound_words )`  | 带空格括号包裹         |
+| `*make strings`              | `ys$"`   | `"*make strings"`      | 引号包裹到行尾         |
+| `[delete ar*ound me!]`       | `ds]`    | `delete ar*ound me!`   | 删除方括号             |
+| `remove \<b>HTML t*ags\</b>` | `dst`    | `remove HTML t*ags`    | 删除标签对             |
+| `'change quot*es'`           | `cs'"`   | `"change quot*es"`     | 单引号换双引号         |
+| `delete(functi*on calls)`    | `dsf`    | `functi*on calls`      | 删除函数调用           |
+| `surr*ound_words`            | `2ysiw)` | `((surr*ound_words))`  | 叠两层紧凑括号         |
+| `((delete ar*ound me!))`     | `2ds)`   | `(delete ar*ound me!)` | 删外层（第 2 层）      |
+| `(f*oo)`                     | `dsa`    | `foo`                  | 自动识别并删除         |
+| `(f*oo)`                     | `dib`    | `()`                   | 删内部，保留括号       |
+| `(f*oo)`                     | `dab`    | `(空)`                 | 删整体，包括括号       |
 
 **前置计数**：在 `ys / yss / ds / cs` 前加数字。`ys` 系一次套多层，如 `2ysiw)` 得到 `((word))`；`ds / cs` 系操作由内向外第 N 层，如嵌套括号内 `2ds)` 删外层、`2cs)]` 换外层。
 
@@ -1382,6 +1386,8 @@ let g:im_surround_visual_key           = 'S'      " 可视模式包裹 (visual)
 let g:im_surround_visual_linewise_key  = 'gS'     " 可视模式新行包裹 (visual)
 let g:im_surround_insert_key           = '<C-g>s' " 插入模式插入 (insert)
 let g:im_surround_insert_linewise_key  = '<C-g>S' " 插入模式换行插入 (insert)
+let g:im_surround_ib_key               = 'ib'     " 文本对象-内部 (visual/operator-pending)
+let g:im_surround_ab_key               = 'ab'     " 文本对象-整体 (visual/operator-pending)
 
 " ds / cs 定位到包围对时的闪光高亮时长（毫秒，0 关闭）
 let g:im_surround_flash_ms          = 120
@@ -1407,6 +1413,7 @@ let g:im_surround_surrounds = [
       \ {'key': 't',  'add': function('im#surround#add#tag'),     'find': function('im#surround#find#tag'),       'replace': function('im#surround#change#tag')},
       \ {'key': 'T',  'add': function('im#surround#add#tag'),     'find': function('im#surround#find#tag'),       'replace': function('im#surround#change#tag_full')},
       \ {'key': 'f',  'add': function('im#surround#add#func'),    'find': function('im#surround#find#func'),      'replace': function('im#surround#change#func')},
+      \ {'key': 'a',  'find': function('im#surround#find#auto')},
       \ {'key': 'i',  'add': function('im#surround#add#input')},
       \ {'key': '‘', 'add': ['‘', '’'], 'find': function('im#surround#find#matchpair')},
       \ {'key': '’', 'add': ['‘', '’'], 'find': function('im#surround#find#matchpair')},
@@ -1539,6 +1546,7 @@ let s:default_aliases = [
 | `im#surround#find#tag`       | `ch`      | `Dict` / `{}` | HTML / XML 标签（复用 `at`） |
 | `im#surround#find#func`      | `ch`      | `Dict` / `{}` | 函数调用                     |
 | `im#surround#find#invalid`   | `ch`      | `Dict` / `{}` | 兜底同字符成对               |
+| `im#surround#find#auto`      | `ch`      | `Dict` / `{}` | 自动识别最近包围             |
 | `im#surround#find#pattern`   | `ch, opt` | `Dict` / `{}` | 自定义正则，见下             |
 
 用 `im#surround#find#pattern` 自定义正则包围（`add` / `ds` / `cs` 均可）：
