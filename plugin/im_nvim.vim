@@ -65,7 +65,9 @@ endfunction
 
 augroup im_lifecycle
   autocmd!
-  autocmd VimEnter    * call im#rime#start()
+  if get(g:, 'im_daemon_autostart', 1)
+    autocmd VimEnter * call im#rime#start()
+  endif
   autocmd VimLeave * call im#rime#stop()
   autocmd User RimeIMEnable  call im#hooks#suppress_completion()
   autocmd User RimeIMDisable call im#hooks#restore_completion()
