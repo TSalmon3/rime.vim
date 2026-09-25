@@ -109,6 +109,18 @@ function! s:wrap_lines(sl, el, left, right) abort"{{{
   call append(a:sl - 1, indent1 . left)
 endfunction"}}}
 
+function! s:resolve_end_byte(line, sc, ec, back_one) abort"{{{
+  let n = strchars(a:line)
+  if n <= 0
+    return a:sc - 1
+  endif
+  let ci = min([max([charidx(a:line, a:ec - 1), 0]), n - 1])
+  if a:back_one && a:ec > a:sc && ci > 0
+    let ci -= 1
+  endif
+  return strlen(strcharpart(a:line, 0, ci + 1))
+endfunction"}}}
+
 function! s:wrap_inline(sl, sc, el, ec, left, right) abort"{{{
   if a:sl == a:el
     let line = getline(a:sl)
@@ -502,6 +514,7 @@ function! im#surround#add_apply(...) abort"{{{
     return
   endif
 
+  let ec = s:resolve_end_byte(getline(el), el == sl ? sc : 1, ec, 0)
   call s:wrap_inline(sl, sc, el, ec, delim[0], delim[1])
   call cursor(sl, sc)
 endfunction"}}}
@@ -585,6 +598,7 @@ function! im#surround#visual(line_mode, ...) abort"{{{
     call s:reindent(sl, el + 2)
     call cursor(sl + 1, 1)
   else
+    let ec = s:resolve_end_byte(getline(el), el == sl ? sc : 1, ec, &selection ==# 'exclusive')
     call s:wrap_inline(sl, sc, el, ec, delim[0], delim[1])
     call cursor(sl, sc)
   endif
