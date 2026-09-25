@@ -255,6 +255,8 @@ let g:im_tcp_addr                   = '127.0.0.1:18666'
 let g:im_idle_exit_ms               = 60000
 " 拉起 daemon 后，等待其就绪的超时时长（毫秒）
 let g:im_connect_timeout_ms         = 30000
+" 在 Vim 启动完成（VimEnter）后自动拉起输入法 daemon 进程
+let g:im_daemon_autostart           = 1
 
 
 " 候选词弹窗的显示行数
