@@ -140,9 +140,9 @@ function! s:recall(dir, inclusive, cnt) abort"{{{
     return -1
   endif
   if (a:dir > 0) == (last.dir > 0)
-    return s:jump(last.dir, last.inclusive, last.keys, a:cnt, 1)
+    return s:jump(last.dir, last.inclusive, last.keys, a:cnt, 1, 1)
   endif
-  return s:jump(-last.dir, last.inclusive, last.keys, a:cnt)
+  return s:jump(-last.dir, last.inclusive, last.keys, a:cnt, 1)
 endfunction"}}}
 
 function! s:do(dir, inclusive) abort"{{{
@@ -151,7 +151,7 @@ function! s:do(dir, inclusive) abort"{{{
   if r >= 0
     return r
   endif
-  return s:jump(a:dir, a:inclusive, s:read_key(), cnt)
+  return s:jump(a:dir, a:inclusive, s:read_key(), cnt, 1)
 endfunction"}}}
 
 function! im#motion#f() abort"{{{
@@ -244,7 +244,7 @@ function! s:shift(dir) abort"{{{
   endif
 endfunction"}}}
 
-function! s:jump(dir, inclusive, keys, cnt, ...) abort"{{{
+function! s:jump(dir, inclusive, keys, cnt, update_last, ...) abort"{{{
   if s:cancelled(a:keys)
     return 0
   endif
@@ -280,6 +280,11 @@ function! s:jump(dir, inclusive, keys, cnt, ...) abort"{{{
     endif
   endif
   let cur = getpos('.')
+  if !a:update_last
+    let s:last[s:mode()]['pos'] = [bufnr('%'), cur[1], cur[2]]
+    let s:last[s:mode()]['stamp'] = reltimefloat(reltime())
+    return 1
+  endif
   let s:last[s:mode()] = {'keys': a:keys, 'dir': a:dir, 'inclusive': a:inclusive,
         \ 'pos': [bufnr('%'), cur[1], cur[2]],
         \ 'stamp': reltimefloat(reltime())}
@@ -305,7 +310,7 @@ function! im#motion#repeat(...) abort"{{{
     call remove(s:last, m)
     return 0
   endif
-  return s:jump(last.dir, last.inclusive, last.keys, cnt, 1)
+  return s:jump(last.dir, last.inclusive, last.keys, cnt, 0, 1)
 endfunction"}}}
 
 function! im#motion#repeat_back(...) abort"{{{
@@ -319,5 +324,5 @@ function! im#motion#repeat_back(...) abort"{{{
     call remove(s:last, m)
     return 0
   endif
-  return s:jump(-last.dir, last.inclusive, last.keys, cnt)
+  return s:jump(-last.dir, last.inclusive, last.keys, cnt, 0)
 endfunction"}}}
