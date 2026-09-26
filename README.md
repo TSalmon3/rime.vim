@@ -807,8 +807,6 @@ onoremap <expr> f 'v<Cmd>call im#motion#f()<CR>'
 onoremap <expr> F 'v<Cmd>call im#motion#F()<CR>'
 onoremap <expr> t 'v<Cmd>call im#motion#t()<CR>'
 onoremap <expr> T 'v<Cmd>call im#motion#T()<CR>'
-onoremap <expr> ; 'v<Cmd>call im#motion#repeat()<CR>'
-onoremap <expr> , 'v<Cmd>call im#motion#repeat_back()<CR>'
 ```
 
 #### 高亮
