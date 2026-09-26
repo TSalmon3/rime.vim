@@ -788,6 +788,8 @@ let g:im_motion_mode = 'quanpin'
 #### 快捷键
 
 ```vim
+nnoremap <leader><esc> <cmd>call im#motion#reset()<cr>
+
 nnoremap f <Cmd>call im#motion#f()<CR>
 nnoremap F <Cmd>call im#motion#F()<CR>
 nnoremap t <Cmd>call im#motion#t()<CR>
