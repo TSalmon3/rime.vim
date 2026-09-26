@@ -140,6 +140,7 @@ function! s:recall(dir, inclusive, cnt) abort"{{{
     return -1
   endif
   if (a:dir > 0) == (last.dir > 0)
+    " t/T: step off offset landing before continuing
     return s:jump(last.dir, last.inclusive, last.keys, a:cnt, 1)
   endif
   return s:jump(-last.dir, last.inclusive, last.keys, a:cnt)
@@ -234,7 +235,7 @@ function! s:mark(pat) abort"{{{
   endif
 endfunction"}}}
 
-function! s:shift(dir) abort"{{{
+function! s:nudge(dir) abort"{{{
   if a:dir > 0
     if col('.') < col('$')
       normal! l
@@ -254,24 +255,21 @@ function! s:jump(dir, inclusive, keys, cnt, ...) abort"{{{
     return 0
   endif
 
-  let reuse = get(a:000, 0, 0) && !a:inclusive
+  let resume = get(a:000, 0, 0) && !a:inclusive
   call s:open_fold()
   let lnum = line('.')
   let save = getpos('.')
-  if reuse
-    call s:shift(a:dir)
+  if resume
+    call s:nudge(a:dir)
   endif
   for i in range(cnt)
     if searchpos(pat, a:dir > 0 ? 'W' : 'bW', lnum) == [0, 0]
       call setpos('.', save)
       return 0
     endif
-    if reuse
-      call s:shift(-a:dir)
-    endif
   endfor
-  if !reuse && !a:inclusive
-    call s:shift(-a:dir)
+  if !a:inclusive
+    call s:nudge(-a:dir)
   endif
   if s:mode() !=# 'o'
     let tp = s:target_pat(a:keys, lnum)
@@ -280,10 +278,30 @@ function! s:jump(dir, inclusive, keys, cnt, ...) abort"{{{
     endif
   endif
   let cur = getpos('.')
-  let s:last[s:mode()] = {'keys': a:keys, 'dir': a:dir, 'inclusive': a:inclusive,
+  let s:last[s:mode()] = {'keys': a:keys, 'dir': a:dir, 'orig': a:dir, 'inclusive': a:inclusive,
         \ 'pos': [bufnr('%'), cur[1], cur[2]],
         \ 'stamp': reltimefloat(reltime())}
   return 1
+endfunction"}}}
+
+function! s:repeat(dir, cnt) abort"{{{
+  let m = s:mode()
+  let last = get(s:last, m, {})
+  if empty(last) || s:expired(last)
+    return 0
+  endif
+  if [bufnr('%'), line('.'), col('.')] != last.pos
+    call remove(s:last, m)
+    return 0
+  endif
+  let orig = get(last, 'orig', last.dir)
+  let req = a:dir > 0 ? orig : -orig
+  let continued = ((req > 0) == (last.dir > 0)) ? 1 : 0
+  let r = s:jump(req, last.inclusive, last.keys, a:cnt, continued)
+  if r
+    let s:last[m].orig = orig
+  endif
+  return r
 endfunction"}}}
 
 function! im#motion#reset() abort"{{{
@@ -296,28 +314,10 @@ endfunction"}}}
 
 function! im#motion#repeat(...) abort"{{{
   let cnt = get(a:000, 0, v:count1)
-  let m = s:mode()
-  let last = get(s:last, m, {})
-  if empty(last) || s:expired(last)
-    return 0
-  endif
-  if [bufnr('%'), line('.'), col('.')] != last.pos
-    call remove(s:last, m)
-    return 0
-  endif
-  return s:jump(last.dir, last.inclusive, last.keys, cnt, 1)
+  return s:repeat(1, cnt)
 endfunction"}}}
 
 function! im#motion#repeat_back(...) abort"{{{
   let cnt = get(a:000, 0, v:count1)
-  let m = s:mode()
-  let last = get(s:last, m, {})
-  if empty(last) || s:expired(last)
-    return 0
-  endif
-  if [bufnr('%'), line('.'), col('.')] != last.pos
-    call remove(s:last, m)
-    return 0
-  endif
-  return s:jump(-last.dir, last.inclusive, last.keys, cnt)
+  return s:repeat(-1, cnt)
 endfunction"}}}
