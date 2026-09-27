@@ -1,8 +1,11 @@
+local tscap = require("im.tscap")
+
 local M = {}
 
---- Check whether the treesitter node at the cursor matches any pattern.
+--- Check whether the treesitter highlight captures at the cursor match.
 --- @param pats string[] substring list, matched case-insensitively
----   against the node type chain (node + ancestors).
+---   against capture names (leading '@' ignored), e.g. "comment" hits
+---   "@comment" and "markup.raw" hits "@markup.raw.block".
 --- @return boolean true when any pattern hits.
 function M.hit(pats)
   if type(pats) ~= "table" or #pats == 0 then
@@ -22,34 +25,7 @@ function M.hit(pats)
   if col < 0 then
     col = 0
   end
-  local ok, parser = pcall(vim.treesitter.get_parser, 0)
-  if not ok or not parser then
-    return false
-  end
-  local trees = parser:parse()
-  if not trees or not trees[1] then
-    return false
-  end
-  local root = trees[1]:root()
-  if not root then
-    return false
-  end
-  local node = root:named_descendant_for_range(row, col, row, col)
-  while node do
-    local t = node:type()
-    if t and t ~= "" then
-      local lt = t:lower()
-      for _, p in ipairs(pats) do
-        if type(p) == "string" and p ~= "" then
-          if lt:find(p:lower(), 1, true) then
-            return true
-          end
-        end
-      end
-    end
-    node = node:parent()
-  end
-  return false
+  return tscap.match(tscap.captures_at(0, row, col), pats)
 end
 
 return M

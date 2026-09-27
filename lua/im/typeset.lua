@@ -1,22 +1,14 @@
+local tscap = require("im.tscap")
+
 local M = {}
 
-local function type_match(t, lpats)
-  if not t or t == "" then
-    return false
-  end
-  local lt = t:lower()
-  for _, p in ipairs(lpats) do
-    if lt:find(p, 1, true) then
-      return true
-    end
-  end
-  return false
-end
-
---- Collect protected byte intervals per line for [start1, end1] (1-based,
---- end-inclusive) whose treesitter node type (or any ancestor) matches pats.
---- Substring match, case-insensitive — same semantics as im#pair#cond.
---- @return table row(1-based) -> list of {s, e} byte cols, 0-based end-exclusive.
+--- Collect protected byte intervals per line for [start1, end1].
+--- @param bufnr integer buffer handle
+--- @param start1 integer first line, 1-based
+--- @param end1 integer last line, 1-based end-inclusive
+--- @param pats string[] substring list, matched case-insensitively
+---   against capture names (leading '@' ignored).
+--- @return table row("5") -> list of {s, e} byte cols, 0-based end-exclusive.
 function M.protected_map(bufnr, start1, end1, pats)
   local res = {}
   if type(pats) ~= "table" or #pats == 0 then
@@ -24,8 +16,9 @@ function M.protected_map(bufnr, start1, end1, pats)
   end
   local lpats = {}
   for _, p in ipairs(pats) do
-    if type(p) == "string" and p ~= "" then
-      table.insert(lpats, p:lower())
+    local n = tscap.normalize(p)
+    if n ~= "" then
+      table.insert(lpats, n)
     end
   end
   if #lpats == 0 then
@@ -35,68 +28,88 @@ function M.protected_map(bufnr, start1, end1, pats)
     return res
   end
   local ok, parser = pcall(vim.treesitter.get_parser, bufnr)
-  if not ok or not parser then
+  if not ok or parser == nil then
     return res
   end
-  local ok2, trees = pcall(function()
-    return parser:parse()
-  end)
-  if not ok2 or not trees or not trees[1] then
-    return res
-  end
-  local root = trees[1]:root()
-  if not root then
-    return res
-  end
+  tscap.ensure_parsed(parser)
   local lines = vim.api.nvim_buf_get_lines(bufnr, start1 - 1, end1, false)
   local lens = {}
   for i, l in ipairs(lines) do
     lens[start1 + i - 1] = vim.fn.strlen(l)
   end
-  local function add(row, s, e)
+  local function add(row, s, e) -- {{{
     if s >= e then
       return
     end
-    res[row] = res[row] or {}
-    table.insert(res[row], { s, e })
-  end
-  -- Record at the highest matching node; children are covered, stop descent.
-  local function walk(node)
-    local matched = type_match(node:type(), lpats)
-    local sr, sc, er, ec = node:range()
-    local r1 = math.max(sr + 1, start1)
-    local r2 = math.min(er + 1, end1)
-    if r1 > r2 then
-      return
+    local k = tostring(row)
+    res[k] = res[k] or {}
+    table.insert(res[k], { s, e })
+  end -- }}}
+  local qget = vim.treesitter.query.get
+  local function cap_hit(cname) -- {{{
+    local lc = tscap.normalize(cname)
+    if lc == "" then
+      return false
     end
-    if matched then
-      for row = r1, r2 do
-        local len = lens[row] or 0
-        local s = (row == sr + 1) and sc or 0
-        local e = (row == er + 1) and ec or len
-        if s < 0 then
-          s = 0
-        end
-        if e > len then
-          e = len
-        end
-        add(row, s, e)
-      end
-      return
-    end
-    for child in node:iter_children() do
-      if child:named() then
-        local cr, _, cr2 = child:range()
-        if not (cr2 + 1 < start1 or cr + 1 > end1) then
-          walk(child)
-        end
+    for _, p in ipairs(lpats) do
+      if lc:find(p, 1, true) then
+        return true
       end
     end
-  end
-  local ok3 = pcall(walk, root)
-  if not ok3 then
-    return {}
-  end
+    return false
+  end -- }}}
+  local function process_tree(tree, lang) -- {{{
+    if tree == nil or type(lang) ~= "string" or lang == "" then
+      return
+    end
+    local okq, query = pcall(qget, lang, "highlights")
+    if not okq or query == nil then
+      return
+    end
+    local okroot, root = pcall(function()
+      return tree:root()
+    end)
+    if not okroot or root == nil then
+      return
+    end
+    local okiter, iter = pcall(function()
+      return query:iter_captures(root, bufnr, start1 - 1, end1)
+    end)
+    if not okiter or iter == nil then
+      return
+    end
+    for id, node in iter do
+      if node ~= nil and cap_hit(query.captures[id]) then
+        local sr, sc, er, ec = node:range()
+        local r1 = math.max(sr + 1, start1)
+        local r2 = math.min(er + 1, end1)
+        for row = r1, r2 do
+          local len = lens[row] or 0
+          local s = (row == sr + 1) and sc or 0
+          local e = (row == er + 1) and ec or len
+          if s < 0 then
+            s = 0
+          end
+          if e > len then
+            e = len
+          end
+          add(row, s, e)
+        end
+      end
+    end
+  end -- }}}
+  pcall(function()
+    parser:for_each_tree(function(tree, langtree)
+      local lang = nil
+      if langtree ~= nil and langtree.lang ~= nil then
+        lang = langtree:lang()
+      end
+      if type(lang) ~= "string" or lang == "" then
+        lang = parser:lang()
+      end
+      process_tree(tree, lang)
+    end)
+  end)
   return res
 end
 

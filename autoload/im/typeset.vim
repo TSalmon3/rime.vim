@@ -1,9 +1,7 @@
 let s:default_config = {
       \ 'markdown': {
-      \   'ts': ['fenced_code_block', 'indented_code_block', 'code_span',
-      \     'link_destination', 'link_title', 'uri_autolink', 'email_autolink',
-      \     'html_block'],
-      \   'syntax': [],
+      \   'ts': ['markup', 'tag'],
+      \   'syntax': ['link', 'code', 'math', 'table', 'bold', 'italic'],
       \   'rules': im#typeset#rule#default_rules()},
       \ }
 
