@@ -5,7 +5,7 @@
     <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square"></a>
     <a href="https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity"><img alt="Maintenance" src="https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=flat-square"></a>
     <a href="https://www.vim.org"><img alt="Vim" src="https://img.shields.io/badge/Vim-8.2+-green.svg?style=flat-square&logo=vim"></a>
-    <a href="https://neovim.io"><img alt="NeoVim" src="https://img.shields.io/badge/NeoVim-0.4+-green.svg?style=flat-square&logo=neovim"></a>
+    <a href="https://neovim.io"><img alt="NeoVim" src="https://img.shields.io/badge/NeoVim-0.10+-green.svg?style=flat-square&logo=neovim"></a>
   </p>
 </p>
 
@@ -93,7 +93,7 @@
 
 ## 简介
 
-Rime（中州韵）输入法在 Vim / Neovim 中的集成方案，，同时支持 Vim（>= 8.2.1978）与 Neovim。
+Rime（中州韵）输入法在 Vim / Neovim 中的集成方案，同时支持 Vim（>= 8.2.1978）与 Neovim。
 
 **用法**：进入插入模式后直接键入拼音，即可弹出候选词浮窗；用数字键或 `Up` / `Down` 选择候选，`Enter` / `Space` 上屏，`Esc` 取消本次输入。
 
@@ -114,7 +114,7 @@ Rime（中州韵）输入法在 Vim / Neovim 中的集成方案，，同时支�
 
 ### 环境要求
 
-- Vim >= 8.2.1978 或 Neovim
+- Vim >= 8.2.1978 或 Neovim >= 0.10
 - [librime](https://github.com/rime/librime)（编译后端所必需）
 - Rime 共享数据目录与用户数据目录（例如 [rime-ice](https://github.com/iDvel/rime-ice)）
 
@@ -880,7 +880,7 @@ let g:im_pair_config = {
 
 * `disabled`（`Number`）：为 `1` 时该 `filetype` 完全停用
 * `syntax`（`List`）：高亮组命中即暂停
-* `ts`（`List`）：TS 节点命中即暂停（仅 Neovim）
+* `ts`（`List`）：treesitter capture 命中即暂停
 
 > [!Tip]
 > * `syntax` / `ts` 命中时，仅暂停**改字类动作**（自动补全、成对删除、回车 / 空格展开），**跳出动作不受影响**：光标右侧已有闭符时仍可自动跳出，`im#pair#jump_any()` / `im#pair#jump_many()` 照常可用（例如字符串 `"foo|"` 处按 `"` 会直接跳到引号外）
@@ -1135,7 +1135,7 @@ let g:im_context_config = {
 ```
 
 - `mode` 为 `whitelist` 时，仅在列出的高亮区域内接管为 Rime，其余区域保持直通；为 `blacklist` 时反之。
-- `ts` 对应 treesitter capture 名称。
+- `ts` 对应 treesitter highlight capture 名称（大小写不敏感子串匹配，如 `comment` 可命中 `@comment`，`markup.raw` 可命中 `@markup.raw.block`）
 - `syntax` 对应 vim syntax 高亮组名称。
 - `ts` 与 `syntax` 之间为「或」的关系，命中任一即生效；两者同时配置时 `ts` 优先级更高。
 
@@ -1222,6 +1222,7 @@ let g:im_typeset_insert_leave = 1
 
 let g:im_typeset_config = {
       \ 'markdown': {
+      \   'ts': ['markup'],
       \   'syntax': ['link', 'code', 'math', 'table', 'bold', 'italic'],
       \   'rules': im#typeset#rule#default_rules()
       \     + [function('im#typeset#rule#markdown_space_at_bounds')]},
@@ -1233,7 +1234,7 @@ let g:im_typeset_ignore_words = ['豆瓣FM']
 
 **配置字段：**
 
-* **`ts`**（`List`）：treesitter 节点类型子串（大小写不敏感），命中即视为保护区域
+* **`ts`**（`List`）：treesitter highlight capture 子串（大小写不敏感），命中即视为保护区域
 * **`syntax`**（`List`）：高亮组名子串（大小写不敏感），命中即视为保护区域
 * **`rules`**(`List`）：格式化规则链，类型为 `Funcref(ctx, in) -> out`，按数组顺序依次执行
   * **`ctx`**（`Dict`）：上下文信息，包含以下字段

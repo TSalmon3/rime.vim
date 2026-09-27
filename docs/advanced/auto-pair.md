@@ -56,7 +56,7 @@ let g:im_pair_rules = im#pair#default_rules()
 " 值字段：
 "   disabled: 1 则该 filetype 下完全关闭自动成对
 "   syntax: vim 高亮组名的正则列表（大小写不敏感，如 'comment' 可命中 Comment/vimCommentTitle）
-"   ts: treesitter 节点类型的子串列表（大小写不敏感，仅 Neovim 生效，Vim 下忽略）
+"   ts: treesitter highlight capture 的子串列表（大小写不敏感，'@' 可写可不写，仅 Neovim 生效，Vim 下忽略；不再匹配节点类型）
 " syntax 与 ts 为“或”关系，命中任一即暂停；两者皆空则不生效
 let g:im_pair_config = {
       \ '*': {'syntax': ['comment', 'string'], 'ts': ['comment', 'string']},
@@ -84,7 +84,7 @@ let g:im_pair_config = {
 
 - `disabled`：布尔值。设为 1 时直接关闭该 filetype 下的自动成对，并短路其余字段。
 - `syntax`：列表。大小写不敏感地匹配光标处的高亮组名（Syntax Group）。
-- `ts`：列表。匹配 Tree-sitter 节点类型（仅 Neovim 生效）。
+- `ts`：列表。大小写不敏感地匹配光标处的 treesitter highlight capture 名（`@` 可写可不写）。
 
 ::: info
 `ts` 与 `syntax` 之间为「或」的关系，命中任一即可触发关闭；两者同时配置时优先判定 ts。

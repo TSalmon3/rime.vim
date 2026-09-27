@@ -5,7 +5,7 @@
     <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square"></a>
     <a href="https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity"><img alt="Maintenance" src="https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=flat-square"></a>
     <a href="https://www.vim.org"><img alt="Vim" src="https://img.shields.io/badge/Vim-8.2+-green.svg?style=flat-square&logo=vim"></a>
-    <a href="https://neovim.io"><img alt="NeoVim" src="https://img.shields.io/badge/NeoVim-0.4+-green.svg?style=flat-square&logo=neovim"></a>
+    <a href="https://neovim.io"><img alt="NeoVim" src="https://img.shields.io/badge/NeoVim-0.10+-green.svg?style=flat-square&logo=neovim"></a>
   </p>
 </p>
 
@@ -72,7 +72,7 @@ Answers to common questions.
 ## Introduction
 
 Rime (Zhongzhouyun) input method integration for Vim / Neovim, supporting
-both Vim (>= 8.2.1978) and Neovim.
+both Vim (>= 8.2.1978) and Neovim (>= 0.10).
 
 **Usage**: enter Insert mode and type pinyin directly; a candidate popup
 appears. Use the number keys or `Up` / `Down` to select a candidate,
@@ -97,7 +97,7 @@ Key features:
 
 ### Requirements
 
-- Vim >= 8.2.1978 or Neovim
+- Vim >= 8.2.1978 or Neovim >= 0.10
 - librime (required to build the backend)
 - Rime shared data directory and a user data directory (e.g. [rime-ice](https://github.com/iDvel/rime-ice))
 
@@ -886,7 +886,7 @@ let g:im_pair_rules = im#pair#default_rules()
 " Value fields:
 "   disabled: 1 disables auto pair for that filetype entirely
 "   syntax: regex list of vim highlight group names (case-insensitive, e.g. 'comment' matches Comment/vimCommentTitle)
-"   ts: substring list of treesitter node types (case-insensitive, Neovim only, ignored in Vim)
+"   ts: substring list of treesitter highlight captures (case-insensitive, '@' optional, Neovim only, ignored in Vim)
 " syntax and ts are OR-ed; hitting either one pauses; when both are empty nothing happens
 let g:im_pair_config = {
       \ '*': {'syntax': ['comment', 'string'], 'ts': ['comment', 'string']},
@@ -913,7 +913,7 @@ Available fields:
 
 - `disabled`: boolean. 1 disables auto pair for that filetype and short-circuits the remaining fields.
 - `syntax`: list. Case-insensitively matches the highlight group name (Syntax Group) under the cursor.
-- `ts`: list. Matches Tree-sitter node types (Neovim only).
+- `ts`: list. Matches Tree-sitter highlight captures (Neovim only, no longer node types).
 
 > [!note]
 > `ts` and `syntax` are OR-ed; hitting either one pauses; when both are set `ts` is checked first.
@@ -1238,7 +1238,8 @@ let g:im_context_config = {
 
 - With `mode` set to `whitelist`, Rime only owns the listed highlight areas and
   passes everything else through; `blacklist` does the opposite.
-- `ts` is a treesitter capture name.
+- `ts` is a treesitter highlight capture name (case-insensitive substring after
+  stripping `@`, e.g. `comment` hits `@comment`); node types no longer match.
 - `syntax` is a vim syntax highlight group name.
 - `ts` and `syntax` are OR-ed; hitting either one counts; when both are set `ts` wins.
 

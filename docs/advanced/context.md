@@ -31,7 +31,7 @@ let g:im_context_config = {
 ```
 
 - `mode` 为 `whitelist` 时，仅在列出的高亮区域内接管为 Rime，其余区域保持直通；为 `blacklist` 时反之。
-- `ts` 对应 treesitter capture 名称。
+- `ts` 对应 treesitter highlight capture 名称（去掉 `@` 后大小写不敏感子串匹配，如 `comment` 可命中 `@comment`，`markup.raw` 可命中 `@markup.raw.block`）；不再匹配节点类型。
 - `syntax` 对应 vim syntax 高亮组名称。
 - `ts` 与 `syntax` 之间为「或」的关系，命中任一即生效；两者同时配置时 `ts` 优先级更高。
 

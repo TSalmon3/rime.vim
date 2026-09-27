@@ -41,7 +41,7 @@ let g:im_typeset_ignore_words = ['豆瓣FM']
 
 **配置字段：**
 
-* **`ts`**（`List`）：treesitter 节点类型子串（大小写不敏感），命中即视为保护区域
+* **`ts`**（`List`）：treesitter highlight capture 子串（大小写不敏感，`@` 可写可不写），命中即视为保护区域；不再匹配节点类型
 * **`syntax`**（`List`）：高亮组名子串（大小写不敏感），命中即视为保护区域
 * **`rules`**(`List`）：格式化规则链，类型为 `Funcref(ctx, in) -> out`，按数组顺序依次执行
   * **`ctx`**（`Dict`）：上下文信息，包含以下字段
