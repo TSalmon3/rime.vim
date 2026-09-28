@@ -78,7 +78,7 @@ function! s:read_key() abort"{{{
         highlight default link ImMotionShade Grey
       endif
       let win = win_getid()
-      let mid = matchadd('ImMotionShade', '\%' . line('.') . 'l.*', 50)
+      let mid = matchadd('ImMotionShade', '\%' . line('.') . 'l.*', 110)
     endif
     redraw
     while 1
@@ -223,7 +223,7 @@ function! s:mark(pat) abort"{{{
   if !hlexists('ImMotionTarget')
     highlight default link ImMotionTarget Search
   endif
-  let s:mark_id = matchadd('ImMotionTarget', a:pat, 100)
+  let s:mark_id = matchadd('ImMotionTarget', a:pat, 110)
   augroup ImMotionTargetGrp
     autocmd!
     autocmd CursorMoved * call im#motion#mark_maybe_clear()
