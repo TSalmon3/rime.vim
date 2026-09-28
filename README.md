@@ -84,9 +84,9 @@
   - [Context 自动切换](#context-自动切换)
   - [Typeset 自动排版](#typeset-自动排版)
   - [Surround 包围编辑](#surround-包围编辑)
-  - [Extend 外部集成](#Extend-外部集成)
-  - [Tmux 弹窗输入](#tmux-弹窗输入)
+  - [Tips 小技巧](#tips-小技巧)
   - [其他搭配插件](#其他搭配插件)
+  - [Tmux 弹窗输入](#tmux-弹窗输入)
 - [致谢](#致谢)
 - [License](#license)
 
@@ -651,6 +651,7 @@ patch:
     - derive/ui$/Ⓥ/
     - derive/in$/Ⓑ/
     - xlit/ⓆⓌⓇⓉⓎⓊⒾⓄⓅⓈⒹⒻⒼⒽⒿⓀⓁⓏⓍⒸⓋⒷⓃⓂ/qwrtyuiopsdfghjklzxcvbnm/
+  # 1}}}
 ```
 
 ### 定制中英切换与方案选单
@@ -1596,44 +1597,42 @@ function! IMSurroundMarkdown() abort
 endfunction
 ````
 
-### Extend 外部集成
+### Tips 小技巧
 
-如果你安装了 [ultisnips](https://github.com/SirVer/ultisnips) 和 [bullets.vim](https://github.com/bullets-vim/bullets.vim)，可以这样配置：
+#### 快速插入列表
+
+依赖：
+
+-  [bullets.vim](https://github.com/bullets-vim/bullets.vim)
 
 ```vim
 function RimeKeymapRemap()
   if &filetype ==# 'markdown'
     lnoremap <silent><expr> <tab> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
-          \ UltiSnips#CanJumpForwards() ?
-          \"\<c-r>=UltiSnips#JumpForwards()\<cr>" :  bullet#is_bullet() ?
+          \  bullet#is_bullet() ?
           \ "\<C-o>\<Plug>(bullets-demote)\<C-o>$" :  "\<tab>"
 
     lnoremap <silent><expr> <s-tab> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
-          \ UltiSnips#CanJumpBackwards() ?
-          \ "\<c-r>=UltiSnips#JumpBackwards()\<cr>" : bullet#is_bullet()?
+          \ ullet#is_bullet()?
           \ "\<C-o>\<Plug>(bullets-promote)\<C-o>$" : "\<s-tab>"
 
     lnoremap <silent><expr> <cr> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
-          \ delimitMate#WithinEmptyPair() ?
-          \ "\<c-r>=delimitMate#ExpandReturn()\<cr>" : "\<Plug>(bullets-newline)"
+          \ "\<Plug>(bullets-newline)"
   else
     lnoremap <silent><expr> <tab> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
-          \ UltiSnips#CanJumpForwards() ?
-          \"\<c-r>=UltiSnips#JumpForwards()\<cr>" : "\<tab>"
+          \ "\<tab>"
 
     lnoremap <silent><expr> <s-tab> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
-          \ UltiSnips#CanJumpBackwards() ?
-          \ "\<c-r>=UltiSnips#JumpBackwards()\<cr>" : "\<s-tab>"
+          \ "\<s-tab>"
 
     lnoremap <silent><expr> <cr> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
-          \ delimitMate#WithinEmptyPair() ?
-          \ "\<c-r>=delimitMate#ExpandReturn()\<cr>" : "\<cr>"
+          \ "\<cr>"
   endif
 endfunction
 
@@ -1650,27 +1649,23 @@ augroup END
 
 ![demo3](https://github.com/user-attachments/assets/093e5089-0b8c-4528-854f-5d4aee85328d)
 
-如果你安装了 [jieba.vim](https://github.com/kkew3/jieba.vim)，还可以对 `<c-w>` 进行增强：
+
+#### 打开用户数据目录
+
+依赖：
+
+- [oil.nvim](https://github.com/stevearc/oil.nvim)
 
 ```vim
-function RimeKeymapRemap()
-  lnoremap <silent><expr> <c-w> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
-        \ im#replace#can_restore() ? "\<cmd>call im#replace#ctrl_w()\<cr>" :
-        \ "<Plug>(Jieba_C_w)"
-endfunction
-
-function RimeKeymapClear()
-
-endfunction
-
-augroup RimeGroup
-  autocmd!
-  autocmd User RimeKeymapSetup call RimeKeymapRemap()
-  autocmd User RimeKeymapClear call RimeKeymapClear()
-augroup END
-
+command! IMUserDataDirV execute 'vsplit | Oil ' . fnameescape(g:im_user_data_dir)
+nnoremap ;d :IMUserDataDirV<cr>
 ```
+
+
+### 其他搭配插件
+
+- [jieba.vim](https://github.com/kkew3/jieba.vim) — jieba 的 Vim/Nvim 按词跳转插件
+- [pangu.vim](https://github.com/hotoo/pangu.vim) — 中文排版自动规范化的 Vim 插件
 
 ### Tmux 弹窗输入
 
@@ -1771,11 +1766,6 @@ set-environment -g RIME_SHARED_DATA_DIR "/usr/share/rime-data"
 set-environment -g RIME_LOG "$HOME/.local/state/log/vim/rime.log"
 set-environment -g RIME_TMUX_LOG "$HOME/.local/state/log/tmux/rime.log"
 ```
-
-### 其他搭配插件
-
-- [jieba.vim](https://github.com/kkew3/jieba.vim) — jieba 的 Vim/Nvim 按词跳转插件
-- [pangu.vim](https://github.com/hotoo/pangu.vim) — 中文排版自动规范化的 Vim 插件
 
 ## 致谢
 
