@@ -61,8 +61,36 @@ function! im#surround#config#default_aliases() abort
   return deepcopy(s:default_aliases)
 endfunction
 
+function! im#surround#config#aliases() abort"{{{
+  let all = deepcopy(s:opt('aliases', s:default_aliases))
+  if type(all) != v:t_list
+    return []
+  endif
+  return map(all, 's:normalize_alias(v:val)')
+endfunction"}}}
+
+function! s:normalize_alias(entry) abort"{{{
+  if type(a:entry) != v:t_dict || empty(a:entry)
+    return {}
+  endif
+  let Key = get(a:entry, 'key', '')
+  if type(Key) != v:t_string || empty(Key)
+    return {}
+  endif
+  let Targets = get(a:entry, 'targets', [])
+  if type(Targets) != v:t_list
+    let Targets = []
+  endif
+  call filter(Targets, 'type(v:val) == v:t_string && !empty(v:val)')
+  return {'key': Key, 'targets': Targets}
+endfunction"}}}
+
 function! im#surround#config#surrounds() abort"{{{
-  return deepcopy(s:opt('surrounds', s:default_surrounds))
+  let all = deepcopy(s:opt('surrounds', s:default_surrounds))
+  if type(all) != v:t_list
+    return []
+  endif
+  return map(all, 's:normalize_entry(v:val)')
 endfunction"}}}
 
 function! s:is_single_printable(ch) abort"{{{
@@ -98,53 +126,45 @@ function! s:normalize_entry(entry) abort"{{{
   return {'key': Key, 'add': Add, 'find': Find, 'replace': Replace}
 endfunction"}}}
 
-function! s:fallback_entry(char, all) abort"{{{
-  for entry in a:all
-    if type(entry) == v:t_dict && get(entry, 'key', '') ==# 'invalid_key_behavior'
-      let norm = s:normalize_entry(entry)
-      if !empty(norm)
-        let norm.key = a:char
-        if norm.add is v:null
-          let norm.add = function('im#surround#add#invalid')
-        endif
-        if norm.find is v:null
-          let norm.find = function('im#surround#find#invalid')
-        endif
-        return norm
-      endif
-      break
-    endif
-  endfor
-  return {'key': a:char, 'add': function('im#surround#add#invalid'),
-        \ 'find': function('im#surround#find#invalid'), 'replace': v:null}
-endfunction"}}}
-
-function! im#surround#config#lookup(char) abort"{{{
+function! im#surround#config#entry(char) abort"{{{
   let all = im#surround#config#surrounds()
-  if type(all) != v:t_list
-    let all = []
-  endif
+  let invalid = {}
   for entry in all
-    if type(entry) == v:t_dict && get(entry, 'key', '') ==# a:char
-      return s:normalize_entry(entry)
+    if empty(entry)
+      continue
+    endif
+    if get(entry, 'key', '') ==# a:char
+      return entry
+    endif
+    if empty(invalid) && get(entry, 'key', '') ==# 'invalid_key_behavior'
+      let invalid = entry
     endif
   endfor
   if !s:is_single_printable(a:char)
     return {}
   endif
-  return s:fallback_entry(a:char, all)
+  if !empty(invalid)
+    let invalid.key = a:char
+    if invalid.add is v:null
+      let invalid.add = function('im#surround#add#invalid')
+    endif
+    if invalid.find is v:null
+      let invalid.find = function('im#surround#find#invalid')
+    endif
+    return invalid
+  endif
+  return {'key': a:char, 'add': function('im#surround#add#invalid'),
+        \ 'find': function('im#surround#find#invalid'), 'replace': v:null}
 endfunction"}}}
 
-function! im#surround#config#alias_targets(char) abort"{{{
-  for entry in deepcopy(s:opt('aliases', s:default_aliases))
+function! im#surround#config#keys(char) abort"{{{
+  for entry in im#surround#config#aliases()
+    if empty(entry)
+      continue
+    endif
     if get(entry, 'key', '') ==# a:char
-      return copy(get(entry, 'targets', []))
+      return copy(entry.targets)
     endif
   endfor
-  return []
-endfunction"}}}
-
-function! im#surround#config#candidate_keys(char) abort"{{{
-  let targets = im#surround#config#alias_targets(a:char)
-  return !empty(targets) ? targets : [a:char]
+  return [a:char]
 endfunction"}}}

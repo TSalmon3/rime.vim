@@ -1,12 +1,14 @@
 let s:key_active = 0  " 映射挂载状态
 let s:saved_maps = {} " 被覆盖的用户映射快照
+let s:rep_cache = {}  " 重复存档
+let s:rep_pending = '' " 待核销
 
 function! s:probe(key) abort"{{{
-  let config = im#surround#config#lookup(a:key)
-  if empty(config) || type(config.find) != v:t_func
+  let entry = im#surround#config#entry(a:key)
+  if empty(entry) || entry.find is v:null
     return {}
   endif
-  let result = call(config.find, [a:key])
+  let result = call(entry.find, [a:key])
   if type(result) != v:t_dict || !has_key(result, 'first_pos') || !has_key(result, 'last_pos')
     return {}
   endif
@@ -17,8 +19,8 @@ function! s:pos_le(p1, p2) abort"{{{
   return a:p1[0] < a:p2[0] || (a:p1[0] == a:p2[0] && a:p1[1] <= a:p2[1])
 endfunction"}}}
 
-function! s:inside(pos, t) abort"{{{
-  return s:pos_le(a:t.first_pos, a:pos) && s:pos_le(a:pos, a:t.last_pos)
+function! s:inside(pos, selection) abort"{{{
+  return s:pos_le(a:selection.first_pos, a:pos) && s:pos_le(a:pos, a:selection.last_pos)
 endfunction"}}}
 
 function! s:nearest(keys) abort"{{{
@@ -52,11 +54,11 @@ function! s:nearest(keys) abort"{{{
   return best
 endfunction"}}}
 
-function! im#surround#unwrap(target) abort"{{{
-  let [fl, fc] = a:target.first_pos
-  let [ll, lc] = a:target.last_pos
-  let open_len  = get(a:target, 'open_len', 0)
-  let close_len = get(a:target, 'close_len', 0)
+function! im#surround#unwrap(selection) abort"{{{
+  let [fl, fc] = a:selection.first_pos
+  let [ll, lc] = a:selection.last_pos
+  let open_len  = get(a:selection, 'open_len', 0)
+  let close_len = get(a:selection, 'close_len', 0)
 
   if fl == ll
     let line = getline(fl)
@@ -75,11 +77,11 @@ function! im#surround#unwrap(target) abort"{{{
   endif
 endfunction"}}}
 
-function! im#surround#replace(target, left, right) abort"{{{
-  let [fl, fc] = a:target.first_pos
-  let [ll, lc] = a:target.last_pos
-  let open_len  = get(a:target, 'open_len', 0)
-  let close_len = get(a:target, 'close_len', 0)
+function! im#surround#replace(selection, left, right) abort"{{{
+  let [fl, fc] = a:selection.first_pos
+  let [ll, lc] = a:selection.last_pos
+  let open_len  = get(a:selection, 'open_len', 0)
+  let close_len = get(a:selection, 'close_len', 0)
 
   if fl == ll
     let line = getline(fl)
@@ -109,7 +111,7 @@ function! s:wrap_lines(sl, el, left, right) abort"{{{
   call append(a:sl - 1, indent1 . left)
 endfunction"}}}
 
-function! s:resolve_end_byte(line, sc, ec, back_one) abort"{{{
+function! s:end_byte(line, sc, ec, back_one) abort"{{{
   let n = strchars(a:line)
   if n <= 0
     return a:sc - 1
@@ -167,16 +169,21 @@ function! s:reindent(sl, el) abort"{{{
   endtry
 endfunction"}}}
 
-function! s:highlight_show(t, scope) abort"{{{
+function! s:follow_col(lnum, rel) abort"{{{
+  let ni = strlen(matchstr(getline(a:lnum), '^\s*'))
+  return ni + max([a:rel, 1])
+endfunction"}}}
+
+function! s:highlight_show(selection, scope) abort"{{{
   if !hlexists('ImSurroundHighlight')
     highlight default link ImSurroundHighlight Visual
   endif
-  let [fl, fc] = a:t.first_pos
-  let [ll, lc] = a:t.last_pos
+  let [fl, fc] = a:selection.first_pos
+  let [ll, lc] = a:selection.last_pos
   let pos = []
   if a:scope ==# 'buns'
-    let open_len = get(a:t, 'open_len', 0)
-    let close_len = get(a:t, 'close_len', 0)
+    let open_len = get(a:selection, 'open_len', 0)
+    let close_len = get(a:selection, 'close_len', 0)
     if type(open_len) == v:t_number && type(close_len) == v:t_number
           \ && open_len > 0 && close_len > 0
       let pos = [[fl, fc, open_len], [ll, max([lc - close_len + 1, 1]), close_len]]
@@ -204,12 +211,12 @@ function! s:highlight_clear(id) abort"{{{
   silent! call matchdelete(a:id)
 endfunction"}}}
 
-function! s:highlight_flash(t, scope) abort"{{{
+function! s:highlight_flash(selection, scope) abort"{{{
   let ms = s:opt('flash_ms', 120)
   if type(ms) != v:t_number || ms <= 0
     return
   endif
-  let hid = s:highlight_show(a:t, a:scope)
+  let hid = s:highlight_show(a:selection, a:scope)
   try
     execute 'sleep ' . ms . 'm'
   finally
@@ -218,7 +225,7 @@ function! s:highlight_flash(t, scope) abort"{{{
   redraw
 endfunction"}}}
 
-function! s:getchar() abort "{{{
+function! s:read_key() abort "{{{
   try
     let c = getchar()
   catch /^Vim:Interrupt$/
@@ -244,44 +251,43 @@ function! s:getchar() abort "{{{
   return c
 endfunction "}}}
 
-function! s:resolve_delims(ch, ...) abort"{{{
-  let cnt = a:0 >= 1 && type(a:1) == v:t_number ? a:1 : 1
+function! s:add_pair(ch, ...) abort"{{{
+  let cnt = a:0 >= 1 ? a:1 : 1
   let key = a:ch
-  let tlist = im#surround#config#alias_targets(a:ch)
-  if type(tlist) == v:t_list && len(tlist) == 1
-        \ && type(tlist[0]) == v:t_string && !empty(tlist[0])
-    let key = tlist[0]
+  let keys = im#surround#config#keys(a:ch)
+  if len(keys) == 1
+    let key = keys[0]
   endif
-  let delim = []
-  let cfg = im#surround#config#lookup(key)
-  if !empty(cfg)
-    let Add = cfg.add
+  let pair = []
+  let entry = im#surround#config#entry(key)
+  if !empty(entry)
+    let Add = entry.add
     if type(Add) == v:t_func
-      let delim = call(Add, [key])
-    elseif type(Add) == v:t_list && len(Add) == 2
-      let delim = [Add[0], Add[1]]
+      let pair = call(Add, [key])
+    elseif type(Add) == v:t_list
+      let pair = Add
     endif
   endif
-  if cnt > 1 && !empty(delim)
-    let delim = [repeat(delim[0], cnt), repeat(delim[1], cnt)]
+  if cnt > 1 && !empty(pair)
+    let pair = [repeat(pair[0], cnt), repeat(pair[1], cnt)]
   endif
-  return delim
+  return pair
 endfunction"}}}
 
-function! s:resolve_replacement(key, t) abort"{{{
-  let cfg = im#surround#config#lookup(a:key)
-  let Rep = empty(cfg) ? v:null : cfg.replace
-  if type(Rep) == v:t_func
-    let rep = call(Rep, [])
-    return type(rep) == v:t_list ? rep : []
+function! s:change_pair(key, selection) abort"{{{
+  let entry = im#surround#config#entry(a:key)
+  let Rep = empty(entry) ? v:null : entry.replace
+  if Rep isnot v:null
+    let pair = call(Rep, [])
+    return type(pair) == v:t_list ? pair : []
   endif
-  let hid = s:highlight_show(a:t, 'buns')
+  let hid = s:highlight_show(a:selection, 'buns')
   try
-    let rep = s:resolve_delims(s:getchar())
+    let pair = s:add_pair(s:read_key())
   finally
     call s:highlight_clear(hid)
   endtry
-  return rep
+  return pair
 endfunction"}}}
 
 function! s:step_outside(first_pos) abort"{{{
@@ -298,40 +304,40 @@ function! s:step_outside(first_pos) abort"{{{
   return 0
 endfunction"}}}
 
-function! s:acquire_target(ch, cnt) abort"{{{
-  let keys = im#surround#config#candidate_keys(a:ch)
-  let orig = getpos('.')[1:2]
-  let t = {}
-  let found_key = a:ch
+function! s:find_target(ch, cnt) abort"{{{
+  let keys = im#surround#config#keys(a:ch)
+  let save = getpos('.')[1:2]
+  let best = {}
+  let key = a:ch
   let total = a:cnt < 1 ? 1 : a:cnt
   try
     for i in range(1, total)          " count 即第 N 层：找最近→跳外→再找
-      let [cur_t, cur_key] = s:nearest(keys)
-      if empty(cur_t)
-        let t = {}
+      let [cur, cur_key] = s:nearest(keys)
+      if empty(cur)
+        let best = {}
         break
       endif
-      let t = cur_t
-      let found_key = cur_key
-      if i < total && !s:step_outside(t.first_pos)
-        let t = {}
+      let best = cur
+      let key = cur_key
+      if i < total && !s:step_outside(best.first_pos)
+        let best = {}
         break
       endif
     endfor
   finally
-    call cursor(orig[0], orig[1])
+    call cursor(save[0], save[1])
   endtry
-  return {'target': t, 'found_key': found_key}
+  return {'selection': best, 'key': key}
 endfunction"}}}
 
-function! s:try_delete_standalone_lines(t, do_flash) abort"{{{
-  let [fl, fc] = a:t.first_pos
-  let [ll, lc] = a:t.last_pos
+function! s:try_delete_standalone_lines(selection, do_flash) abort"{{{
+  let [fl, fc] = a:selection.first_pos
+  let [ll, lc] = a:selection.last_pos
   if fl == ll
     return 0
   endif
-  let open_len  = get(a:t, 'open_len', 0)
-  let close_len = get(a:t, 'close_len', 0)
+  let open_len  = get(a:selection, 'open_len', 0)
+  let close_len = get(a:selection, 'close_len', 0)
   if open_len <= 0 || close_len <= 0 || fl < 1 || ll > line('$')
     return 0
   endif
@@ -344,69 +350,74 @@ function! s:try_delete_standalone_lines(t, do_flash) abort"{{{
         \ && matchstr(first, '^\s*\zs.\{-}\ze\s*$') !=# ''
         \ && matchstr(last, '^\s*\zs.\{-}\ze\s*$') !=# ''
     if a:do_flash
-      call s:highlight_flash(a:t, 'buns')
+      call s:highlight_flash(a:selection, 'buns')
     endif
     execute ll . 'delete _'
     execute fl . 'delete _'
-    call cursor(fl, 1)
+    call cursor(fl, s:follow_col(fl, 1))
     return 1
   endif
   return 0
 endfunction"}}}
 
 function! s:delete_with(ch, cnt, do_flash) abort"{{{
-  let ac = s:acquire_target(a:ch, a:cnt)
-  if empty(ac.target)
+  let found = s:find_target(a:ch, a:cnt)
+  if empty(found.selection)
     return 0
   endif
-  if s:try_delete_standalone_lines(ac.target, a:do_flash)
+  if s:try_delete_standalone_lines(found.selection, a:do_flash)
     return 1
   endif
   if a:do_flash
-    call s:highlight_flash(ac.target, 'buns')
+    call s:highlight_flash(found.selection, 'buns')
   endif
-  call im#surround#unwrap(ac.target)
-  if ac.target.first_pos[0] != ac.target.last_pos[0]
-    call s:reindent(ac.target.first_pos[0], ac.target.last_pos[0])
+  let [dfl, dfc] = found.selection.first_pos
+  let doi = strlen(matchstr(getline(dfl), '^\s*'))
+  let drel = dfc - doi
+  call im#surround#unwrap(found.selection)
+  if found.selection.first_pos[0] != found.selection.last_pos[0]
+    call s:reindent(found.selection.first_pos[0], found.selection.last_pos[0])
+    call cursor(dfl, s:follow_col(dfl, drel))
+  else
+    call cursor(dfl, dfc)
   endif
-  call cursor(ac.target.first_pos[0], ac.target.first_pos[1])
   return 1
 endfunction"}}}
 
 function! im#surround#delete_setup() abort"{{{
   let cnt = v:count1
-  call im#surround#repeat#pending('delete')
-  call im#surround#repeat#save('delete', {'count': cnt < 1 ? 1 : cnt})
-  set opfunc=im#surround#delete_apply
+  call s:repeat_pending('delete')
+  call s:repeat_save('delete', {'count': cnt < 1 ? 1 : cnt})
+  set opfunc=im#surround#delete_opfunc
   return "\<Esc>g@l"
 endfunction"}}}
 
-function! im#surround#delete_apply(...) abort"{{{
-  let fresh = im#surround#repeat#consume('delete')
-  let rep = im#surround#repeat#load('delete')
+function! im#surround#delete_opfunc(...) abort"{{{
+  let fresh = s:repeat_consume('delete')
+  let rep = s:repeat_load('delete')
   if empty(rep)
     return
   endif
-  if fresh || !has_key(rep, 'ch')
-    let ch = s:getchar()
+  if fresh
+    let ch = s:read_key()
     if ch ==# ''
-      call im#surround#repeat#clear('delete')
+      call s:repeat_clear('delete')
       return
     endif
     let rep.ch = ch
-    call im#surround#repeat#save('delete', rep)
+    call s:repeat_save('delete', rep)
   endif
-  let ok = s:delete_with(rep.ch, get(rep, 'count', 1), fresh)
+  let ok = s:delete_with(rep.ch, rep.count, fresh)
   if !ok && fresh
-    call im#surround#repeat#clear('delete')
+    call s:repeat_clear('delete')
   endif
 endfunction"}}}
 
-function! s:split_single_to_lines(t, left, right) abort"{{{
-  let [fl, fc] = a:t.first_pos
-  let [ll, lc] = a:t.last_pos
-  let open_len  = get(a:t, 'open_len', 0)
-  let close_len = get(a:t, 'close_len', 0)
+function! s:split_single_to_lines(selection, left, right) abort"{{{
+  let [fl, fc] = a:selection.first_pos
+  let [ll, lc] = a:selection.last_pos
+  let open_len  = get(a:selection, 'open_len', 0)
+  let close_len = get(a:selection, 'close_len', 0)
   let line = getline(fl)
   let head = strpart(line, 0, fc - 1)
   let body = strpart(line, fc - 1 + open_len, max([lc - close_len - (fc - 1) - open_len, 0]))
@@ -414,119 +425,125 @@ function! s:split_single_to_lines(t, left, right) abort"{{{
   call setline(fl, head . a:left)
   call append(fl, body)
   call append(fl + 1, a:right . tail)
-  call cursor(fl + 1, 1)
+  let head_ni = strlen(matchstr(head, '^\s*'))
+  return strlen(head) - head_ni + 1
 endfunction"}}}
 
-function! s:change_apply_target(t, rep, line_mode) abort"{{{
-  let [left, right] = a:rep
-  if a:line_mode && a:t.first_pos[0] == a:t.last_pos[0]
-    call s:split_single_to_lines(a:t, left, right)
-    call s:reindent(a:t.first_pos[0], a:t.first_pos[0] + 2)
+function! s:change_apply_target(selection, pair, line_mode) abort"{{{
+  let [left, right] = a:pair
+  if a:line_mode && a:selection.first_pos[0] == a:selection.last_pos[0]
+    let rel = s:split_single_to_lines(a:selection, left, right)
+    call s:reindent(a:selection.first_pos[0], a:selection.first_pos[0] + 2)
+    call cursor(a:selection.first_pos[0], s:follow_col(a:selection.first_pos[0], rel))
     return
   endif
-  call im#surround#replace(a:t, left, right)
-  if a:t.first_pos[0] != a:t.last_pos[0]
-    call s:reindent(a:t.first_pos[0], a:t.last_pos[0])
+  let [cfl, cfc] = a:selection.first_pos
+  let coi = strlen(matchstr(getline(cfl), '^\s*'))
+  let crel = cfc - coi
+  call im#surround#replace(a:selection, left, right)
+  if a:selection.first_pos[0] != a:selection.last_pos[0]
+    call s:reindent(a:selection.first_pos[0], a:selection.last_pos[0])
+    call cursor(cfl, s:follow_col(cfl, crel))
+  else
+    call cursor(cfl, cfc)
   endif
-  call cursor(a:t.first_pos[0], a:t.first_pos[1])
 endfunction"}}}
 
 function! im#surround#change_setup(line_mode) abort"{{{
   let cnt = v:count1
-  call im#surround#repeat#pending('change')
-  call im#surround#repeat#save('change',
+  call s:repeat_pending('change')
+  call s:repeat_save('change',
         \ {'count': cnt < 1 ? 1 : cnt, 'line_mode': a:line_mode})
-  set opfunc=im#surround#change_apply
+  set opfunc=im#surround#change_opfunc
   return "\<Esc>g@l"
 endfunction"}}}
 
-function! im#surround#change_apply(...) abort"{{{
-  let fresh = im#surround#repeat#consume('change')
-  let rep = im#surround#repeat#load('change')
+function! im#surround#change_opfunc(...) abort"{{{
+  let fresh = s:repeat_consume('change')
+  let rep = s:repeat_load('change')
   if empty(rep)
     return
   endif
-  if fresh || !has_key(rep, 'ch')
-    let ch = s:getchar()
+  if fresh
+    let ch = s:read_key()
     if ch ==# ''
-      call im#surround#repeat#clear('change')
+      call s:repeat_clear('change')
       return
     endif
     let rep.ch = ch
   endif
-  let ac = s:acquire_target(rep.ch, get(rep, 'count', 1))
-  if empty(ac.target)
+  let found = s:find_target(rep.ch, rep.count)
+  if empty(found.selection)
     if fresh
-      call im#surround#repeat#clear('change')
-    else
-      call im#surround#repeat#save('change', rep)
+      call s:repeat_clear('change')
     endif
     return
   endif
-  if fresh || empty(get(rep, 'rep', []))
-    let newrep = s:resolve_replacement(ac.found_key, ac.target)
+  if fresh
+    let newrep = s:change_pair(found.key, found.selection)
     if empty(newrep)
-      call im#surround#repeat#clear('change')
+      call s:repeat_clear('change')
       return
     endif
     let rep.rep = newrep
   endif
-  call im#surround#repeat#save('change', rep)
-  call s:change_apply_target(ac.target, rep.rep, get(rep, 'line_mode', 0))
+  call s:repeat_save('change', rep)
+  call s:change_apply_target(found.selection, rep.rep, rep.line_mode)
 endfunction"}}}
 
 function! im#surround#add_setup(line_mode) abort"{{{
   let cnt = v:count1
-  call im#surround#repeat#pending('add')
-  call im#surround#repeat#save('add',
+  call s:repeat_pending('add')
+  call s:repeat_save('add',
         \ {'line_mode': a:line_mode, 'count': cnt < 1 ? 1 : cnt})
-  set opfunc=im#surround#add_apply
+  set opfunc=im#surround#add_opfunc
   return "\<Esc>g@"
 endfunction"}}}
 
-function! im#surround#add_apply(...) abort"{{{
-  let fresh = im#surround#repeat#consume('add')
-  let rep = im#surround#repeat#load('add')
+function! im#surround#add_opfunc(...) abort"{{{
+  let fresh = s:repeat_consume('add')
+  let rep = s:repeat_load('add')
   if empty(rep)
     return
   endif
-  let cnt = get(rep, 'count', 1)
+  let cnt = rep.count
   let [sl, sc] = [line("'["), col("'[")]
   let [el, ec] = [line("']"), col("']")]
-  if fresh || empty(get(rep, 'delim', []))
+  if fresh
     let hid = s:highlight_show({'first_pos': [sl, sc], 'last_pos': [el, ec]}, 'full')
-    let delim = s:resolve_delims(s:getchar(), cnt)
+    let pair = s:add_pair(s:read_key(), cnt)
     call s:highlight_clear(hid)
-    if empty(delim)
-      call im#surround#repeat#clear('add')
+    if empty(pair)
+      call s:repeat_clear('add')
       return
     endif
-    let rep.delim = delim
-    call im#surround#repeat#save('add', rep)
+    let rep.pair = pair
+    call s:repeat_save('add', rep)
   else
-    let delim = rep.delim
+    let pair = rep.pair
   endif
 
-  if get(rep, 'line_mode', 0)
-    call s:wrap_lines(sl, el, delim[0], delim[1])
+  if rep.line_mode
+    call s:wrap_lines(sl, el, pair[0], pair[1])
     call s:reindent(sl, el + 2)
-    call cursor(sl + 1, 1)
+    call cursor(sl, s:follow_col(sl, 1))
     return
   endif
 
-  let ec = s:resolve_end_byte(getline(el), el == sl ? sc : 1, ec, 0)
-  call s:wrap_inline(sl, sc, el, ec, delim[0], delim[1])
+  let ec = s:end_byte(getline(el), el == sl ? sc : 1, ec, 0)
+  call s:wrap_inline(sl, sc, el, ec, pair[0], pair[1])
   call cursor(sl, sc)
 endfunction"}}}
 
-function! s:add_current_with(line_mode, delim) abort"{{{
+function! s:add_current_with(line_mode, pair) abort"{{{
   if a:line_mode
     if empty(getline('.'))
       return 0
     endif
     let lnum = line('.')
-    call s:wrap_lines(lnum, lnum, a:delim[0], a:delim[1])
+    call s:wrap_lines(lnum, lnum, a:pair[0], a:pair[1])
     call s:reindent(lnum, lnum + 2)
+    call cursor(lnum, s:follow_col(lnum, 1))
     return 1
   endif
   let text = getline('.')
@@ -536,70 +553,71 @@ function! s:add_current_with(line_mode, delim) abort"{{{
     return 0
   endif
   let tail_ws = strpart(text, strlen(indent) + strlen(body))
-  call setline('.', indent . a:delim[0] . body . a:delim[1] . tail_ws)
+  call setline('.', indent . a:pair[0] . body . a:pair[1] . tail_ws)
+  call cursor(line('.'), strlen(indent) + 1)
   return 1
 endfunction"}}}
 
 function! im#surround#add_current_setup(line_mode) abort"{{{
   let cnt = v:count1
-  call im#surround#repeat#pending('add_cur')
-  call im#surround#repeat#save('add_cur',
+  call s:repeat_pending('add_cur')
+  call s:repeat_save('add_cur',
         \ {'count': cnt < 1 ? 1 : cnt, 'line_mode': a:line_mode})
-  set opfunc=im#surround#add_current_apply
+  set opfunc=im#surround#add_current_opfunc
   return "\<Esc>g@l"
 endfunction"}}}
 
-function! im#surround#add_current_apply(...) abort"{{{
-  let fresh = im#surround#repeat#consume('add_cur')
-  let rep = im#surround#repeat#load('add_cur')
+function! im#surround#add_current_opfunc(...) abort"{{{
+  let fresh = s:repeat_consume('add_cur')
+  let rep = s:repeat_load('add_cur')
   if empty(rep)
     return
   endif
-  if fresh || empty(get(rep, 'delim', []))
+  if fresh
     let lnum = line('.')
     let hid = s:highlight_show({'first_pos': [lnum, 1], 'last_pos': [lnum, col([lnum, '$'])]}, 'full')
-    let ch = s:getchar()
+    let ch = s:read_key()
     call s:highlight_clear(hid)
-    let delim = s:resolve_delims(ch, get(rep, 'count', 1))
-    if empty(delim)
-      call im#surround#repeat#clear('add_cur')
+    let pair = s:add_pair(ch, rep.count)
+    if empty(pair)
+      call s:repeat_clear('add_cur')
       return
     endif
-    let rep.delim = delim
-    call im#surround#repeat#save('add_cur', rep)
+    let rep.pair = pair
+    call s:repeat_save('add_cur', rep)
   endif
-  let ok = s:add_current_with(get(rep, 'line_mode', 0), rep.delim)
+  let ok = s:add_current_with(rep.line_mode, rep.pair)
   if !ok && fresh
-    call im#surround#repeat#clear('add_cur')
+    call s:repeat_clear('add_cur')
   endif
 endfunction"}}}
 
 function! im#surround#visual(line_mode, ...) abort"{{{
   let cnt = a:0 >= 1 && type(a:1) == v:t_number ? a:1 : 1
-  let ch = s:getchar()
+  let ch = s:read_key()
   if ch ==# ''
     return
   endif
   let vm = visualmode()
   let [sl, sc] = [line("'<"), col("'<")]
   let [el, ec] = [line("'>"), col("'>")]
-  let delim = s:resolve_delims(ch, cnt)
-  if empty(delim)
+  let pair = s:add_pair(ch, cnt)
+  if empty(pair)
     return
   endif
-  call im#surround#repeat#save('visual',
-        \ {'delim': delim, 'count': cnt, 'line_mode': a:line_mode, 'vm': vm})
+  call s:repeat_save('visual',
+        \ {'pair': pair, 'count': cnt, 'line_mode': a:line_mode, 'vm': vm})
 
   if vm ==# "\<C-v>"
-    call s:wrap_block(sl, sc, el, ec, delim[0], delim[1])
+    call s:wrap_block(sl, sc, el, ec, pair[0], pair[1])
     call cursor(sl, sc)
   elseif vm ==# 'V' || a:line_mode
-    call s:wrap_lines(sl, el, delim[0], delim[1])
+    call s:wrap_lines(sl, el, pair[0], pair[1])
     call s:reindent(sl, el + 2)
-    call cursor(sl + 1, 1)
+    call cursor(sl, s:follow_col(sl, 1))
   else
-    let ec = s:resolve_end_byte(getline(el), el == sl ? sc : 1, ec, &selection ==# 'exclusive')
-    call s:wrap_inline(sl, sc, el, ec, delim[0], delim[1])
+    let ec = s:end_byte(getline(el), el == sl ? sc : 1, ec, &selection ==# 'exclusive')
+    call s:wrap_inline(sl, sc, el, ec, pair[0], pair[1])
     call cursor(sl, sc)
   endif
 endfunction"}}}
@@ -608,19 +626,56 @@ function! im#surround#insert(line_mode) abort"{{{
   if im#state#composing()
     return
   endif
-  let delim = s:resolve_delims(s:getchar())
-  if empty(delim)
+  let pair = s:add_pair(s:read_key())
+  if empty(pair)
     return
   endif
   if a:line_mode
-    let left = substitute(delim[0], '\s\+$', '', '')
-    let right = substitute(delim[1], '^\s\+', '', '')
+    let left = substitute(pair[0], '\s\+$', '', '')
+    let right = substitute(pair[1], '^\s\+', '', '')
     let keys = left . "\<CR>" . "\<End>\<CR>" . right
           \ . repeat("\<Left>", strchars(right)) . "\<Up>"
   else
-    let keys = delim[0] . delim[1] . repeat("\<Left>", strchars(delim[1]))
+    let keys = pair[0] . pair[1] . repeat("\<Left>", strchars(pair[1]))
   endif
   call feedkeys(keys, 'ni')
+endfunction"}}}
+
+function! s:repeat_pending(action) abort"{{{
+  let s:rep_pending = a:action
+  if has_key(s:rep_cache, a:action)
+    call remove(s:rep_cache, a:action)
+  endif
+endfunction"}}}
+
+function! s:repeat_consume(action) abort"{{{
+  if s:rep_pending ==# a:action
+    let s:rep_pending = ''
+    return 1
+  endif
+  return 0
+endfunction"}}}
+
+function! s:repeat_save(action, data) abort"{{{
+  let s:rep_cache[a:action] = deepcopy(a:data)
+endfunction"}}}
+
+function! s:repeat_load(action) abort"{{{
+  return deepcopy(get(s:rep_cache, a:action, {}))
+endfunction"}}}
+
+function! s:repeat_clear(...) abort"{{{
+  if a:0 == 0
+    let s:rep_cache = {}
+    let s:rep_pending = ''
+  else
+    if has_key(s:rep_cache, a:1)
+      call remove(s:rep_cache, a:1)
+    endif
+    if s:rep_pending ==# a:1
+      let s:rep_pending = ''
+    endif
+  endif
 endfunction"}}}
 
 function! s:key_config() abort"{{{

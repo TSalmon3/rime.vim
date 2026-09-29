@@ -2,7 +2,7 @@ function! s:pos_le(p1, p2) abort"{{{
   return a:p1[0] < a:p2[0] || (a:p1[0] == a:p2[0] && a:p1[1] <= a:p2[1])
 endfunction"}}}
 
-function! s:finish(first, last, open_len, close_len) abort"{{{
+function! s:make_target(first, last, open_len, close_len) abort"{{{
   let t = {'first_pos': a:first, 'last_pos': a:last, 'open_len': a:open_len, 'close_len': a:close_len}
   let pos = [line('.'), col('.')]
   return s:pos_le(a:first, pos) && s:pos_le(pos, a:last) ? t : {}
@@ -85,7 +85,7 @@ function! s:mp_step_before(open_pos) abort"{{{
 endfunction"}}}
 
 function! im#surround#find#matchpair(ch) abort"{{{
-  let cfg = im#surround#config#lookup(a:ch)
+  let cfg = im#surround#config#entry(a:ch)
   let raw_add = empty(cfg) ? v:null : cfg.add
   let pair = s:mp_parse_pair(raw_add)
   if empty(pair)
@@ -106,7 +106,7 @@ function! im#surround#find#matchpair(ch) abort"{{{
       call setpos('.', save)
       let [open_len, close_len] = s:mp_spaced_lens(raw_add, open_char, close_char, open_pos, close_hit)
       let close_end = [close_lnum, close_idx + strlen(close_char)]
-      let hit = s:finish(open_pos, close_end, open_len, close_len)
+      let hit = s:make_target(open_pos, close_end, open_len, close_len)
       if !empty(hit)
         return hit
       endif
@@ -143,7 +143,7 @@ function! im#surround#find#quote(ch) abort"{{{
       return {}
     endif
     call setpos('.', save)
-    return s:finish(opos, [cpos[0], cpos[1] + strlen(a:ch) - 1], strlen(a:ch), strlen(a:ch))
+    return s:make_target(opos, [cpos[0], cpos[1] + strlen(a:ch) - 1], strlen(a:ch), strlen(a:ch))
   finally
     call winrestview(view)
   endtry
@@ -218,7 +218,7 @@ function! im#surround#find#tag(ch) abort"{{{
       return {}
     endif
     call setpos('.', save)
-    return s:finish(first, last, eidx - first[1] + 2, last[1] - cs)
+    return s:make_target(first, last, eidx - first[1] + 2, last[1] - cs)
   finally
     call setpos("'<", vish)
     call setpos("'>", vist)
@@ -242,7 +242,7 @@ function! im#surround#find#func(ch) abort"{{{
         let ketpos = searchpairpos('(', '', ')', 'W')
         if ketpos != [0, 0]
           call setpos('.', save)
-          let t = s:finish([opos[0], opos[1]], [ketpos[0], ketpos[1]], open_len, 1)
+          let t = s:make_target([opos[0], opos[1]], [ketpos[0], ketpos[1]], open_len, 1)
           if !empty(t)
             return t
           endif
@@ -282,7 +282,7 @@ function! im#surround#find#invalid(ch) abort"{{{
       return {}
     endif
     call setpos('.', save)
-    return s:finish(opos, [cpos[0], cpos[1] + strlen(a:ch) - 1], strlen(a:ch), strlen(a:ch))
+    return s:make_target(opos, [cpos[0], cpos[1] + strlen(a:ch) - 1], strlen(a:ch), strlen(a:ch))
   finally
     call winrestview(view)
   endtry
@@ -330,7 +330,7 @@ function! im#surround#find#pattern(ch, opt) abort"{{{
       return {}
     endif
     call setpos('.', save)
-    return s:finish(open_pos, [close_pos[0], close_pos[1] + close_len - 1], open_len, close_len)
+    return s:make_target(open_pos, [close_pos[0], close_pos[1] + close_len - 1], open_len, close_len)
   finally
     call winrestview(view)
   endtry
@@ -349,7 +349,7 @@ function! im#surround#find#func_ts(ch) abort"{{{
         \ || !has_key(r, 'open_len') || !has_key(r, 'close_len')
     return {}
   endif
-  return s:finish(r.first_pos, r.last_pos, r.open_len, r.close_len)
+  return s:make_target(r.first_pos, r.last_pos, r.open_len, r.close_len)
 endfunction"}}}
 
 function! im#surround#find#tag_ts(ch) abort"{{{
@@ -365,30 +365,27 @@ function! im#surround#find#tag_ts(ch) abort"{{{
         \ || !has_key(r, 'open_len') || !has_key(r, 'close_len')
     return {}
   endif
-  return s:finish(r.first_pos, r.last_pos, r.open_len, r.close_len)
+  return s:make_target(r.first_pos, r.last_pos, r.open_len, r.close_len)
 endfunction"}}}
 
 function! im#surround#find#auto(ch) abort"{{{
   let self_mark = string(function('im#surround#find#auto'))
   let all = im#surround#config#surrounds()
-  if type(all) != v:t_list
-    return {}
-  endif
   let view = winsaveview()
   try
     let cur = getpos('.')[1:2]
     let best = {}
     for entry in all
       call cursor(cur[0], cur[1])
-      if type(entry) != v:t_dict
+      if empty(entry)
         continue
       endif
       let k = get(entry, 'key', '')
-      if type(k) != v:t_string || k ==# '' || k ==# 'invalid_key_behavior'
+      if k ==# '' || k ==# 'invalid_key_behavior'
         continue
       endif
-      let cfg = im#surround#config#lookup(k)
-      if empty(cfg) || type(get(cfg, 'find', v:null)) != v:t_func
+      let cfg = im#surround#config#entry(k)
+      if empty(cfg) || cfg.find is v:null
         continue
       endif
       if string(cfg.find) ==# self_mark
