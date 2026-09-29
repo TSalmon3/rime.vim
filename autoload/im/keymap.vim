@@ -50,7 +50,7 @@ let s:mapped_keys = {
       \ 'letters': split('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', '\zs'),
       \ 'symbols' : ['`','-','+','=','!','$','@','#','%','&','^','*','_','(',')','[',']','{','}','<','>','\','/','~',';',':',',','.','?',"'",'"'],
       \ 'numbers': ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
-      \ 'specials': ['<bs>', '<s-bs>', '<left>', '<right>', '<up>', '<down>','<c-a>', '<c-e>', '<space>', '<cr>',
+      \ 'specials': ['<bs>', '<s-bs>', '<left>', '<right>', '<up>', '<down>','<c-a>', '<c-e>', '<space>', '<cr>', '<c-j>', '<c-k>', '<c-h>', '<c-l>',
       \ '<tab>', '<s-tab>', '<c-w>', '<c-u>', '<c-n>', '<c-p>', '<pagedown>', '<pageup>', '<c-f>', '<c-b>', '<c-d>']
       \ }
 
@@ -76,6 +76,10 @@ function! im#keymap#setup() abort"{{{
   lnoremap <expr> <right>    im#keymap#special('right')
   lnoremap <expr> <up>       im#keymap#special('up')
   lnoremap <expr> <down>     im#keymap#special('down')
+  lnoremap <expr> <c-h>     im#keymap#special('left')
+  lnoremap <expr> <c-l>    im#keymap#special('right')
+  lnoremap <expr> <c-k>     im#keymap#special('up')
+  lnoremap <expr> <c-j>     im#keymap#special('down')
   lnoremap <expr> <c-n>      im#keymap#special('up')
   lnoremap <expr> <c-p>      im#keymap#special('down')
   lnoremap <expr> <c-a>      im#keymap#special('home')

@@ -456,8 +456,12 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 | `<space>`    | 选择               |
 | `<left>`     | 光标左移           |
 | `<right>`    | 光标右移           |
+| `<c-h>`      | 光标左移           |
+| `<c-l>`      | 光标右移           |
 | `<up>`       | 上一个候选         |
 | `<down>`     | 下一个候选         |
+| `<c-k>`      | 上一个候选         |
+| `<c-j>`      | 下一个候选         |
 | `<c-p>`      | 上一个候选         |
 | `<c-n>`      | 下一个候选         |
 | `<pageup>`   | 上一页             |
@@ -878,14 +882,15 @@ let g:im_pair_config = {
 
 字段说明：
 
-* `disabled`（`Number`）：为 `1` 时该 `filetype` 完全停用
-* `syntax`（`List`）：高亮组命中即暂停
-* `ts`（`List`）：treesitter capture 命中即暂停
+- `disabled`（`Number`）：为 `1` 时该 `filetype` 完全停用
+- `syntax`（`List`）：高亮组命中即暂停
+- `ts`（`List`）：treesitter capture 命中即暂停
 
 > [!Tip]
-> * `syntax` / `ts` 命中时，仅暂停**改字类动作**（自动补全、成对删除、回车 / 空格展开），**跳出动作不受影响**：光标右侧已有闭符时仍可自动跳出，`im#pair#jump_any()` / `im#pair#jump_many()` 照常可用（例如字符串 `"foo|"` 处按 `"` 会直接跳到引号外）
-> * 只有 `disabled: 1` 才会完全停用（含跳出动作），且此时会忽略同条目下的 `syntax` / `ts` 配置
-> * `ts` 与 `syntax` 为“或”关系，命中任一即暂停；两者同时配置时优先判定 `ts`；两者均为空时不生效；匹配均不区分大小写
+>
+> - `syntax` / `ts` 命中时，仅暂停**改字类动作**（自动补全、成对删除、回车 / 空格展开），**跳出动作不受影响**：光标右侧已有闭符时仍可自动跳出，`im#pair#jump_any()` / `im#pair#jump_many()` 照常可用（例如字符串 `"foo|"` 处按 `"` 会直接跳到引号外）
+> - 只有 `disabled: 1` 才会完全停用（含跳出动作），且此时会忽略同条目下的 `syntax` / `ts` 配置
+> - `ts` 与 `syntax` 为“或”关系，命中任一即暂停；两者同时配置时优先判定 `ts`；两者均为空时不生效；匹配均不区分大小写
 
 #### `g:im_pair_rules`
 
@@ -893,21 +898,21 @@ let g:im_pair_config = {
 
 参数说明：
 
-* `open`（`String`）：开符
-* `close`（`String`）：闭符
-* `kind`（`String`）：`matchpair` 表示开闭符不同，`quote` 表示开闭符相同
-* `with_pair`（`Funcref(ctx) -> Bool` 或其列表）：成对补全门控
-* `with_move`（`Funcref(ctx) -> Bool` 或其列表）：闭符跳出门控
-* `with_del`（`Funcref(ctx) -> Bool` 或其列表）：空对删除门控
-* `with_cr`（`Funcref(ctx) -> Bool` 或其列表）：回车展开门控
+- `open`（`String`）：开符
+- `close`（`String`）：闭符
+- `kind`（`String`）：`matchpair` 表示开闭符不同，`quote` 表示开闭符相同
+- `with_pair`（`Funcref(ctx) -> Bool` 或其列表）：成对补全门控
+- `with_move`（`Funcref(ctx) -> Bool` 或其列表）：闭符跳出门控
+- `with_del`（`Funcref(ctx) -> Bool` 或其列表）：空对删除门控
+- `with_cr`（`Funcref(ctx) -> Bool` 或其列表）：回车展开门控
 
 其中 `ctx` 为 `Dict`，键值如下：
 
-* `before`(`String`）：光标左侧的当前行文本片段
-* `after`(`String`）：光标右侧的当前行文本片段
-* `line`（`String`）：当前整行
-* `col`（`Number`）：字节列号，即 `col('.')`
-* `filetype`（`String`）：即 `&filetype`，可能为空
+- `before`(`String`）：光标左侧的当前行文本片段
+- `after`(`String`）：光标右侧的当前行文本片段
+- `line`（`String`）：当前整行
+- `col`（`Number`）：字节列号，即 `col('.')`
+- `filetype`（`String`）：即 `&filetype`，可能为空
 
 > [!Tip]
 > 优先级：`b:im_pair_rules` > `g:im_pair_rules` > 默认值
@@ -918,28 +923,28 @@ let g:im_pair_config = {
 
 **恒定结果：**
 
-* `im#pair#cond#always()`：恒为真，始终放行
-* `im#pair#cond#done()`：恒为真，与 `always()` 等价
-* `im#pair#cond#never()`：恒为假，始终拦截
-* `im#pair#cond#none()`：恒为假，与 `never()` 等价
+- `im#pair#cond#always()`：恒为真，始终放行
+- `im#pair#cond#done()`：恒为真，与 `always()` 等价
+- `im#pair#cond#never()`：恒为假，始终拦截
+- `im#pair#cond#none()`：恒为假，与 `never()` 等价
 
 **基于光标前后文本：**
 
-* `im#pair#cond#before_text(t)`：`before` 以字符串 `t` 结尾时放行
-* `im#pair#cond#not_before_text(t)`：上一条取反
-* `im#pair#cond#before_regex(p)`：`before` 匹配 Vim 正则 `p` 时放行（自动补 `$` 锚尾）
-* `im#pair#cond#not_before_regex(p)`：上一条取反
-* `im#pair#cond#after_text(t)`：`after` 以字符串 `t` 开头时放行
-* `im#pair#cond#not_after_text(t)`：上一条取反
-* `im#pair#cond#after_regex(p)`：`after` 匹配 Vim 正则 `p` 时放行（自动补 `^` 锚首）
-* `im#pair#cond#not_after_regex(p)`：上一条取反
+- `im#pair#cond#before_text(t)`：`before` 以字符串 `t` 结尾时放行
+- `im#pair#cond#not_before_text(t)`：上一条取反
+- `im#pair#cond#before_regex(p)`：`before` 匹配 Vim 正则 `p` 时放行（自动补 `$` 锚尾）
+- `im#pair#cond#not_before_regex(p)`：上一条取反
+- `im#pair#cond#after_text(t)`：`after` 以字符串 `t` 开头时放行
+- `im#pair#cond#not_after_text(t)`：上一条取反
+- `im#pair#cond#after_regex(p)`：`after` 匹配 Vim 正则 `p` 时放行（自动补 `^` 锚首）
+- `im#pair#cond#not_after_regex(p)`：上一条取反
 
 **基于语法上下文：**
 
-* `im#pair#cond#is_inside_quote()`：光标处于未转义引号内时放行
-* `im#pair#cond#not_inside_quote()`：上一条取反
-* `im#pair#cond#is_vim_comment()`：光标位于 vim 文件的注释行行首（该行仅有空白）时放行
-* `im#pair#cond#not_vim_comment()`：上一条取反
+- `im#pair#cond#is_inside_quote()`：光标处于未转义引号内时放行
+- `im#pair#cond#not_inside_quote()`：上一条取反
+- `im#pair#cond#is_vim_comment()`：光标位于 vim 文件的注释行行首（该行仅有空白）时放行
+- `im#pair#cond#not_vim_comment()`：上一条取反
 
 ```vim
 " 引号内不再补全括号
@@ -1202,7 +1207,7 @@ inoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
 
 遵循 [中文文案排版指北](https://github.com/sparanoid/chinese-copywriting-guidelines)，自动规范中英文混排文本：中英文、数字之间自动补空格，全角 / 半角标点与字母数字自动归一，清理零宽字符与行尾空白，合并连续重复的标点符号。
 
-* **触发方式**：
+- **触发方式**：
   - 手动执行 `:IMTypeset`（不受总开关影响）
   - 离开插入模式时自动触发（受 `g:im_typeset_enabled` 总开关与 `g:im_typeset_insert_leave` 控制）
   - 回车换行时格式化上一行（映射 `<Plug>(im-typeset-line)`，受总开关控制）
@@ -1234,36 +1239,35 @@ let g:im_typeset_ignore_words = ['豆瓣FM']
 
 **配置字段：**
 
-* **`ts`**（`List`）：treesitter highlight capture 子串（大小写不敏感），命中即视为保护区域
-* **`syntax`**（`List`）：高亮组名子串（大小写不敏感），命中即视为保护区域
-* **`rules`**(`List`）：格式化规则链，类型为 `Funcref(ctx, in) -> out`，按数组顺序依次执行
-  * **`ctx`**（`Dict`）：上下文信息，包含以下字段
-    * `filetype`：当前 buffer 的文件类型（`&filetype`）
-    * `bufnr`：当前 buffer 编号（`bufnr()`）
-    * `bufname`：当前 buffer 文件名（`bufname()`）
-    * `lnum`：当前行号
-    * `left_char`：当前片段左边界外的一个字符；若片段位于行首，则为 `''`
-    * `right_char`：当前片段右边界外的一个字符；若片段位于行尾，则为 `''`
-  * **`in`**(`String`）：待处理的文本片段，同时是上一条规则的输出。
-  * **`out`**(`String`)：已处理的文本片段，同时是下一条规则的输入
-
+- **`ts`**（`List`）：treesitter highlight capture 子串（大小写不敏感），命中即视为保护区域
+- **`syntax`**（`List`）：高亮组名子串（大小写不敏感），命中即视为保护区域
+- **`rules`**(`List`）：格式化规则链，类型为 `Funcref(ctx, in) -> out`，按数组顺序依次执行
+  - **`ctx`**（`Dict`）：上下文信息，包含以下字段
+    - `filetype`：当前 buffer 的文件类型（`&filetype`）
+    - `bufnr`：当前 buffer 编号（`bufnr()`）
+    - `bufname`：当前 buffer 文件名（`bufname()`）
+    - `lnum`：当前行号
+    - `left_char`：当前片段左边界外的一个字符；若片段位于行首，则为 `''`
+    - `right_char`：当前片段右边界外的一个字符；若片段位于行尾，则为 `''`
+  - **`in`**(`String`）：待处理的文本片段，同时是上一条规则的输出。
+  - **`out`**(`String`)：已处理的文本片段，同时是下一条规则的输入
 
 **内置规则 API**（完整函数名为 `im#typeset#rule#<规则名>(ctx, s)`，下面只列出 `<规则名>` 部分）：
 
-* **`invisible_spaces`**：删零宽字符；行尾空白清理
-* **`halfwidth_word`**：全角字母数字 → 半角（含全角空格、数字间时间冒号）
-* **`fullwidth_punctuation`**：CJK 旁半角标点 → 全角（括号/书名号；`html` 跳过书名号）
-* **`halfwidth_punctuation`**：纯英文段全角标点 → 半角（`,;:!?` 后补空格；含 CJK 整段跳过）
-* **`no_space_fullwidth`**：宽字符之间删空格（含 ASCII 侧、全角引号；缩进保留）
-* **`space_word`**：段内 CJK ↔ 字母数字间补空格（含 `±n` 双向、`n%`、`C++`/`+`/`#` 后缀；`%s`/`$1`/`\d` 占位符不碰）
-* **`space_bracket`**：段内 CJK ↔ 半角 `[]()` 间补空格（拉丁侧不动；`{}` 不管）
-* **`space_punctuation`**：`!` + CJK 间补空格
-* **`space_pipe_plus`**：段内 CJK/引号旁 `|`/`+` 两侧补空格（`3+5`/`C++`/行首 `+` 不动）
-* **`space_backticks`**：段内 CJK ↔ 整对行内代码补空格（孤反引号/围栏不动；跨保护区接缝由 `markdown_space_at_bounds` 处理）
-* **`space_dash`**：段内 CJK/引号/括号间 `-` 两侧补空格（`3-5` / `e-mail` 等不动）
-* **`space_dollar`**：段内 CJK 旁 `$` 两侧补空格
-* **`repeated_punct`**：叠标归一（`。。。` → `······`，`！？` 至多连 3）
-* **`markdown_space_at_bounds`**：仅 markdown，正文与行内代码/公式/链接接缝处补空格
+- **`invisible_spaces`**：删零宽字符；行尾空白清理
+- **`halfwidth_word`**：全角字母数字 → 半角（含全角空格、数字间时间冒号）
+- **`fullwidth_punctuation`**：CJK 旁半角标点 → 全角（括号/书名号；`html` 跳过书名号）
+- **`halfwidth_punctuation`**：纯英文段全角标点 → 半角（`,;:!?` 后补空格；含 CJK 整段跳过）
+- **`no_space_fullwidth`**：宽字符之间删空格（含 ASCII 侧、全角引号；缩进保留）
+- **`space_word`**：段内 CJK ↔ 字母数字间补空格（含 `±n` 双向、`n%`、`C++`/`+`/`#` 后缀；`%s`/`$1`/`\d` 占位符不碰）
+- **`space_bracket`**：段内 CJK ↔ 半角 `[]()` 间补空格（拉丁侧不动；`{}` 不管）
+- **`space_punctuation`**：`!` + CJK 间补空格
+- **`space_pipe_plus`**：段内 CJK/引号旁 `|`/`+` 两侧补空格（`3+5`/`C++`/行首 `+` 不动）
+- **`space_backticks`**：段内 CJK ↔ 整对行内代码补空格（孤反引号/围栏不动；跨保护区接缝由 `markdown_space_at_bounds` 处理）
+- **`space_dash`**：段内 CJK/引号/括号间 `-` 两侧补空格（`3-5` / `e-mail` 等不动）
+- **`space_dollar`**：段内 CJK 旁 `$` 两侧补空格
+- **`repeated_punct`**：叠标归一（`。。。` → `······`，`！？` 至多连 3）
+- **`markdown_space_at_bounds`**：仅 markdown，正文与行内代码/公式/链接接缝处补空格
 
 ```vim
 function! im#typeset#rule#default_rules() abort
@@ -1338,34 +1342,34 @@ augroup END
 
 默认按键映射（均可用对应的 `g:im_surround_*_key` 定制）：
 
-| 按键                        | 模式                    | 说明                                   |
-| --------------------------- | ----------------------- | -------------------------------------- |
-| `[count]ys{motion}{char}`   | normal                  | 为 motion 选中的内容添加分隔符         |
-| `[count]yS{motion}{char}`   | normal                  | 同上，但分隔符独占首尾新行             |
-| `[count]yss` / `[count]ySS` | normal                  | 为整行添加分隔符（`ySS` 独占新行）     |
-| `[count]ds{char}`           | normal                  | 删除光标处最近的分隔符                 |
-| `[count]cs{old}{new}`       | normal                  | 将旧分隔符替换为新分隔符               |
-| `[count]cS{old}{new}`       | normal                  | 同上，新分隔符独占首尾新行             |
-| `S` / `gS`                  | visual                  | 为选区添加分隔符（`gS` 独占新行）      |
-| `<c-g>s` / `<c-g>S`         | insert                  | 插入一对分隔符并将光标置于中间         |
-| `ib` / `ab`                 | visual/operator-pending | 自动识别最近包围，选中其内部/整体      |
+| 按键                        | 模式                    | 说明                               |
+| --------------------------- | ----------------------- | ---------------------------------- |
+| `[count]ys{motion}{char}`   | normal                  | 为 motion 选中的内容添加分隔符     |
+| `[count]yS{motion}{char}`   | normal                  | 同上，但分隔符独占首尾新行         |
+| `[count]yss` / `[count]ySS` | normal                  | 为整行添加分隔符（`ySS` 独占新行） |
+| `[count]ds{char}`           | normal                  | 删除光标处最近的分隔符             |
+| `[count]cs{old}{new}`       | normal                  | 将旧分隔符替换为新分隔符           |
+| `[count]cS{old}{new}`       | normal                  | 同上，新分隔符独占首尾新行         |
+| `S` / `gS`                  | visual                  | 为选区添加分隔符（`gS` 独占新行）  |
+| `<c-g>s` / `<c-g>S`         | insert                  | 插入一对分隔符并将光标置于中间     |
+| `ib` / `ab`                 | visual/operator-pending | 自动识别最近包围，选中其内部/整体  |
 
 常见用法示例（`*` 为光标位置）：
 
-| 旧文本                       | 按键     | 新文本                 | 说明                   |
-| :--------------------------- | :------- | :--------------------- | :--------------------- |
-| `surr*ound_words`            | `ysiw)`  | `(surr*ound_words)`    | 紧凑括号包裹单词       |
-| `surr*ound_words`            | `ysiw(`  | `( surr*ound_words )`  | 带空格括号包裹         |
-| `*make strings`              | `ys$"`   | `"*make strings"`      | 引号包裹到行尾         |
-| `[delete ar*ound me!]`       | `ds]`    | `delete ar*ound me!`   | 删除方括号             |
-| `remove \<b>HTML t*ags\</b>` | `dst`    | `remove HTML t*ags`    | 删除标签对             |
-| `'change quot*es'`           | `cs'"`   | `"change quot*es"`     | 单引号换双引号         |
-| `delete(functi*on calls)`    | `dsf`    | `functi*on calls`      | 删除函数调用           |
-| `surr*ound_words`            | `2ysiw)` | `((surr*ound_words))`  | 叠两层紧凑括号         |
-| `((delete ar*ound me!))`     | `2ds)`   | `(delete ar*ound me!)` | 删外层（第 2 层）      |
-| `(f*oo)`                     | `dsa`    | `foo`                  | 自动识别并删除         |
-| `(f*oo)`                     | `dib`    | `()`                   | 删内部，保留括号       |
-| `(f*oo)`                     | `dab`    | `(空)`                 | 删整体，包括括号       |
+| 旧文本                       | 按键     | 新文本                 | 说明              |
+| :--------------------------- | :------- | :--------------------- | :---------------- |
+| `surr*ound_words`            | `ysiw)`  | `(surr*ound_words)`    | 紧凑括号包裹单词  |
+| `surr*ound_words`            | `ysiw(`  | `( surr*ound_words )`  | 带空格括号包裹    |
+| `*make strings`              | `ys$"`   | `"*make strings"`      | 引号包裹到行尾    |
+| `[delete ar*ound me!]`       | `ds]`    | `delete ar*ound me!`   | 删除方括号        |
+| `remove \<b>HTML t*ags\</b>` | `dst`    | `remove HTML t*ags`    | 删除标签对        |
+| `'change quot*es'`           | `cs'"`   | `"change quot*es"`     | 单引号换双引号    |
+| `delete(functi*on calls)`    | `dsf`    | `functi*on calls`      | 删除函数调用      |
+| `surr*ound_words`            | `2ysiw)` | `((surr*ound_words))`  | 叠两层紧凑括号    |
+| `((delete ar*ound me!))`     | `2ds)`   | `(delete ar*ound me!)` | 删外层（第 2 层） |
+| `(f*oo)`                     | `dsa`    | `foo`                  | 自动识别并删除    |
+| `(f*oo)`                     | `dib`    | `()`                   | 删内部，保留括号  |
+| `(f*oo)`                     | `dab`    | `(空)`                 | 删整体，包括括号  |
 
 **前置计数**：在 `ys / yss / ds / cs` 前加数字。`ys` 系一次套多层，如 `2ysiw)` 得到 `((word))`；`ds / cs` 系操作由内向外第 N 层，如嵌套括号内 `2ds)` 删外层、`2cs)]` 换外层。
 
@@ -1603,7 +1607,7 @@ endfunction
 
 依赖：
 
--  [bullets.vim](https://github.com/bullets-vim/bullets.vim)
+- [bullets.vim](https://github.com/bullets-vim/bullets.vim)
 
 ```vim
 function RimeKeymapRemap()
@@ -1649,7 +1653,6 @@ augroup END
 
 ![demo3](https://github.com/user-attachments/assets/093e5089-0b8c-4528-854f-5d4aee85328d)
 
-
 #### 打开用户数据目录
 
 依赖：
@@ -1660,7 +1663,6 @@ augroup END
 command! IMUserDataDirV execute 'vsplit | Oil ' . fnameescape(g:im_user_data_dir)
 nnoremap ;d :IMUserDataDirV<cr>
 ```
-
 
 ### 其他搭配插件
 
