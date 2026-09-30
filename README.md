@@ -700,14 +700,14 @@ function RimeKeymapRemap()
 endfunction
 
 function RimeKeymapClear()
-  silent! lunmap ;`
-  silent! lunmap ;:
-  silent! lunmap ;1
-  silent! lunmap ;2
-  silent! lunmap ;3
-  silent! lunmap ;4
-  silent! lunmap ;5
-  silent! lunmap ;6
+  silent! lunmap <buffer> ;`
+  silent! lunmap <buffer> ;:
+  silent! lunmap <buffer> ;1
+  silent! lunmap <buffer> ;2
+  silent! lunmap <buffer> ;3
+  silent! lunmap <buffer> ;4
+  silent! lunmap <buffer> ;5
+  silent! lunmap <buffer> ;6
 endfunction
 
 augroup RimeGroup

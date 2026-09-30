@@ -99,7 +99,7 @@ endfunction"}}}
 function! im#keymap#clear() abort"{{{
   for key in s:mapped_keys.letters + s:mapped_keys.numbers +
         \ s:mapped_keys.symbols + s:mapped_keys.specials
-    silent! execute 'lunmap ' . key
+    silent! execute 'lunmap <buffer>' . key
   endfor
 
   silent! doautocmd User RimeKeymapClear
