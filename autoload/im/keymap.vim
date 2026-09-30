@@ -56,42 +56,42 @@ let s:mapped_keys = {
 
 function! im#keymap#setup() abort"{{{
   for key in s:mapped_keys.letters
-    execute 'lnoremap <expr> ' . key . ' im#keymap#char(' . string(key) . ')'
+    execute 'lnoremap <buffer><expr> ' . key . ' im#keymap#char(' . string(key) . ')'
   endfor
 
   for key in s:mapped_keys.symbols
-    execute 'lnoremap <expr> ' . key . ' im#keymap#char(' . string(key) . ')'
+    execute 'lnoremap <buffer><expr> ' . key . ' im#keymap#char(' . string(key) . ')'
   endfor
 
   for key in s:mapped_keys.numbers
-    execute 'lnoremap <expr> ' . key . ' im#keymap#char(' . string(key) . ')'
+    execute 'lnoremap <buffer><expr> ' . key . ' im#keymap#char(' . string(key) . ')'
   endfor
 
-  lnoremap <expr> <bs>       im#keymap#bs()
-  lnoremap <expr> <s-bs>     im#keymap#shift_bs()
-  lnoremap <expr> <c-u>      im#keymap#ctrl_u()
-  lnoremap <expr> <c-w>      im#keymap#ctrl_w()
-  lnoremap <expr> <c-d>      im#keymap#special('c-d')
-  lnoremap <expr> <left>     im#keymap#special('left')
-  lnoremap <expr> <right>    im#keymap#special('right')
-  lnoremap <expr> <up>       im#keymap#special('up')
-  lnoremap <expr> <down>     im#keymap#special('down')
-  lnoremap <expr> <c-h>     im#keymap#special('left')
-  lnoremap <expr> <c-l>    im#keymap#special('right')
-  lnoremap <expr> <c-k>     im#keymap#special('up')
-  lnoremap <expr> <c-j>     im#keymap#special('down')
-  lnoremap <expr> <c-n>      im#keymap#special('up')
-  lnoremap <expr> <c-p>      im#keymap#special('down')
-  lnoremap <expr> <c-a>      im#keymap#special('home')
-  lnoremap <expr> <c-e>      im#keymap#special('end')
-  lnoremap <expr> <space>    im#keymap#special('space')
-  lnoremap <expr> <cr>       im#keymap#special('return')
-  lnoremap <expr> <tab>      im#keymap#special('tab')
-  lnoremap <expr> <s-tab>    im#keymap#special('s-tab')
-  lnoremap <expr> <pagedown> im#keymap#special('pagedown')
-  lnoremap <expr> <pageup>   im#keymap#special('pageup')
-  lnoremap <expr> <c-f>      im#keymap#special('pagedown')
-  lnoremap <expr> <c-b>      im#keymap#special('pageup')
+  lnoremap <buffer><expr> <bs>       im#keymap#bs()
+  lnoremap <buffer><expr> <s-bs>     im#keymap#shift_bs()
+  lnoremap <buffer><expr> <c-u>      im#keymap#ctrl_u()
+  lnoremap <buffer><expr> <c-w>      im#keymap#ctrl_w()
+  lnoremap <buffer><expr> <c-d>      im#keymap#special('c-d')
+  lnoremap <buffer><expr> <left>     im#keymap#special('left')
+  lnoremap <buffer><expr> <right>    im#keymap#special('right')
+  lnoremap <buffer><expr> <up>       im#keymap#special('up')
+  lnoremap <buffer><expr> <down>     im#keymap#special('down')
+  lnoremap <buffer><expr> <c-h>     im#keymap#special('left')
+  lnoremap <buffer><expr> <c-l>    im#keymap#special('right')
+  lnoremap <buffer><expr> <c-k>     im#keymap#special('up')
+  lnoremap <buffer><expr> <c-j>     im#keymap#special('down')
+  lnoremap <buffer><expr> <c-n>      im#keymap#special('up')
+  lnoremap <buffer><expr> <c-p>      im#keymap#special('down')
+  lnoremap <buffer><expr> <c-a>      im#keymap#special('home')
+  lnoremap <buffer><expr> <c-e>      im#keymap#special('end')
+  lnoremap <buffer><expr> <space>    im#keymap#special('space')
+  lnoremap <buffer><expr> <cr>       im#keymap#special('return')
+  lnoremap <buffer><expr> <tab>      im#keymap#special('tab')
+  lnoremap <buffer><expr> <s-tab>    im#keymap#special('s-tab')
+  lnoremap <buffer><expr> <pagedown> im#keymap#special('pagedown')
+  lnoremap <buffer><expr> <pageup>   im#keymap#special('pageup')
+  lnoremap <buffer><expr> <c-f>      im#keymap#special('pagedown')
+  lnoremap <buffer><expr> <c-b>      im#keymap#special('pageup')
 
   silent! doautocmd User RimeKeymapSetup
 endfunction"}}}

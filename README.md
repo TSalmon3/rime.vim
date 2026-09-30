@@ -689,14 +689,14 @@ patch:
 
 ```vim
 function RimeKeymapRemap()
-  lnoremap <silent><expr> ;` im#keymap#toggle_scheme()
-  lnoremap <nowait><expr> ;: im#keymap#toggle_ascii_mode()
-  lnoremap <nowait><expr> ;1 im#keymap#toggle_ascii_mode('commit_code')
-  lnoremap <nowait><expr> ;2 im#keymap#toggle_ascii_mode('commit_text')
-  lnoremap <nowait><expr> ;3 im#keymap#toggle_ascii_mode('clear')
-  lnoremap <nowait><expr> ;4 im#keymap#toggle_ascii_mode('inline_ascii')
-  lnoremap <nowait><expr> ;5 im#keymap#toggle_ascii_mode('set_ascii_mode')
-  lnoremap <nowait><expr> ;6 im#keymap#toggle_ascii_mode('unset_ascii_mode')
+  lnoremap <buffer><silent><expr> ;` im#keymap#toggle_scheme()
+  lnoremap <buffer><nowait><expr> ;: im#keymap#toggle_ascii_mode()
+  lnoremap <buffer><nowait><expr> ;1 im#keymap#toggle_ascii_mode('commit_code')
+  lnoremap <buffer><nowait><expr> ;2 im#keymap#toggle_ascii_mode('commit_text')
+  lnoremap <buffer><nowait><expr> ;3 im#keymap#toggle_ascii_mode('clear')
+  lnoremap <buffer><nowait><expr> ;4 im#keymap#toggle_ascii_mode('inline_ascii')
+  lnoremap <buffer><nowait><expr> ;5 im#keymap#toggle_ascii_mode('set_ascii_mode')
+  lnoremap <buffer><nowait><expr> ;6 im#keymap#toggle_ascii_mode('unset_ascii_mode')
 endfunction
 
 function RimeKeymapClear()
@@ -997,12 +997,12 @@ function RimePairImapRestore()
 endfunction
 
 function RimeKeymapRemap()
-  lnoremap <silent><expr> <bs> im#state#composing() ?
+  lnoremap <buffer><silent><expr> <bs> im#state#composing() ?
         \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs() ? im#pair#bs() : "\<bs>"
 
-  lnoremap <silent><expr> <s-bs> im#state#composing() ?
+  lnoremap <buffer><silent><expr> <s-bs> im#state#composing() ?
         \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs() ? "\<bs>" : "\<s-bs>"
@@ -1035,7 +1035,7 @@ function RimePairImapRestore()
 endfunction
 
 function RimeKeymapRemap()
-  lnoremap <silent><expr> <cr> im#state#composing() ?
+  lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>"
           \ : im#pair#should_cr() ? im#pair#cr() : "\<cr>"
 
@@ -1068,7 +1068,7 @@ function RimePairImapRestore()
 endfunction
 
 function RimeKeymapRemap()
-  lnoremap <silent><expr> <space> im#state#composing() ?
+  lnoremap <buffer><silent><expr> <space> im#state#composing() ?
         \ "\<cmd>call im#key(g:RIME_KEYCODE.Space, 0)\<CR>" : im#pair#space()
 endfunction
 
@@ -1321,7 +1321,7 @@ function RimePairImapRestore()
 endfunction
 
 function RimeKeymapRemap()
-  lnoremap <silent><expr> <cr> im#state#composing() ?
+  lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>"
           \ : im#pair#should_cr() ? im#pair#cr() : "\<Plug>(im-typeset-line)\<cr>"
 
@@ -1612,29 +1612,29 @@ endfunction
 ```vim
 function RimeKeymapRemap()
   if &filetype ==# 'markdown'
-    lnoremap <silent><expr> <tab> im#state#composing() ?
+    lnoremap <buffer><silent><expr> <tab> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \  bullet#is_bullet() ?
           \ "\<C-o>\<Plug>(bullets-demote)\<C-o>$" :  "\<tab>"
 
-    lnoremap <silent><expr> <s-tab> im#state#composing() ?
+    lnoremap <buffer><silent><expr> <s-tab> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ ullet#is_bullet()?
           \ "\<C-o>\<Plug>(bullets-promote)\<C-o>$" : "\<s-tab>"
 
-    lnoremap <silent><expr> <cr> im#state#composing() ?
+    lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
           \ "\<Plug>(bullets-newline)"
   else
-    lnoremap <silent><expr> <tab> im#state#composing() ?
+    lnoremap <buffer><silent><expr> <tab> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \ "\<tab>"
 
-    lnoremap <silent><expr> <s-tab> im#state#composing() ?
+    lnoremap <buffer><silent><expr> <s-tab> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ "\<s-tab>"
 
-    lnoremap <silent><expr> <cr> im#state#composing() ?
+    lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
           \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
           \ "\<cr>"
   endif

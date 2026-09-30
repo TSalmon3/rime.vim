@@ -2,6 +2,7 @@ doc/scratch.md
 cpp/rime-query
 cpp/build
 t
+test/
 doc/scratch.md
 docs/node_modules
 docs/.vitepress/dist
