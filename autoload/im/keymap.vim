@@ -51,7 +51,7 @@ let s:mapped_keys = {
       \ 'symbols' : ['`','-','+','=','!','$','@','#','%','&','^','*','_','(',')','[',']','{','}','<','>','\','/','~',';',':',',','.','?',"'",'"'],
       \ 'numbers': ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
       \ 'specials': ['<bs>', '<s-bs>', '<left>', '<right>', '<up>', '<down>','<c-a>', '<c-e>', '<space>', '<cr>', '<c-j>', '<c-k>', '<c-h>', '<c-l>',
-      \ '<tab>', '<s-tab>', '<c-w>', '<c-u>', '<c-n>', '<c-p>', '<pagedown>', '<pageup>', '<c-f>', '<c-b>', '<c-d>']
+      \ '<tab>', '<s-tab>', '<c-w>', '<c-u>', '<c-n>', '<c-p>', '<pagedown>', '<pageup>', '<c-f>', '<c-b>', '<c-d>', '<esc>']
       \ }
 
 function! im#keymap#setup() abort"{{{
@@ -92,6 +92,7 @@ function! im#keymap#setup() abort"{{{
   lnoremap <buffer><expr> <pageup>   im#keymap#special('pageup')
   lnoremap <buffer><expr> <c-f>      im#keymap#special('pagedown')
   lnoremap <buffer><expr> <c-b>      im#keymap#special('pageup')
+  lnoremap <buffer><expr> <esc>      im#keymap#special('escape')
 
   silent! doautocmd User RimeKeymapSetup
 endfunction"}}}
@@ -112,7 +113,7 @@ function! im#keymap#char(char) abort"{{{
   if !im#state#composing()
     call im#state#start_composition()
   endif
-  return "\<Cmd>call im#engine#key(" . char2nr(a:char) . ", 0)\<CR>"
+  return "\<Cmd>call im#composer#key(" . char2nr(a:char) . ", 0)\<CR>"
 endfunction"}}}
 
 function! im#keymap#toggle_scheme() abort"{{{
@@ -120,7 +121,7 @@ function! im#keymap#toggle_scheme() abort"{{{
   if !im#state#composing()
     call im#state#start_composition()
   endif
-  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#composer#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#cancel() abort"{{{
@@ -128,7 +129,7 @@ function! im#keymap#cancel() abort"{{{
   if !im#state#composing()
     return "\<c-u>"
   endif
-  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#composer#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#toggle_ascii_mode(...) abort"{{{
@@ -136,7 +137,7 @@ function! im#keymap#toggle_ascii_mode(...) abort"{{{
   if empty(style)
     let style = 'commit_code'
   endif
-  return "\<Cmd>call im#engine#ascii_switch('" . style . "')\<CR>"
+  return "\<Cmd>call im#composer#ascii_switch('" . style . "')\<CR>"
 endfunction"}}}
 
 function! im#keymap#ctrl_w() abort"{{{
@@ -147,7 +148,7 @@ function! im#keymap#ctrl_w() abort"{{{
     endif
     return "\<c-w>"
   endif
-  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#composer#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#ctrl_u() abort"{{{
@@ -158,7 +159,7 @@ function! im#keymap#ctrl_u() abort"{{{
     endif
     return "\<c-u>"
   endif
-  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#composer#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#special(name) abort"{{{
@@ -166,7 +167,7 @@ function! im#keymap#special(name) abort"{{{
   if !im#state#composing()
     return literal
   endif
-  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#composer#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#bs() abort"{{{
@@ -180,7 +181,7 @@ function! im#keymap#bs() abort"{{{
     endif
     return "\<bs>"
   endif
-  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#composer#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#shift_bs() abort"{{{
@@ -194,7 +195,7 @@ function! im#keymap#shift_bs() abort"{{{
     endif
     return "\<s-bs>"
   endif
-  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#composer#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#r() abort"{{{
@@ -218,14 +219,8 @@ function! im#keymap#r() abort"{{{
 
   let ctx = im#rime#key(char2nr(char), 0)
   let out = (ctx.accepted && !empty(get(ctx, 'committed', ''))) ? ctx.committed : char
-  let reset_ctx = im#rime#reset()
-  call im#state#sync_notifications(reset_ctx)
+  call im#state#emit(im#state#sync_notifications(ctx))
+  call im#state#emit(im#state#reset_backend())
 
-  let lnum = line('.')
-  let line = getline(lnum)
-  let cidx = charidx(line, col('.') - 1)
-  let before = strcharpart(line, 0, cidx)
-  let after  = strcharpart(line, cidx + 1)
-  call setline(lnum, before . out . after)
-  call cursor(lnum, byteidx(before, strchars(before)) + 1)
+  call im#view#replace_char(out)
 endfunction"}}}

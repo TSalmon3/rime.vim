@@ -47,8 +47,8 @@ function! s:clear_im_autocmd() abort"{{{
 endfunction"}}}
 
 function! im#enable() abort"{{{
+  call im#state#reset_frontend()
   let state = im#state#get()
-  let state.boundary = -1
   let state.enabled = 1
   call im#keymap#setup()
   set iminsert=1
@@ -56,13 +56,13 @@ function! im#enable() abort"{{{
 endfunction"}}}
 
 function! im#disable() abort"{{{
-  let state = im#state#get()
-  call im#engine#cancel()
+  call im#composer#reset()
   call im#keymap#clear()
+  let state = im#state#get()
   let state.enabled = 0
   set iminsert=0
   set imsearch=0
-  let state.boundary = -1
+  call im#state#reset_frontend()
 endfunction"}}}
 
 function! im#start() abort"{{{
@@ -140,7 +140,7 @@ function! im#toggle_insert() abort"{{{
   return nr2char(30)
 endfunction"}}}
 
-function! im#deploy() abort"{{{
+function! s:maintenance(kind) abort"{{{
   let state = im#state#get()
   if !state.started || !state.ready
     echohl WarningMsg
@@ -148,46 +148,36 @@ function! im#deploy() abort"{{{
     echohl None
     return
   endif
-  let status = im#rime#deploy()
+  if a:kind ==# 'sync'
+    let status = im#rime#sync()
+    let ok_msg = '[IM] sync + deploy success'
+    let fail_msg = '[IM] sync or deploy failed, check rime log'
+  else
+    let status = im#rime#deploy()
+    let ok_msg = '[IM] deploy success'
+    let fail_msg = '[IM] deploy failed, check rime log'
+  endif
   if status ==# 'success'
-    echo '[IM] deploy success'
+    echo ok_msg
   elseif status ==# 'failure'
     echohl ErrorMsg
-    echom '[IM] deploy failed, check rime log'
+    echom fail_msg
     echohl None
   else
     echohl WarningMsg
-    echom '[IM] deploy timed out or backend not responding'
+    echom '[IM] ' . a:kind . ' timed out or backend not responding'
     echohl None
   endif
   call im#state#init()
   redrawstatus
-  return
+endfunction"}}}
+
+function! im#deploy() abort"{{{
+  call s:maintenance('deploy')
 endfunction"}}}
 
 function! im#sync() abort"{{{
-  let state = im#state#get()
-  if !state.started || !state.ready
-    echohl WarningMsg
-    echom '[IM] rime not started or still connecting, run :IMStart first'
-    echohl None
-    return
-  endif
-  let status = im#rime#sync()
-  if status ==# 'success'
-    echo '[IM] sync + deploy success'
-  elseif status ==# 'failure'
-    echohl ErrorMsg
-    echom '[IM] sync or deploy failed, check rime log'
-    echohl None
-  else
-    echohl WarningMsg
-    echom '[IM] sync timed out or backend not responding'
-    echohl None
-  endif
-  call im#state#init()
-  redrawstatus
-  return
+  call s:maintenance('sync')
 endfunction"}}}
 
 function! im#on_insert_enter() abort"{{{

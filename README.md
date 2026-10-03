@@ -480,6 +480,7 @@ export RIME_QUERY_DEBUG=1
 | `<tab>`      | 下一个音节结尾     |
 | `<s-tab>`    | 下一个音节开头     |
 | `<c-u>`      | 清空拼音           |
+| `<esc>`      | 清空拼音           |
 | `<c-w>`      | 删除一个音节       |
 | `<c-d>`      | 删除自造词         |
 | `<c-a>`      | 光标移动到拼音开头 |
@@ -1005,12 +1006,12 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <bs> im#state#composing() ?
-        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
+        \ "\<cmd>call im#composer#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs() ? im#pair#bs() : "\<bs>"
 
   lnoremap <buffer><silent><expr> <s-bs> im#state#composing() ?
-        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
+        \ "\<cmd>call im#composer#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs() ? "\<bs>" : "\<s-bs>"
 
@@ -1043,7 +1044,7 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>"
+          \ "\<cmd>call im#composer#key(g:RIME_KEYCODE.Return, 0)\<cr>"
           \ : im#pair#should_cr() ? im#pair#cr() : "\<cr>"
 
 endfunction
@@ -1076,7 +1077,7 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <space> im#state#composing() ?
-        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Space, 0)\<CR>" : im#pair#space()
+        \ "\<cmd>call im#composer#key(g:RIME_KEYCODE.Space, 0)\<CR>" : im#pair#space()
 endfunction
 
 augroup RimeGroup
@@ -1329,7 +1330,7 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>"
+          \ "\<cmd>call im#composer#key(g:RIME_KEYCODE.Return, 0)\<cr>"
           \ : im#pair#should_cr() ? im#pair#cr() : "\<Plug>(im-typeset-line)\<cr>"
 
 endfunction
@@ -1620,29 +1621,29 @@ endfunction
 function RimeKeymapRemap()
   if &filetype ==# 'markdown'
     lnoremap <buffer><silent><expr> <tab> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
+          \ "\<cmd>call im#composer#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \  bullet#is_bullet() ?
           \ "\<C-o>\<Plug>(bullets-demote)\<C-o>$" :  "\<tab>"
 
     lnoremap <buffer><silent><expr> <s-tab> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
+          \ "\<cmd>call im#composer#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ ullet#is_bullet()?
           \ "\<C-o>\<Plug>(bullets-promote)\<C-o>$" : "\<s-tab>"
 
     lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
+          \ "\<cmd>call im#composer#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
           \ "\<Plug>(bullets-newline)"
   else
     lnoremap <buffer><silent><expr> <tab> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
+          \ "\<cmd>call im#composer#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \ "\<tab>"
 
     lnoremap <buffer><silent><expr> <s-tab> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
+          \ "\<cmd>call im#composer#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ "\<s-tab>"
 
     lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
+          \ "\<cmd>call im#composer#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
           \ "\<cr>"
   endif
 endfunction

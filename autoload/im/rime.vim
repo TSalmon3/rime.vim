@@ -448,10 +448,6 @@ function! im#rime#call(request, timeout_ms) abort"{{{
 endfunction"}}}
 
 function! s:parse_context(resp) abort"{{{
-  let state = im#state#get()
-  let state.preedit = get(a:resp, 'preedit', '')
-  let state.has_more     = get(a:resp, 'has_more', v:false)
-
   let candidates = get(a:resp, 'candidates', [])
   let comments   = get(a:resp, 'comments', [])
   let items = []
@@ -471,6 +467,7 @@ function! s:parse_context(resp) abort"{{{
         \ 'accepted'   : get(a:resp, 'accepted', v:true),
         \ 'candidates' : items,
         \ 'committed'  : get(a:resp, 'committed', ''),
+        \ 'has_more'   : get(a:resp, 'has_more', v:false),
         \ 'changed_options' : get(a:resp, 'changed_options', []),
         \ 'schema_changed'  : get(a:resp, 'schema_changed', v:false),
         \ 'schema_id'       : get(a:resp, 'schema_id', ''),
@@ -491,6 +488,7 @@ function! s:empty_context() abort"{{{
         \ 'accepted'   : v:false,
         \ 'candidates' : [],
         \ 'committed'  : '',
+        \ 'has_more'   : v:false,
         \ 'changed_options' : [],
         \ 'schema_changed'  : v:false,
         \ 'schema_id'       : '',

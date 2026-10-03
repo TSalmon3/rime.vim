@@ -125,7 +125,7 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>"
+          \ "\<cmd>call im#composer#key(g:RIME_KEYCODE.Return, 0)\<cr>"
           \ : im#pair#should_cr() ? im#pair#cr() : "\<Plug>(im-typeset-line)\<cr>"
 
 endfunction
