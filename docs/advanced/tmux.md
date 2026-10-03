@@ -93,6 +93,7 @@ tmux 弹窗会自动从全局环境导入以下三个变量：
 RIME_USER_DATA_DIR   # 用户数据目录
 RIME_SHARED_DATA_DIR # 共享数据目录
 RIME_LOG             # 后端日志路径
+RIME_QUERY_DEBUG     # 后端 debug 开关（=1 开，默认 info）
 RIME_TMUX_LOG        # tmux 前端日志路径
 ```
 

@@ -290,6 +290,7 @@ function! s:ensure_backend() abort"{{{
     if s:handshake_and_setup(s:endpoint()[1])
       let state.ready = 1
       call im#rime#apply_initial_options()
+      call im#rime#warmup()
       silent! doautocmd User RimeIMReady
       return 1
     endif
@@ -505,24 +506,8 @@ function! im#rime#key(keycode, mask) abort"{{{
   return s:parse_context(resp)
 endfunction"}}}
 
-function! im#rime#select(index) abort"{{{
-  let resp = im#rime#call({'type': 'select', 'index': a:index}, 800)
-  if resp is v:null
-    return s:empty_context()
-  endif
-  return s:parse_context(resp)
-endfunction"}}}
-
-function! im#rime#get_input() abort"{{{
-  let resp = im#rime#call({'type': 'get_input'}, 800)
-  if resp is v:null
-    return s:empty_context()
-  endif
-  return s:parse_context(resp)
-endfunction"}}}
-
-function! im#rime#commit_composition() abort"{{{
-  let resp = im#rime#call({'type': 'commit_composition'}, 800)
+function! im#rime#cancel() abort"{{{
+  let resp = im#rime#call({'type': 'cancel'}, 800)
   if resp is v:null
     return s:empty_context()
   endif
@@ -573,9 +558,23 @@ function! im#rime#get_option(name) abort"{{{
   return get(resp, 'value', v:null)
 endfunction"}}}
 
+function! im#rime#get_options(names) abort"{{{
+  let resp = im#rime#call({'type': 'get_options', 'options': a:names}, 800)
+  if resp is v:null
+    return {}
+  endif
+  return get(resp, 'values', {})
+endfunction"}}}
+
+function! im#rime#get_schema() abort"{{{
+  let resp = im#rime#call({'type': 'get_schema'}, 800)
+  if resp is v:null
+    return {}
+  endif
+  return {'id': get(resp, 'schema_id', ''), 'name': get(resp, 'schema_name', '')}
+endfunction"}}}
+
 function! im#rime#deploy() abort"{{{
-  " 触发 librime 完整重新部署；同步阻塞，部署期间后端不响应其他请求。
-  " 返回 'success' / 'failure'；后端未响应返回 v:null。
   let resp = im#rime#call({'type': 'deploy'}, get(g:, 'im_deploy_timeout', 60000))
   if resp is v:null
     return v:null
@@ -584,8 +583,6 @@ function! im#rime#deploy() abort"{{{
 endfunction"}}}
 
 function! im#rime#sync() abort"{{{
-  " 先同步用户词库（sync/<installation_id>/ 下的备份），再重新部署。
-  " 返回 deploy_status；后端未响应返回 v:null。
   let resp = im#rime#call({'type': 'sync'}, get(g:, 'im_deploy_timeout', 60000))
   if resp is v:null
     return v:null
@@ -599,24 +596,21 @@ function! im#rime#warmup() abort"{{{
 endfunction"}}}
 
 function! im#rime#apply_initial_options() abort"{{{
-  let state = im#state#get()
   if exists('g:im_option_ascii_mode')
-    let value = im#rime#set_option('ascii_mode', get(g:, 'im_option_ascii_mode', 0))
+    call im#rime#set_option('ascii_mode', get(g:, 'im_option_ascii_mode', 0))
   endif
 
   if exists('g:im_option_ascii_punct')
-    let value = im#rime#set_option('ascii_punct', get(g:, 'im_option_ascii_punct', 0))
+    call im#rime#set_option('ascii_punct', get(g:, 'im_option_ascii_punct', 0))
   endif
 
   if exists('g:im_option_traditional')
-    let value = im#rime#set_option('traditionalization', get(g:, 'im_option_traditional', 0))
+    call im#rime#set_option('traditionalization', get(g:, 'im_option_traditional', 0))
   endif
 
   if exists('g:im_option_emoji')
-    let value = im#rime#set_option('emoji', get(g:, 'im_option_emoji', 0))
+    call im#rime#set_option('emoji', get(g:, 'im_option_emoji', 0))
   endif
-
-  call im#rime#warmup()
 endfunction"}}}
 
 function! im#rime#toggle_traditional() abort"{{{
@@ -634,7 +628,6 @@ function! im#rime#toggle_traditional() abort"{{{
   let state.traditional = value ? 1 : 0
   redrawstatus
 endfunction"}}}
-
 
 function! im#rime#toggle_ascii_mode() abort"{{{
   let state = im#state#get()

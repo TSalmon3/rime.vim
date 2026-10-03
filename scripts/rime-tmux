@@ -186,7 +186,8 @@ def tmux_env(name: str) -> str:
 
 
 def _import_rime_env_from_tmux() -> None:
-    for var in ("RIME_USER_DATA_DIR", "RIME_SHARED_DATA_DIR", "RIME_LOG"):
+    for var in ("RIME_USER_DATA_DIR", "RIME_SHARED_DATA_DIR", "RIME_LOG",
+                "RIME_QUERY_DEBUG"):
         if not os.environ.get(var):
             v = tmux_env(var)
             if v:

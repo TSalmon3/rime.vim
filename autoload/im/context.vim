@@ -149,7 +149,7 @@ function! im#context#toggle() abort"{{{
     return 0
   endif
   if im#state#composing()
-    call im#cancel()
+    call im#engine#cancel()
   endif
   let to_chinese = !&iminsert
   if mode(1) =~# '^[iR]'
@@ -180,7 +180,7 @@ function! im#context#set(zone) abort"{{{
     return 0
   endif
   if im#state#composing()
-    call im#cancel()
+    call im#engine#cancel()
   endif
   let to_chinese = zone ==# 'chinese'
   if !!&iminsert == to_chinese

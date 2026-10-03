@@ -378,7 +378,7 @@ nnoremap <silent> ;: <Cmd>call IMQSearch(':', 'English')<CR>
 
 ### 环境变量
 
-插件通过三个环境变量获取数据目录与日志路径，两种设置方式任选其一：
+插件通过四个环境变量获取数据目录、日志路径与调试开关，两种设置方式任选其一：
 
 #### 在 Vim 中设置
 
@@ -407,6 +407,13 @@ export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 
 Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 `127.0.0.1:18666`；
 与 `g:im_tcp_addr` 同义，二者同时设置时以 `g:im_tcp_addr` 优先）。
+
+排查问题时可设 `RIME_QUERY_DEBUG=1` 开启后端 debug 日志（默认只记 info，免每键磁盘 flush 拖慢打字；
+改完需 `:IMShutdown` 后重启 daemon 才生效）：
+
+```sh
+export RIME_QUERY_DEBUG=1
+```
 
 > 注意：在 Vim 中设置 `g:im_user_data_dir` / `g:im_shared_data_dir` / `g:im_log_file` 会覆盖同名环境变量。
 
@@ -669,7 +676,7 @@ patch:
 
 #### 中英切换
 
-`im#keymap#toggle_ascii_mode()` 不带参数时，模拟一次左 Shift 按下 + 释放，与系统输入法一致；组词过程中的处理方式由 Rime 配置里的 `ascii_composer/switch_key` 决定。
+`im#keymap#toggle_ascii_mode()` 不带参数时等价于 `'commit_code'`（拼音字母原样上屏，再切换）；不再跟随 Rime 配置里的 `ascii_composer/switch_key`。
 
 带参数时可以指定「正在组词时切换」的处理风格：
 
@@ -998,12 +1005,12 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <bs> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs() ? im#pair#bs() : "\<bs>"
 
   lnoremap <buffer><silent><expr> <s-bs> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs() ? "\<bs>" : "\<s-bs>"
 
@@ -1036,7 +1043,7 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>"
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>"
           \ : im#pair#should_cr() ? im#pair#cr() : "\<cr>"
 
 endfunction
@@ -1069,7 +1076,7 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <space> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.Space, 0)\<CR>" : im#pair#space()
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Space, 0)\<CR>" : im#pair#space()
 endfunction
 
 augroup RimeGroup
@@ -1322,7 +1329,7 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>"
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>"
           \ : im#pair#should_cr() ? im#pair#cr() : "\<Plug>(im-typeset-line)\<cr>"
 
 endfunction
@@ -1613,29 +1620,29 @@ endfunction
 function RimeKeymapRemap()
   if &filetype ==# 'markdown'
     lnoremap <buffer><silent><expr> <tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \  bullet#is_bullet() ?
           \ "\<C-o>\<Plug>(bullets-demote)\<C-o>$" :  "\<tab>"
 
     lnoremap <buffer><silent><expr> <s-tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ ullet#is_bullet()?
           \ "\<C-o>\<Plug>(bullets-promote)\<C-o>$" : "\<s-tab>"
 
     lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
           \ "\<Plug>(bullets-newline)"
   else
     lnoremap <buffer><silent><expr> <tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \ "\<tab>"
 
     lnoremap <buffer><silent><expr> <s-tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ "\<s-tab>"
 
     lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
           \ "\<cr>"
   endif
 endfunction

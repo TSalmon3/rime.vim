@@ -118,6 +118,24 @@ function! PassToTerm(text)
 endfunction
 command! -nargs=* PassToTerm :call PassToTerm(<q-args>)
 tnoremap ;; <c-\><c-n><cmd>call im#start()<cr>q:a:PassToTerm<space>
+
+
+" 打开 :/? 命令行窗口并开启输出法
+function! IMQSearch(cmdtype, zone) abort"{{{
+  if getcmdwintype() !=# ''
+    return
+  endif
+  if index(['/', '?', ':'], a:cmdtype) < 0
+    return
+  endif
+  call im#start()
+  call timer_start(0, {-> im#context#set(a:zone)})
+  call feedkeys('q' . a:cmdtype . 'a', 'nt')
+endfunction"}}}
+nnoremap <silent> ;/ <Cmd>call IMQSearch('/', 'Chinese')<CR>
+nnoremap <silent> ;? <Cmd>call IMQSearch('?', 'Chinese')<CR>
+nnoremap <silent> ;: <Cmd>call IMQSearch(':', 'English')<CR>
+
 ```
 
 其中：
@@ -141,7 +159,7 @@ Windows 上 daemon 只监听单条 TCP 通道（Vim 与 Neovim 共用）。
 
 ## 环境变量
 
-插件通过三个环境变量获取数据目录与日志路径，两种设置方式任选其一：
+插件通过四个环境变量获取数据目录、日志路径与调试开关，两种设置方式任选其一：
 
 ### 在 Vim 中设置
 
@@ -170,5 +188,12 @@ export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 
 Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 `127.0.0.1:18666`；
 与 `g:im_tcp_addr` 同义，二者同时设置时以 `g:im_tcp_addr` 优先）。
+
+排查问题时可设 `RIME_QUERY_DEBUG=1` 开启后端 debug 日志（默认只记 info，免每键磁盘 flush 拖慢打字；
+改完需 `:IMShutdown` 后重启 daemon 才生效）：
+
+```sh
+export RIME_QUERY_DEBUG=1
+```
 
 > 注意：在 Vim 中设置 `g:im_user_data_dir` / `g:im_shared_data_dir` / `g:im_log_file` 会覆盖同名环境变量。

@@ -9,7 +9,7 @@ description: 环境要求、安装与 rime-query 后端编译
 
 ## 环境要求
 
-- Vim >= 8.2.1978 或 Neovim
+- Vim >= 8.2.1978 或 Neovim >= 0.10
 - [librime](https://github.com/rime/librime)（编译后端所必需）
 - Rime 共享数据目录与用户数据目录（例如 [rime-ice](https://github.com/iDvel/rime-ice)）
 
@@ -39,8 +39,8 @@ Plug 'TSalmon3/rime.vim'
 
 ```bash
 cd /path/to/rime.vim/cpp
-brew install librime
 mkdir -p build
+brew install librime
 clang++ -std=c++17 -I./3rd -I/opt/homebrew/include -L/opt/homebrew/lib -lstdc++ -lrime -o build/rime-query rime-query.cc
 ```
 
@@ -90,7 +90,6 @@ cmake --build build
 ```
 
 ::: info
-
 需要 `clang++` 与 `mingw32-make` 在 `PATH` 中
 :::
 
@@ -116,7 +115,7 @@ let g:im_build_rime_dll     = 'D:/Library/librime/lib/rime.dll'
 ```
 
 | 命令       | 说明                              |
-|------------|-----------------------------------|
+| ---------- | --------------------------------- |
 | `:IMCheck` | 自检：编译器/参数/路径/是否已编译 |
 | `:IMBuild` | 后台异步编译                      |
 | `:IMClean` | 清理编译结果                      |

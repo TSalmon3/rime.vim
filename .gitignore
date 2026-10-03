@@ -1,9 +1,8 @@
-doc/scratch.md
+doc/architecture.md
 cpp/rime-query
 cpp/build
 t
 test/
-doc/scratch.md
 docs/node_modules
 docs/.vitepress/dist
 docs/.vitepress/cache

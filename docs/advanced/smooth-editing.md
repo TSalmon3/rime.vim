@@ -13,34 +13,34 @@ description: ultisnips / bullets / jieba 搭配
 function RimeKeymapRemap()
   if &filetype ==# 'markdown'
     lnoremap <silent><expr> <tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \ UltiSnips#CanJumpForwards() ?
           \"\<c-r>=UltiSnips#JumpForwards()\<cr>" :  bullet#is_bullet() ?
           \ "\<C-o>\<Plug>(bullets-demote)\<C-o>$" :  "\<tab>"
 
     lnoremap <silent><expr> <s-tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ UltiSnips#CanJumpBackwards() ?
           \ "\<c-r>=UltiSnips#JumpBackwards()\<cr>" : bullet#is_bullet()?
           \ "\<C-o>\<Plug>(bullets-promote)\<C-o>$" : "\<s-tab>"
 
     lnoremap <silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
           \ delimitMate#WithinEmptyPair() ?
           \ "\<c-r>=delimitMate#ExpandReturn()\<cr>" : "\<Plug>(bullets-newline)"
   else
     lnoremap <silent><expr> <tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \ UltiSnips#CanJumpForwards() ?
           \"\<c-r>=UltiSnips#JumpForwards()\<cr>" : "\<tab>"
 
     lnoremap <silent><expr> <s-tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ UltiSnips#CanJumpBackwards() ?
           \ "\<c-r>=UltiSnips#JumpBackwards()\<cr>" : "\<s-tab>"
 
     lnoremap <silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
           \ delimitMate#WithinEmptyPair() ?
           \ "\<c-r>=delimitMate#ExpandReturn()\<cr>" : "\<cr>"
   endif
@@ -64,7 +64,7 @@ augroup END
 ```vim
 function RimeKeymapRemap()
   lnoremap <silent><expr> <c-w> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#ctrl_w()\<cr>" :
         \ "<Plug>(Jieba_C_w)"
 endfunction

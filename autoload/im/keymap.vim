@@ -105,44 +105,22 @@ function! im#keymap#clear() abort"{{{
   silent! doautocmd User RimeKeymapClear
 endfunction"}}}
 
-function! s:begin_composition() abort"{{{
-  let state = im#state#get()
-  if im#replace#active() && im#replace#dirty()
-    call im#replace#sync()
-  endif
-  let state.boundary    = col('.')
-  let state.vpad        = virtcol('.') - 1 - strdisplaywidth(getline('.'))
-  if state.vpad > 0
-    if im#replace#active()
-      let state.base_line = state.base_line . repeat(' ', state.vpad)
-      let state.base_cidx = state.base_cidx + state.vpad
-    endif
-    let state.boundary  = strlen(getline('.')) + state.vpad + 1
-  else
-    let state.vpad      = 0
-  endif
-  let state.preedit_len = 0
-  let state.cursor_pos  = 0
-  let state.sel_start   = 0
-  let state.sel_end     = 0
-endfunction"}}}
-
 function! im#keymap#char(char) abort"{{{
   if !im#replace#active() && mode(1) =~# '^R'
     return a:char
   endif
   if !im#state#composing()
-    call s:begin_composition()
+    call im#state#start_composition()
   endif
-  return "\<Cmd>call im#key(" . char2nr(a:char) . ", 0)\<CR>"
+  return "\<Cmd>call im#engine#key(" . char2nr(a:char) . ", 0)\<CR>"
 endfunction"}}}
 
 function! im#keymap#toggle_scheme() abort"{{{
   let [code, mask, literal] = s:keys['c-`']
   if !im#state#composing()
-    call s:begin_composition()
+    call im#state#start_composition()
   endif
-  return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#cancel() abort"{{{
@@ -150,22 +128,15 @@ function! im#keymap#cancel() abort"{{{
   if !im#state#composing()
     return "\<c-u>"
   endif
-  return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#toggle_ascii_mode(...) abort"{{{
-  let style = a:0 ? a:1 : ''
-  if !empty(style)
-    return "\<Cmd>call im#ascii_switch('" . style . "')\<CR>"
+  let style = a:0 ? a:1 : 'commit_code'
+  if empty(style)
+    let style = 'commit_code'
   endif
-  let [p_code, p_mask, _] = s:keys['l-shift']
-  let [r_code, r_mask, _] = s:keys['l-shift-release']
-  call im#rime#key(p_code, p_mask)
-  return "\<Cmd>call im#key(" . r_code . ", " . r_mask . ", '')\<CR>"
-endfunction"}}}
-
-function! im#keymap#ascii_switch(style) abort"{{{
-  return "\<Cmd>call im#ascii_switch('" . a:style . "')\<CR>"
+  return "\<Cmd>call im#engine#ascii_switch('" . style . "')\<CR>"
 endfunction"}}}
 
 function! im#keymap#ctrl_w() abort"{{{
@@ -176,7 +147,7 @@ function! im#keymap#ctrl_w() abort"{{{
     endif
     return "\<c-w>"
   endif
-  return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#ctrl_u() abort"{{{
@@ -187,7 +158,7 @@ function! im#keymap#ctrl_u() abort"{{{
     endif
     return "\<c-u>"
   endif
-  return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#special(name) abort"{{{
@@ -195,7 +166,7 @@ function! im#keymap#special(name) abort"{{{
   if !im#state#composing()
     return literal
   endif
-  return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#bs() abort"{{{
@@ -209,7 +180,7 @@ function! im#keymap#bs() abort"{{{
     endif
     return "\<bs>"
   endif
-  return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#shift_bs() abort"{{{
@@ -223,7 +194,7 @@ function! im#keymap#shift_bs() abort"{{{
     endif
     return "\<s-bs>"
   endif
-  return "\<Cmd>call im#key(" . code . ", " . mask . ")\<CR>"
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#r() abort"{{{
@@ -248,9 +219,7 @@ function! im#keymap#r() abort"{{{
   let ctx = im#rime#key(char2nr(char), 0)
   let out = (ctx.accepted && !empty(get(ctx, 'committed', ''))) ? ctx.committed : char
   let reset_ctx = im#rime#reset()
-  if !empty(get(reset_ctx, 'changed_options', []))
-    call im#apply_option_changes(reset_ctx)
-  endif
+  call im#state#sync_notifications(reset_ctx)
 
   let lnum = line('.')
   let line = getline(lnum)
