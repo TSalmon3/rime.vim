@@ -289,7 +289,7 @@ function! s:ensure_backend() abort"{{{
   if s:conn_alive()
     if s:handshake_and_setup(s:endpoint()[1])
       let state.ready = 1
-      call im#rime#apply_initial_options()
+      call im#rime#warmup()
       silent! doautocmd User RimeIMReady
       return 1
     endif
@@ -447,10 +447,6 @@ function! im#rime#call(request, timeout_ms) abort"{{{
 endfunction"}}}
 
 function! s:parse_context(resp) abort"{{{
-  let state = im#state#get()
-  let state.preedit = get(a:resp, 'preedit', '')
-  let state.has_more     = get(a:resp, 'has_more', v:false)
-
   let candidates = get(a:resp, 'candidates', [])
   let comments   = get(a:resp, 'comments', [])
   let items = []
@@ -470,6 +466,7 @@ function! s:parse_context(resp) abort"{{{
         \ 'accepted'   : get(a:resp, 'accepted', v:true),
         \ 'candidates' : items,
         \ 'committed'  : get(a:resp, 'committed', ''),
+        \ 'has_more'   : get(a:resp, 'has_more', v:false),
         \ 'changed_options' : get(a:resp, 'changed_options', []),
         \ 'schema_changed'  : get(a:resp, 'schema_changed', v:false),
         \ 'schema_id'       : get(a:resp, 'schema_id', ''),
@@ -490,6 +487,7 @@ function! s:empty_context() abort"{{{
         \ 'accepted'   : v:false,
         \ 'candidates' : [],
         \ 'committed'  : '',
+        \ 'has_more'   : v:false,
         \ 'changed_options' : [],
         \ 'schema_changed'  : v:false,
         \ 'schema_id'       : '',
@@ -505,24 +503,8 @@ function! im#rime#key(keycode, mask) abort"{{{
   return s:parse_context(resp)
 endfunction"}}}
 
-function! im#rime#select(index) abort"{{{
-  let resp = im#rime#call({'type': 'select', 'index': a:index}, 800)
-  if resp is v:null
-    return s:empty_context()
-  endif
-  return s:parse_context(resp)
-endfunction"}}}
-
-function! im#rime#get_input() abort"{{{
-  let resp = im#rime#call({'type': 'get_input'}, 800)
-  if resp is v:null
-    return s:empty_context()
-  endif
-  return s:parse_context(resp)
-endfunction"}}}
-
-function! im#rime#commit_composition() abort"{{{
-  let resp = im#rime#call({'type': 'commit_composition'}, 800)
+function! im#rime#cancel() abort"{{{
+  let resp = im#rime#call({'type': 'cancel'}, 800)
   if resp is v:null
     return s:empty_context()
   endif
@@ -573,9 +555,23 @@ function! im#rime#get_option(name) abort"{{{
   return get(resp, 'value', v:null)
 endfunction"}}}
 
+function! im#rime#get_options(names) abort"{{{
+  let resp = im#rime#call({'type': 'get_options', 'options': a:names}, 800)
+  if resp is v:null
+    return {}
+  endif
+  return get(resp, 'values', {})
+endfunction"}}}
+
+function! im#rime#get_schema() abort"{{{
+  let resp = im#rime#call({'type': 'get_schema'}, 800)
+  if resp is v:null
+    return {}
+  endif
+  return {'id': get(resp, 'schema_id', ''), 'name': get(resp, 'schema_name', '')}
+endfunction"}}}
+
 function! im#rime#deploy() abort"{{{
-  " 触发 librime 完整重新部署；同步阻塞，部署期间后端不响应其他请求。
-  " 返回 'success' / 'failure'；后端未响应返回 v:null。
   let resp = im#rime#call({'type': 'deploy'}, get(g:, 'im_deploy_timeout', 60000))
   if resp is v:null
     return v:null
@@ -584,8 +580,6 @@ function! im#rime#deploy() abort"{{{
 endfunction"}}}
 
 function! im#rime#sync() abort"{{{
-  " 先同步用户词库（sync/<installation_id>/ 下的备份），再重新部署。
-  " 返回 deploy_status；后端未响应返回 v:null。
   let resp = im#rime#call({'type': 'sync'}, get(g:, 'im_deploy_timeout', 60000))
   if resp is v:null
     return v:null
@@ -596,108 +590,6 @@ endfunction"}}}
 function! im#rime#warmup() abort"{{{
   " 强制完成首键懒加载，避免第一次打字卡顿。
   call im#rime#call({'type': 'warmup'}, 800)
-endfunction"}}}
-
-function! im#rime#apply_initial_options() abort"{{{
-  let state = im#state#get()
-  if exists('g:im_option_ascii_mode')
-    let value = im#rime#set_option('ascii_mode', get(g:, 'im_option_ascii_mode', 0))
-  endif
-
-  if exists('g:im_option_ascii_punct')
-    let value = im#rime#set_option('ascii_punct', get(g:, 'im_option_ascii_punct', 0))
-  endif
-
-  if exists('g:im_option_traditional')
-    let value = im#rime#set_option('traditionalization', get(g:, 'im_option_traditional', 0))
-  endif
-
-  if exists('g:im_option_emoji')
-    let value = im#rime#set_option('emoji', get(g:, 'im_option_emoji', 0))
-  endif
-
-  call im#rime#warmup()
-endfunction"}}}
-
-function! im#rime#toggle_traditional() abort"{{{
-  let state = im#state#get()
-  if !state.started
-    return
-  endif
-  let value = im#rime#toggle_option('traditionalization')
-  if value is v:null
-    echohl WarningMsg
-    echom '[IM] failed to toggle traditionalization (backend not responding?)'
-    echohl None
-    return
-  endif
-  let state.traditional = value ? 1 : 0
-  redrawstatus
-endfunction"}}}
-
-
-function! im#rime#toggle_ascii_mode() abort"{{{
-  let state = im#state#get()
-  if !state.started
-    return
-  endif
-  let value = im#rime#toggle_option('ascii_mode')
-  if value is v:null
-    echohl WarningMsg
-    echom '[IM] failed to toggle ascii_mode (backend not responding?)'
-    echohl None
-    return
-  endif
-  let state.ascii_mode = value ? 1 : 0
-  redrawstatus
-endfunction"}}}
-
-function! im#rime#toggle_ascii_punct() abort"{{{
-  let state = im#state#get()
-  if !state.started
-    return
-  endif
-  let value = im#rime#toggle_option('ascii_punct')
-  if value is v:null
-    echohl WarningMsg
-    echom '[IM] failed to toggle ascii_punct (backend not responding?)'
-    echohl None
-    return
-  endif
-  let state.ascii_punct = value ? 1 : 0
-  redrawstatus
-endfunction"}}}
-
-function! im#rime#toggle_emoji() abort"{{{
-  let state = im#state#get()
-  if !state.started
-    return
-  endif
-  let value = im#rime#toggle_option('emoji')
-  if value is v:null
-    echohl WarningMsg
-    echom '[IM] failed to toggle emoji (backend not responding?)'
-    echohl None
-    return
-  endif
-  let state.emoji = value ? 1 : 0
-  redrawstatus
-endfunction"}}}
-
-function! im#rime#toggle_full_shape() abort"{{{
-  let state = im#state#get()
-  if !state.started
-    return
-  endif
-  let value = im#rime#toggle_option('full_shape')
-  if value is v:null
-    echohl WarningMsg
-    echom '[IM] failed to toggle full_shape (backend not responding?)'
-    echohl None
-    return
-  endif
-  let state.full_shape = value ? 1 : 0
-  redrawstatus
 endfunction"}}}
 
 " --- Heartbeat -----------------------------------------------------------

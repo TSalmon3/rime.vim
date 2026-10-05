@@ -12,97 +12,143 @@ let s:state = {
       \ 'sel_start'       : 0,
       \ 'sel_end'         : 0,
       \ 'has_more'        : v:false,
-      \ 'last_candidates' : [],
-      \ 'last_preedit'    : '',
-      \ 'last_hl'         : 0,
-      \ 'ascii_mode'      : 0,
-      \ 'ascii_punct'     : 0,
-      \ 'emoji'           : 0,
-      \ 'full_shape'      : 0,
-      \ 'traditional'     : 0,
-      \ 'schema'          : '',
+      \ 'switches'        : {},
+      \ 'schema_id'       : '',
+      \ 'schema_name'     : '',
       \ 'last_commit'     : '',
       \ 'last_fallback'   : '',
-      \ 'ns_id'           : 0,
-      \ 'mark_id'         : 0,
-      \ 'match_id'        : 0,
-      \ 'repl_active'     : 0,
-      \ 'base_line'       : '',
-      \ 'base_cidx'       : 0,
-      \ 'repl_text'       : '',
-      \ 'repl_len'        : 0,
       \ }
 
-function! im#state#get() abort
+" 单次组合的前端快照默认值；init/reset_frontend 同源，避免三处重复。
+let s:frontend_defaults = {
+      \ 'candidate_count' : 0,
+      \ 'boundary'        : -1,
+      \ 'preedit'         : '',
+      \ 'preedit_len'     : 0,
+      \ 'vpad'            : 0,
+      \ 'cursor_pos'      : 0,
+      \ 'sel_start'       : 0,
+      \ 'sel_end'         : 0,
+      \ 'has_more'        : v:false,
+      \ }
+
+function! im#state#get() abort"{{{
   return s:state
-endfunction
+endfunction"}}}
 
 " 是否正处在一次未上屏的组合中间。
-function! im#state#composing() abort
+function! im#state#composing() abort"{{{
   return s:state.boundary >= 0
-endfunction
+endfunction"}}}
 
 " (Re)initialize the full state dict to its default values.
-function! im#state#init() abort
-  let s:state.enabled        = 0
-  let s:state.candidate_count = 0
-  let s:state.boundary       = -1
-  let s:state.preedit        = ''
-  let s:state.preedit_len    = 0
-  let s:state.vpad           = 0
-  let s:state.cursor_pos     = 0
-  let s:state.sel_start      = 0
-  let s:state.sel_end        = 0
-  let s:state.has_more       = v:false
-  let s:state.last_candidates = []
-  let s:state.last_preedit    = ''
-  let s:state.last_hl         = 0
-  let s:state.last_commit     = ''
-  let s:state.last_fallback   = ''
-  let s:state.mark_id        = 0
-  let s:state.match_id       = 0
-  let s:state.repl_active      = 0
-  let s:state.base_line      = ''
-  let s:state.base_cidx      = 0
-  let s:state.repl_text      = ''
-  let s:state.repl_len       = 0
+function! im#state#init() abort"{{{
+  call im#state#reset_frontend()
+  let s:state.enabled = 0
+  let s:state.last_commit = ''
+  let s:state.last_fallback = ''
 
-  if has('nvim') && s:state.ns_id == 0
-    let s:state.ns_id = nvim_create_namespace("im_nvim")
+  if exists('g:im_option_ascii_mode')
+    call im#rime#set_option('ascii_mode', get(g:, 'im_option_ascii_mode', 0))
   endif
 
-  let s:state.ascii_mode = im#rime#get_option('ascii_mode')
-  let s:state.ascii_punct = im#rime#get_option('ascii_punct')
-  let s:state.traditional = im#rime#get_option('traditionalization')
-  let s:state.emoji = im#rime#get_option('emoji')
-endfunction
+  if exists('g:im_option_ascii_punct')
+    call im#rime#set_option('ascii_punct', get(g:, 'im_option_ascii_punct', 0))
+  endif
 
-" Reset per-composition fields; called whenever the current composition
-" ends, one way or another (confirmed, cancelled, or interrupted).
-function! im#state#reset_input() abort
-  let s:state.boundary        = -1
-  let s:state.candidate_count = 0
-  let s:state.preedit         = ''
-  let s:state.preedit_len     = 0
-  let s:state.vpad            = 0
-  let s:state.cursor_pos      = 0
-  let s:state.sel_start       = 0
-  let s:state.sel_end         = 0
-  let s:state.last_candidates = []
-  let s:state.last_preedit    = ''
-  let s:state.last_hl         = 0
+  if exists('g:im_option_traditional')
+    call im#rime#set_option('traditionalization', get(g:, 'im_option_traditional', 0))
+  endif
+
+  if exists('g:im_option_emoji')
+    call im#rime#set_option('emoji', get(g:, 'im_option_emoji', 0))
+  endif
+
+  let names = get(g:, 'im_option_names',
+        \ ['ascii_mode', 'ascii_punct', 'traditionalization', 'emoji', 'full_shape'])
+  let opt_vals = im#rime#get_options(names)
+  if !empty(opt_vals)
+    for name in names
+      let s:state.switches[name] = get(opt_vals, name, 0) ? 1 : 0
+    endfor
+  endif
+
+  let schema_info = im#rime#get_schema()
+  if !empty(get(schema_info, 'id', ''))
+    let s:state.schema_id = schema_info.id
+    let s:state.schema_name = get(schema_info, 'name', '')
+  endif
+endfunction"}}}
+
+function! im#state#sync_notifications(ctx) abort"{{{
+  let opt_changed = v:false
+  let sch_changed = v:false
+
+  for item in get(a:ctx, 'changed_options', [])
+    let name = get(item, 'name', '')
+    if empty(name)
+      continue
+    endif
+    if get(s:state.switches, name, -1) != (item.value ? 1 : 0)
+      let s:state.switches[name] = item.value ? 1 : 0
+      let opt_changed = v:true
+    endif
+  endfor
+
+  let schema_id = get(a:ctx, 'schema_id', '')
+  let schema_dirty = v:false
+  if !empty(schema_id) && schema_id !=# s:state.schema_id
+    let s:state.schema_id = schema_id
+    let s:state.schema_name = get(a:ctx, 'schema_name', '')
+    let schema_dirty = v:true
+  endif
+  if get(a:ctx, 'schema_changed', v:false)
+    let sch_changed = v:true
+  endif
+
+  return {'opt_changed': opt_changed, 'schema_dirty': schema_dirty, 'sch_changed': sch_changed}
+endfunction"}}}
+
+function! im#state#emit(result) abort"{{{
+  if get(a:result, 'opt_changed', v:false) || get(a:result, 'schema_dirty', v:false)
+    redrawstatus
+  endif
+  if get(a:result, 'opt_changed', v:false)
+    silent! doautocmd User RimeOptionChanged
+  endif
+  if get(a:result, 'sch_changed', v:false)
+    silent! doautocmd User RimeSchemaChanged
+  endif
+endfunction"}}}
+
+function! im#state#start_composition() abort"{{{
+  if im#replace#active() && im#replace#dirty()
+    call im#replace#sync()
+  endif
+  let s:state.boundary = col('.')
+  let s:state.vpad = virtcol('.') - 1 - strdisplaywidth(getline('.'))
+  if s:state.vpad > 0
+    if im#replace#active()
+      call im#replace#pad(s:state.vpad)
+    endif
+    let s:state.boundary = strlen(getline('.')) + s:state.vpad + 1
+  else
+    let s:state.vpad = 0
+  endif
+  let s:state.preedit_len = 0
+  let s:state.cursor_pos = 0
+  let s:state.sel_start = 0
+  let s:state.sel_end = 0
+endfunction"}}}
+
+function! im#state#reset_frontend() abort"{{{
+  for [k, v] in items(s:frontend_defaults)
+    let s:state[k] = type(v) == v:t_list ? copy(v) : v
+  endfor
+  silent! call im#view#reset_cache()
+endfunction"}}}
+
+function! im#state#reset_backend() abort"{{{
   let ctx = im#rime#reset()
-  " 组合结束可能触发 inline_ascii 自动回切（后端代引擎发 option 通知），
-  " 同步状态栏，避免显示停留在"英"。
-  if !empty(get(ctx, 'changed_options', []))
-    call im#apply_option_changes(ctx)
-  endif
-endfunction
-
-function! im#state#reset_replace() abort
-  let s:state.repl_active = 0
-  let s:state.base_line = ''
-  let s:state.base_cidx = 0
-  let s:state.repl_text = ''
-  let s:state.repl_len  = 0
-endfunction
+  return im#state#sync_notifications(ctx)
+endfunction"}}}

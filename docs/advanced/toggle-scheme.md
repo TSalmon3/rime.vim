@@ -16,7 +16,7 @@ description: 方案选单与中英切换风格
 
 ## 中英切换
 
-`im#keymap#toggle_ascii_mode()` 不带参数时，模拟一次左 Shift 按下 + 释放，与系统输入法一致；组词过程中的处理方式由 Rime 配置里的 `ascii_composer/switch_key` 决定。
+`im#keymap#toggle_ascii_mode()` 不带参数时等价于 `'commit_code'`（拼音字母原样上屏，再切换）；不再跟随 Rime 配置里的 `ascii_composer/switch_key`。
 
 带参数时可以指定「正在组词时切换」的处理风格：
 
@@ -37,25 +37,25 @@ description: 方案选单与中英切换风格
 
 ```vim
 function RimeKeymapRemap()
-  lnoremap <silent><expr> ;` im#keymap#toggle_scheme()
-  lnoremap <nowait><expr> ;: im#keymap#toggle_ascii_mode()
-  lnoremap <nowait><expr> ;1 im#keymap#toggle_ascii_mode('commit_code')
-  lnoremap <nowait><expr> ;2 im#keymap#toggle_ascii_mode('commit_text')
-  lnoremap <nowait><expr> ;3 im#keymap#toggle_ascii_mode('clear')
-  lnoremap <nowait><expr> ;4 im#keymap#toggle_ascii_mode('inline_ascii')
-  lnoremap <nowait><expr> ;5 im#keymap#toggle_ascii_mode('set_ascii_mode')
-  lnoremap <nowait><expr> ;6 im#keymap#toggle_ascii_mode('unset_ascii_mode')
+  lnoremap <buffer><silent><expr> ;` im#keymap#toggle_scheme()
+  lnoremap <buffer><nowait><expr> ;: im#keymap#toggle_ascii_mode()
+  lnoremap <buffer><nowait><expr> ;1 im#keymap#toggle_ascii_mode('commit_code')
+  lnoremap <buffer><nowait><expr> ;2 im#keymap#toggle_ascii_mode('commit_text')
+  lnoremap <buffer><nowait><expr> ;3 im#keymap#toggle_ascii_mode('clear')
+  lnoremap <buffer><nowait><expr> ;4 im#keymap#toggle_ascii_mode('inline_ascii')
+  lnoremap <buffer><nowait><expr> ;5 im#keymap#toggle_ascii_mode('set_ascii_mode')
+  lnoremap <buffer><nowait><expr> ;6 im#keymap#toggle_ascii_mode('unset_ascii_mode')
 endfunction
 
 function RimeKeymapClear()
-  silent! lunmap ;`
-  silent! lunmap ;:
-  silent! lunmap ;1
-  silent! lunmap ;2
-  silent! lunmap ;3
-  silent! lunmap ;4
-  silent! lunmap ;5
-  silent! lunmap ;6
+  silent! lunmap <buffer> ;`
+  silent! lunmap <buffer> ;:
+  silent! lunmap <buffer> ;1
+  silent! lunmap <buffer> ;2
+  silent! lunmap <buffer> ;3
+  silent! lunmap <buffer> ;4
+  silent! lunmap <buffer> ;5
+  silent! lunmap <buffer> ;6
 endfunction
 
 augroup RimeGroup

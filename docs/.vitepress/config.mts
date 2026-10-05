@@ -1,6 +1,6 @@
-import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default defineConfig({
+export default withMermaid({
   lang: 'zh-CN',
   title: 'rime.vim',
   description: 'Vim/Neovim 的 Rime 输入法集成',

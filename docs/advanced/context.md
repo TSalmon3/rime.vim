@@ -15,7 +15,6 @@ description: 按高亮作用域自动切换中英
 - 插入模式下用 `;;` 重启输入法时，同样会强制校准一次
 :::
 
-
 ## 配置
 
 ```vim
@@ -31,7 +30,7 @@ let g:im_context_config = {
 ```
 
 - `mode` 为 `whitelist` 时，仅在列出的高亮区域内接管为 Rime，其余区域保持直通；为 `blacklist` 时反之。
-- `ts` 对应 treesitter highlight capture 名称（去掉 `@` 后大小写不敏感子串匹配，如 `comment` 可命中 `@comment`，`markup.raw` 可命中 `@markup.raw.block`）；不再匹配节点类型。
+- `ts` 对应 treesitter highlight capture 名称（大小写不敏感子串匹配，如 `comment` 可命中 `@comment`，`markup.raw` 可命中 `@markup.raw.block`）
 - `syntax` 对应 vim syntax 高亮组名称。
 - `ts` 与 `syntax` 之间为「或」的关系，命中任一即生效；两者同时配置时 `ts` 优先级更高。
 
@@ -40,7 +39,7 @@ let g:im_context_config = {
 状态变化时会触发以下 `autocmd`，可用于联动第三方插件（如补全、AI 续写等）：
 
 | 事件                 | 触发时机                                          |
-|----------------------|---------------------------------------------------|
+| -------------------- | ------------------------------------------------- |
 | `RimeContextChinese` | 进入【Rime 接管】模式时触发，常用于关闭第三方补全 |
 | `RimeContextEnglish` | 回到【原生直通】模式时触发，常用于恢复第三方补全  |
 | `RimeContextChanged` | 接管状态发生变化时触发（不区分方向）              |
@@ -81,7 +80,7 @@ augroup END
 
 手动切换【Rime 接管】与【原生直通】模式：
 
-```
+```vim
 inoremap <silent> ;u <cmd>call im#context#set('chinese')<cr>
 inoremap <silent> ;n <cmd>call im#context#set('english')<cr>
 inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
@@ -89,7 +88,7 @@ inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
 
 开关整个自动切换功能：
 
-```
+```vim
 nnoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
 inoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
 ```

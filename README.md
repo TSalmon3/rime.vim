@@ -1,3 +1,6 @@
+> [!WARNING]
+> **v2.0.0** 含后端协议变更与 API breaking。**rime-query** 需重新编译。API 变更见 **CHANGELOG**。回退稳定版本 Tag 为 **v1.24.0**
+
 <p align="center">
   <img alt="Logo" src="./icon.png" height="200" />
   <p align="center">Rime input method support for Vim/Neovim</p>
@@ -38,22 +41,52 @@
 <summary><strong>CHANGELOG</strong></summary>
 <br>
 
+## V2.0.0
+
+**Changed**
+
+| 旧 API                         | 新 API                              |
+|--------------------------------|-------------------------------------|
+| `im#keymap#r()`                | `im#replace#r()`                    |
+| `im#key(keycode, mask, ...)`   | `im#engine#key(keycode, mask, ...)` |
+
+| 移除                           |
+|--------------------------------|
+| `g:im_toggle_traditional_key`  |
+| `g:im_toggle_emoji_key`        |
+| `g:im_status_simplified_text`  |
+| `g:im_status_traditional_text` |
+
+
+- 不再支持快捷键简繁体切换
+- 不再支持快捷键 emoji 体切换
+- 内置 `im#status` 不再显示繁体切换部分
+
+旧名无别名保留。
+
 ## v1.15.0
 
 **Changed**
 
-- `g:im_surround_add_line_key` -> `g:im_surround_add_linewise_key`。
-- `g:im_surround_add_cur_line_key` -> `g:im_surround_add_cur_linewise_key`。
-- `g:im_surround_change_line_key` -> `g:im_surround_change_linewise_key`。
-- `g:im_surround_visual_line_key` -> `g:im_surround_visual_linewise_key`。
-- `g:im_surround_insert_line_key` -> `g:im_surround_insert_linewise_key`。
-- 旧名无别名保留；默认按键不变。
+| 旧 API | 新 API |
+| --- | --- |
+| `g:im_surround_add_line_key` | `g:im_surround_add_linewise_key` |
+| `g:im_surround_add_cur_line_key` | `g:im_surround_add_cur_linewise_key` |
+| `g:im_surround_change_line_key` | `g:im_surround_change_linewise_key` |
+| `g:im_surround_visual_line_key` | `g:im_surround_visual_linewise_key` |
+| `g:im_surround_insert_line_key` | `g:im_surround_insert_linewise_key` |
+
+旧名无别名保留；默认按键不变。
 
 ## v1.14.0
 
 **Changed**
 
-- `im#pair#should_bs_pair()` 更名为 `im#pair#should_bs()`，旧名无别名保留。
+| 旧 API | 新 API |
+| --- | --- |
+| `im#pair#should_bs_pair()` | `im#pair#should_bs()` |
+
+旧名无别名保留。
 
 </details>
 
@@ -270,24 +303,20 @@ let g:im_toggle_key                = ';;'
 let g:im_toggle_ascii_mode_key     = ';,'
 " 中英文标点切换快捷键
 let g:im_toggle_ascii_punct_key    = ';a'
-" 简体/繁体切换快捷键
-let g:im_toggle_traditional_key    = ';f'
-" emoji 开关快捷键
-let g:im_toggle_emoji_key          = ';e'
 " :IMDeploy / :IMSync 等待后端响应的超时时长（毫秒）
 let g:im_deploy_timeout            = 60000
 " :IMSchemeDownload 方案下载的根目录
 let g:im_scheme_dir                = '~/.local/share/rime-schemes'
 " 状态栏输入法图标
 let g:im_status_text               = 'ㄓ'
+" 中文模式状态文本
+let g:im_status_chinese_text       = '中'
+" 英文模式状态文本
+let g:im_status_english_text       = 'A'
 " 半角标点状态文本
 let g:im_status_half_text          = '$'
 " 全角标点状态文本
 let g:im_status_full_text          = '¥'
-" 简体状态文本
-let g:im_status_simplified_text    = '简'
-" 繁体状态文本
-let g:im_status_traditional_text   = '繁'
 " Rime 接管输入时的指示文本
 let g:im_status_lmap_text          = 'L'
 " 原生直通（未接管）时的指示文本
@@ -296,12 +325,8 @@ let g:im_status_imap_text          = 'I'
 let g:im_status_disconnect         = '断'
 " 标点初始状态（1 表示启动时为半角标点）
 let g:im_option_ascii_punct        = 0
-" 简繁初始状态（1 表示启动时为繁体）
-let g:im_option_traditional        = 0
 " 中英文初始状态（1 表示启动时为英文模式）
 let g:im_option_ascii_mode         = 0
-" emoji 初始状态（1 表示启动时开启）
-let g:im_option_emoji              = 0
 
 
 " 在 Cmdline 中使用
@@ -378,7 +403,7 @@ nnoremap <silent> ;: <Cmd>call IMQSearch(':', 'English')<CR>
 
 ### 环境变量
 
-插件通过三个环境变量获取数据目录与日志路径，两种设置方式任选其一：
+插件通过四个环境变量获取数据目录、日志路径与调试开关，两种设置方式任选其一：
 
 #### 在 Vim 中设置
 
@@ -407,6 +432,13 @@ export RIME_SHARED_DATA_DIR="/usr/share/rime-data"
 
 Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 `127.0.0.1:18666`；
 与 `g:im_tcp_addr` 同义，二者同时设置时以 `g:im_tcp_addr` 优先）。
+
+排查问题时可设 `RIME_QUERY_DEBUG=1` 开启后端 debug 日志（默认只记 info，免每键磁盘 flush 拖慢打字；
+改完需 `:IMShutdown` 后重启 daemon 才生效）：
+
+```sh
+export RIME_QUERY_DEBUG=1
+```
 
 > 注意：在 Vim 中设置 `g:im_user_data_dir` / `g:im_shared_data_dir` / `g:im_log_file` 会覆盖同名环境变量。
 
@@ -445,8 +477,6 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 | `;;` | normal / insert / command / terminal | 切换输入法开关 |
 | `;,` | normal / insert                      | 切换中/英模式  |
 | `;a` | normal / insert                      | 切换中英文标点 |
-| `;f` | normal / insert                      | 切换简/繁体    |
-| `;e` | normal / insert                      | 切换 emoji     |
 
 组词过程中的按键和组合键基本兼容系统级输入法：
 
@@ -473,6 +503,7 @@ Windows 下还可通过 `RIME_QUERY_TCP` 覆盖后端 TCP 监听端点（默认 
 | `<tab>`      | 下一个音节结尾     |
 | `<s-tab>`    | 下一个音节开头     |
 | `<c-u>`      | 清空拼音           |
+| `<esc>`      | 清空拼音           |
 | `<c-w>`      | 删除一个音节       |
 | `<c-d>`      | 删除自造词         |
 | `<c-a>`      | 光标移动到拼音开头 |
@@ -669,7 +700,7 @@ patch:
 
 #### 中英切换
 
-`im#keymap#toggle_ascii_mode()` 不带参数时，模拟一次左 Shift 按下 + 释放，与系统输入法一致；组词过程中的处理方式由 Rime 配置里的 `ascii_composer/switch_key` 决定。
+`im#keymap#toggle_ascii_mode()` 不带参数时等价于 `'commit_code'`（拼音字母原样上屏，再切换）；不再跟随 Rime 配置里的 `ascii_composer/switch_key`。
 
 带参数时可以指定「正在组词时切换」的处理风格：
 
@@ -745,7 +776,7 @@ let g:im_replace_mode = 1
 - 重新映射 `r`，以支持半角/全角切换：
 
 ```vim
-nnoremap r <Cmd>call im#keymap#r()<CR>
+nnoremap r <Cmd>call im#replace#r()<CR>
 ```
 
 ### Motion 行内跳转
@@ -998,12 +1029,12 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <bs> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.BackSpace, 0)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs() ? im#pair#bs() : "\<bs>"
 
   lnoremap <buffer><silent><expr> <s-bs> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs() ? "\<bs>" : "\<s-bs>"
 
@@ -1036,7 +1067,7 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>"
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>"
           \ : im#pair#should_cr() ? im#pair#cr() : "\<cr>"
 
 endfunction
@@ -1069,7 +1100,7 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <space> im#state#composing() ?
-        \ "\<cmd>call im#key(g:RIME_KEYCODE.Space, 0)\<CR>" : im#pair#space()
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Space, 0)\<CR>" : im#pair#space()
 endfunction
 
 augroup RimeGroup
@@ -1322,7 +1353,7 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>"
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>"
           \ : im#pair#should_cr() ? im#pair#cr() : "\<Plug>(im-typeset-line)\<cr>"
 
 endfunction
@@ -1613,29 +1644,29 @@ endfunction
 function RimeKeymapRemap()
   if &filetype ==# 'markdown'
     lnoremap <buffer><silent><expr> <tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \  bullet#is_bullet() ?
           \ "\<C-o>\<Plug>(bullets-demote)\<C-o>$" :  "\<tab>"
 
     lnoremap <buffer><silent><expr> <s-tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ ullet#is_bullet()?
           \ "\<C-o>\<Plug>(bullets-promote)\<C-o>$" : "\<s-tab>"
 
     lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
           \ "\<Plug>(bullets-newline)"
   else
     lnoremap <buffer><silent><expr> <tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
           \ "\<tab>"
 
     lnoremap <buffer><silent><expr> <s-tab> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
           \ "\<s-tab>"
 
     lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
+          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
           \ "\<cr>"
   endif
 endfunction
@@ -1787,4 +1818,4 @@ set-environment -g RIME_TMUX_LOG "$HOME/.local/state/log/tmux/rime.log"
 
 ## License
 
-MIT
+[MIT](./LICENSE)

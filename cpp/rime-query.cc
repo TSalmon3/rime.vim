@@ -80,9 +80,11 @@ static void log_init() {// {{{
     logger = spdlog::null_logger_mt("rime");
   }
   spdlog::set_default_logger(logger);
-  spdlog::set_level(spdlog::level::debug);
+  const char *dbg = getenv("RIME_QUERY_DEBUG");
+  bool verbose = dbg && *dbg;
+  spdlog::set_level(verbose ? spdlog::level::debug : spdlog::level::info);
   spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
-  spdlog::flush_on(spdlog::level::debug);
+  spdlog::flush_on(spdlog::level::info);
 }// }}}
 
 // ---------------------------------------------------------------------------
@@ -92,6 +94,8 @@ static void log_init() {// {{{
 static volatile std::sig_atomic_t g_should_exit = 0;
 
 static std::string g_deploy_status;
+
+constexpr int kProtocolVersion = 1;
 
 struct Client {
 #ifdef _WIN32
@@ -114,8 +118,6 @@ struct Client {
   bool schema_changed = false;
   std::string schema_id;
   std::string schema_name;
-
-  bool schema_broadcast = false;
 };
 
 static std::map<long long, Client> g_clients;
@@ -222,21 +224,10 @@ static void fill_notifications(Client &c, json &resp) {// {{{
   for (auto &kv : c.changed_options)
     opts.push_back({{"name", kv.first}, {"value", kv.second}});
   resp["changed_options"] = opts;
-  // deploy 广播与单键事件取或；广播送达即复位，保证恰好一次。
-  bool schema_changed = c.schema_changed || c.schema_broadcast;
-  c.schema_broadcast = false;
-  resp["schema_changed"]  = schema_changed;
-  if (schema_changed) {
-    if (!c.schema_id.empty()) {
-      resp["schema_id"]   = c.schema_id;
-      resp["schema_name"] = c.schema_name;
-    } else {
-      // deploy 广播等场景：主动取当前方案补齐字段。
-      RimeApi *api = rime_get_api();
-      char schema_buf[256] = {0};
-      if (c.session && api->get_current_schema(c.session, schema_buf, sizeof(schema_buf)))
-        resp["schema_id"] = schema_buf;
-    }
+  resp["schema_changed"]  = c.schema_changed;
+  if (c.schema_changed && !c.schema_id.empty()) {
+    resp["schema_id"]   = c.schema_id;
+    resp["schema_name"] = c.schema_name;
   }
 }// }}}
 
@@ -251,8 +242,9 @@ static RimeSessionId ensure_session(Client &c) {// {{{
   if (c.session)
     g_session_owner.erase(c.session);  // 维护后失效的旧 session
   c.session = api->create_session();
-  if (c.session)
+  if (c.session) {
     g_session_owner[c.session] = &c;
+  }
   spdlog::info("created new session {} for client {}",
                (long long)c.session, (long long)client_key(c));
   return c.session;
@@ -323,11 +315,6 @@ static void fill_context(Client &c, json &resp) {// {{{
   resp["has_more"]   = !ctx.menu.is_last_page;
   resp["composing"]  = !preedit.empty();
 
-  // 始终带上当前方案 id，让前端无需额外请求即可同步状态栏方案名。
-  char schema_buf[256] = {0};
-  if (api->get_current_schema(sid, schema_buf, sizeof(schema_buf)))
-    resp["schema_id"] = schema_buf;
-
   api->free_context(&ctx);
 }// }}}
 
@@ -347,7 +334,6 @@ static void rebuild_all_client_sessions() {// {{{
     cli.changed_options.clear();
     cli.schema_changed = false;
     ensure_session(cli);
-    cli.schema_broadcast = true;
   }
 }// }}}
 
@@ -364,6 +350,7 @@ static json handle_request(Client &c, const json &req) {// {{{
   if (type == "ping") {
     if (req.contains("app")) c.app_hint = req.value("app", std::string());
     resp["ok"] = true;
+    resp["protocol"] = kProtocolVersion;
     return resp;
   }
 
@@ -417,39 +404,14 @@ static json handle_request(Client &c, const json &req) {// {{{
     return resp;
   }
 
-  if (type == "select") {
-    int index = req.value("index", 0);
+  // --- cancel: 取原始编码并清 composition，一次顶 get_input+reset 两次 ---
+  if (type == "cancel") {
     clear_key_notifications(c);
-    RimeSessionId sid = ensure_session(c);
-    api->select_candidate_on_current_page(sid, index);
-
-    resp["ok"]        = true;
-    resp["committed"] = fetch_commit(c);
-    fill_context(c, resp);
-    finish_inline_ascii(c, resp);
-    fill_notifications(c, resp);
-    return resp;
-  }
-
-  // --- get_input ---
-  if (type == "get_input") {
     RimeSessionId sid = ensure_session(c);
     const char *input = sid ? api->get_input(sid) : nullptr;
-
     resp["ok"]    = true;
     resp["input"] = input ? input : "";
-    fill_context(c, resp);
-    return resp;
-  }
-
-  // --- commit_composition ---
-  if (type == "commit_composition") {
-    clear_key_notifications(c);
-    RimeSessionId sid = ensure_session(c);
-    if (sid) api->commit_composition(sid);
-
-    resp["ok"]        = true;
-    resp["committed"] = fetch_commit(c);
+    if (sid) api->clear_composition(sid);
     fill_context(c, resp);
     finish_inline_ascii(c, resp);
     fill_notifications(c, resp);
@@ -649,6 +611,62 @@ static json handle_request(Client &c, const json &req) {// {{{
     resp["ok"]     = true;
     resp["option"] = option;
     resp["value"]  = (bool)current;
+    return resp;
+  }
+
+  if (type == "get_options") {
+    if (!req.contains("options") || !req["options"].is_array()) {
+      resp["ok"]    = false;
+      resp["error"] = "options(array) is required";
+      return resp;
+    }
+    RimeSessionId sid = ensure_session(c);
+    if (!sid) {
+      resp["ok"]    = false;
+      resp["error"] = "no active session";
+      return resp;
+    }
+    json values = json::object();
+    for (auto &opt : req["options"]) {
+      std::string option = opt.get<std::string>();
+      values[option] = (bool)api->get_option(sid, option.c_str());
+    }
+    resp["ok"] = true;
+    resp["values"] = values;
+    return resp;
+  }
+
+  if (type == "get_schema") {
+    RimeSessionId sid = ensure_session(c);
+    if (!sid) {
+      resp["ok"]    = false;
+      resp["error"] = "no active session";
+      return resp;
+    }
+    char schema_buf[256] = {0};
+    if (!api->get_current_schema(sid, schema_buf, sizeof(schema_buf))
+        || !*schema_buf) {
+      resp["ok"]    = false;
+      resp["error"] = "no current schema";
+      return resp;
+    }
+    std::string schema_id = schema_buf;
+    std::string schema_name;
+    RimeSchemaList schema_list{};
+    if (api->get_schema_list(&schema_list)) {
+      for (size_t i = 0; i < schema_list.size; ++i) {
+        const char *item_id = schema_list.list[i].schema_id;
+        if (item_id && schema_id == item_id) {
+          if (schema_list.list[i].name)
+            schema_name = schema_list.list[i].name;
+          break;
+        }
+      }
+      api->free_schema_list(&schema_list);
+    }
+    resp["ok"]          = true;
+    resp["schema_id"]   = schema_id;
+    resp["schema_name"] = schema_name;
     return resp;
   }
 
@@ -1289,6 +1307,7 @@ static void usage() {// {{{
 #endif
     "  --idle-exit-ms N   exit N ms after the last client leaves\n"
     "                     (default 60000, 0 = stay resident)\n"
+    "  --version, -V      print protocol version and exit\n"
     "  --help\n"
     "\n"
     "environment:\n"
@@ -1298,6 +1317,8 @@ static void usage() {// {{{
 #else
     ", RIME_QUERY_SOCKET"
 #endif
+    ", RIME_QUERY_DEBUG\n"
+    "  RIME_QUERY_DEBUG=1 enables debug logging (info only by default).\n"
     ;
 }// }}}
 
@@ -1346,6 +1367,9 @@ int main(int argc, char **argv) {// {{{
       idle_exit_ms = std::atol(argv[++i]);
     } else if (arg == "--help" || arg == "-h") {
       usage();
+      return 0;
+    } else if (arg == "--version" || arg == "-V") {
+      std::cout << "rime-query protocol=" << kProtocolVersion << "\n";
       return 0;
     } else {
       spdlog::warn("unknown argument: {}", arg);
