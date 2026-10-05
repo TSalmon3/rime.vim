@@ -750,6 +750,59 @@ augroup END
 let statusline^=%{IM_Status()}
 ```
 
+#### g:im_option_names
+
+启动（以及每次 `:IMDeploy` / `:IMSync`）时批量取回的开关名单，存后端原名：
+
+```vim
+let g:im_option_names = ['ascii_mode', 'ascii_punct', 'traditionalization', 'emoji', 'full_shape']
+```
+
+上例即默认值（以 rime-ice 雾凇拼音为例）。换方案后若有新增开关（如 `chinese_english`），把它追加进名单即可。
+
+具体的 option 名以各自 `schema.yaml` 的 `switches:` 列表为准（注：`switches:` 有 `- name: X` 与 `- options: [a, b, …]` 两种形态，这里只支持前者）。
+
+
+```vim
+function! IMToggleTraditional() abort
+  let state = im#state#get()
+  if !state.started
+    return
+  endif
+  let value = im#rime#toggle_option('traditionalization')
+  if value is v:null
+    echohl WarningMsg
+    echom 'failed to toggle traditionalization (backend not responding?)'
+    echohl None
+    return
+  endif
+  let state.switches['traditionalization'] = value ? 1 : 0
+  redrawstatus
+endfunction
+
+nnoremap <silent> ;f <cmd>call IMToggleTraditional()<cr>
+inoremap <silent> ;f <cmd>call IMToggleTraditional()<cr>
+
+function! IMToggleEmoji() abort
+  let state = im#state#get()
+  if !state.started
+    return
+  endif
+  let value = im#rime#toggle_option('emoji')
+  if value is v:null
+    echohl WarningMsg
+    echom 'failed to toggle emoji (backend not responding?)'
+    echohl None
+    return
+  endif
+  let state.switches['emoji'] = value ? 1 : 0
+  redrawstatus
+endfunction
+
+nnoremap <silent> ;e <cmd>call IMToggleEmoji()<cr>
+inoremap <silent> ;e <cmd>call IMToggleEmoji()<cr>
+```
+
 #### 显示内容与定制变量
 
 `IM_Status()` 的格式为 `[图标]中英|标点|接管`，各段文本可用变量定制（未设置则使用默认值）：
@@ -808,59 +861,6 @@ augroup RimeGroup
   autocmd!
   autocmd User RimeOptionInit call IMOptionInit()
 augroup END
-```
-
-#### g:im_option_names
-
-启动（以及每次 `:IMDeploy` / `:IMSync`）时批量取回的开关名单，存后端原名：
-
-```vim
-let g:im_option_names = ['ascii_mode', 'ascii_punct', 'traditionalization', 'emoji', 'full_shape']
-```
-
-上例即默认值（以 rime-ice 雾凇拼音为例）。换方案后若有新增开关（如 `chinese_english`），把它追加进名单即可。
-
-具体的 option 名以各自 `schema.yaml` 的 `switches:` 列表为准（注：`switches:` 有 `- name: X` 与 `- options: [a, b, …]` 两种形态，这里只支持前者）。
-
-
-```vim
-function! IMToggleTraditional() abort
-  let state = im#state#get()
-  if !state.started
-    return
-  endif
-  let value = im#rime#toggle_option('traditionalization')
-  if value is v:null
-    echohl WarningMsg
-    echom 'failed to toggle traditionalization (backend not responding?)'
-    echohl None
-    return
-  endif
-  let state.switches['traditionalization'] = value ? 1 : 0
-  redrawstatus
-endfunction
-
-nnoremap <silent> ;f <cmd>call IMToggleTraditional()<cr>
-inoremap <silent> ;f <cmd>call IMToggleTraditional()<cr>
-
-function! IMToggleEmoji() abort
-  let state = im#state#get()
-  if !state.started
-    return
-  endif
-  let value = im#rime#toggle_option('emoji')
-  if value is v:null
-    echohl WarningMsg
-    echom 'failed to toggle emoji (backend not responding?)'
-    echohl None
-    return
-  endif
-  let state.switches['emoji'] = value ? 1 : 0
-  redrawstatus
-endfunction
-
-nnoremap <silent> ;e <cmd>call IMToggleEmoji()<cr>
-inoremap <silent> ;e <cmd>call IMToggleEmoji()<cr>
 ```
 
 ### Replace Mode 替换模式
