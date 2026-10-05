@@ -56,13 +56,7 @@ function! im#state#init() abort"{{{
     call im#rime#set_option('ascii_punct', get(g:, 'im_option_ascii_punct', 0))
   endif
 
-  if exists('g:im_option_traditional')
-    call im#rime#set_option('traditionalization', get(g:, 'im_option_traditional', 0))
-  endif
-
-  if exists('g:im_option_emoji')
-    call im#rime#set_option('emoji', get(g:, 'im_option_emoji', 0))
-  endif
+  silent! doautocmd User RimeOptionInit
 
   let names = get(g:, 'im_option_names',
         \ ['ascii_mode', 'ascii_punct', 'traditionalization', 'emoji', 'full_shape'])

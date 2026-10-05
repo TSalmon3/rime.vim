@@ -56,10 +56,12 @@
 | `g:im_toggle_emoji_key`        |
 | `g:im_status_simplified_text`  |
 | `g:im_status_traditional_text` |
+| `g:im_option_traditional`      |
+| `g:im_option_emoji`            |
 
 
 - 不再支持快捷键简繁体切换
-- 不再支持快捷键 emoji 体切换
+- 不再支持快捷键 emoji 切换
 - 内置 `im#status` 不再显示繁体切换部分
 
 旧名无别名保留。
@@ -107,10 +109,10 @@
   - [按键映射](#按键映射)
 - [集成](#集成)
   - [事件](#事件)
-  - [状态栏](#状态栏)
 - [高级主题](#高级主题)
   - [rime-ice 配置示例](#rime-ice-配置示例)
   - [定制中英切换与方案选单](#定制中英切换与方案选单)
+  - [定制状态栏](#定制状态栏)
   - [Replace Mode 替换模式](#replace-mode-替换模式)
   - [Motion 行内跳转](#motion-行内跳转)
   - [Auto Pair 自动成对](#auto-pair-自动成对)
@@ -564,15 +566,6 @@ augroup IMGroup
 augroup END
 ```
 
-### 状态栏
-
-最简单的方式是在你的 `'statusline'` 选项中加入 `%{IM_Status()}`。开启时显示
-`[ㄓ]半|简`（图标 / 标点 / 简繁，文本均可用对应的 `g:im_status_*` 定制），关闭时返回空串。
-
-```vim
-let statusline^=%{IM_Status()}
-```
-
 ## 高级主题
 
 ### rime-ice 配置示例
@@ -746,6 +739,128 @@ augroup RimeGroup
   autocmd User RimeKeymapSetup call RimeKeymapRemap()
   autocmd User RimeKeymapClear call RimeKeymapClear()
 augroup END
+```
+
+### 定制状态栏
+
+最简单的方式是在你的 `'statusline'` 选项中加入 `%{IM_Status()}`。开启时显示
+`[ㄓ]中|半|L`（图标 / 中英 / 标点 / 接管，文本均可用对应的 `g:im_status_*` 定制），关闭时返回空串。
+
+```vim
+let statusline^=%{IM_Status()}
+```
+
+#### 显示内容与定制变量
+
+`IM_Status()` 的格式为 `[图标]中英|标点|接管`，各段文本可用变量定制（未设置则使用默认值）：
+
+```vim
+let g:im_status_text         = 'ㄓ' " 输入法图标
+let g:im_status_chinese_text = '中' " 中文模式状态文本
+let g:im_status_english_text = 'A'  " 英文模式状态文本
+let g:im_status_half_text    = '$'  " 半角标点状态文本
+let g:im_status_full_text    = '¥'  " 全角标点状态文本
+let g:im_status_lmap_text    = 'L'  " Rime 接管输入时的指示文本
+let g:im_status_imap_text    = 'I'  " 原生直通（未接管）时的指示文本
+let g:im_status_disconnect   = '断' " 输入法断开连接时的状态文本
+```
+
+内置只显示中英与标点两段；如要加自己的段（如简繁、emoji 等），需自定义。开关量变化时状态栏会自动重刷：
+
+```vim
+function! IMCustomStatus() abort
+  let state = im#state#get()
+  let icon = get(g:, 'im_status_text', 'ㄓ')
+  let icon_half = get(g:, 'im_status_half_text', '半')
+  let icon_full = get(g:, 'im_status_full_text', '全')
+  let icon_simplified = get(g:, 'im_status_simplified_text', '简')
+  let icon_traditional = get(g:, 'im_status_traditional_text', '繁')
+  let icon_chinese = get(g:, 'im_status_chinese_text', '中')
+  let icon_english = get(g:, 'im_status_english_text', '英')
+  let icon_lmap = get(g:, 'im_status_lmap_text', 'L')
+  let icon_imap = get(g:, 'im_status_imap_text', 'I')
+  let icon_disconnect = get(g:, 'im_status_disconnect', '断')
+
+  let mode = get(state.switches, 'ascii_mode', 0) ? icon_english : icon_chinese
+  let punct = get(state.switches, 'ascii_punct', 0) ? icon_half : icon_full
+  let trad = get(state.switches,  'traditionalization', 0) ? icon_traditional : icon_simplified
+  let lang = &iminsert ? icon_lmap : icon_imap
+  let connect = state.ready ? "" : icon_disconnect
+  return state.started ? connect . "[" . icon . "]" . mode . '|' . punct . '|' . trad . '|' . lang : ''
+endfunction
+
+let &statusline ..= '%{IMCustomStatus()}'
+```
+
+#### 事件
+
+| 事件             | 用途              |
+|------------------|-------------------|
+| `RimeOptionInit` | 用于初始化 Option |
+
+```vim
+function! IMOptionInit() abort
+  call im#rime#set_option('emoji', 0)
+  call im#rime#set_option('traditionalization', 0)
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeOptionInit call IMOptionInit()
+augroup END
+```
+
+#### g:im_option_names
+
+启动（以及每次 `:IMDeploy` / `:IMSync`）时批量取回的开关名单，存后端原名：
+
+```vim
+let g:im_option_names = ['ascii_mode', 'ascii_punct', 'traditionalization', 'emoji', 'full_shape']
+```
+
+上例即默认值（以 rime-ice 雾凇拼音为例）。换方案后若有新增开关（如 `chinese_english`），把它追加进名单即可。
+
+具体的 option 名以各自 `schema.yaml` 的 `switches:` 列表为准（注：`switches:` 有 `- name: X` 与 `- options: [a, b, …]` 两种形态，这里只支持前者）。
+
+
+```vim
+function! IMToggleTraditional() abort
+  let state = im#state#get()
+  if !state.started
+    return
+  endif
+  let value = im#rime#toggle_option('traditionalization')
+  if value is v:null
+    echohl WarningMsg
+    echom 'failed to toggle traditionalization (backend not responding?)'
+    echohl None
+    return
+  endif
+  let state.switches['traditionalization'] = value ? 1 : 0
+  redrawstatus
+endfunction
+
+nnoremap <silent> ;f <cmd>call IMToggleTraditional()<cr>
+inoremap <silent> ;f <cmd>call IMToggleTraditional()<cr>
+
+function! IMToggleEmoji() abort
+  let state = im#state#get()
+  if !state.started
+    return
+  endif
+  let value = im#rime#toggle_option('emoji')
+  if value is v:null
+    echohl WarningMsg
+    echom 'failed to toggle emoji (backend not responding?)'
+    echohl None
+    return
+  endif
+  let state.switches['emoji'] = value ? 1 : 0
+  redrawstatus
+endfunction
+
+nnoremap <silent> ;e <cmd>call IMToggleEmoji()<cr>
+inoremap <silent> ;e <cmd>call IMToggleEmoji()<cr>
 ```
 
 ### Replace Mode 替换模式
