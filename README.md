@@ -1817,6 +1817,9 @@ nnoremap ;d :IMUserDataDirV<cr>
 
 ### Tmux 弹窗输入
 
+> [!CAUTION]
+> 注意：该功能已不再维护，后续不再修复问题或适配新版本。
+
 在 tmux 中通过 `display-popup` 弹窗使用 Rime 输入法，复用同一个 `rime-query` daemon。
 
 ![tmux](https://github.com/user-attachments/assets/fb715949-57d0-4337-870a-5273e3bc1d6c)

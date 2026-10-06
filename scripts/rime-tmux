@@ -201,16 +201,18 @@ def ensure_daemon(socket_path: str, rime_bin: str, idle_ms: int,
         log(f"probe ok socket={socket_path}")
         return True
 
-    log(f"probe failed socket={socket_path} bin={rime_bin} — spawning daemon")
+    resolved = find_rime_bin(rime_bin)
+    log(f"probe failed socket={socket_path} bin={rime_bin or 'auto'} "
+        f"resolved={resolved} — spawning daemon")
     _import_rime_env_from_tmux()
 
-    is_executable = shutil.which(rime_bin) or (
-        os.path.isfile(rime_bin) and os.access(rime_bin, os.X_OK)
+    is_executable = shutil.which(resolved) or (
+        os.path.isfile(resolved) and os.access(resolved, os.X_OK)
     )
     if not is_executable:
-        log(f"rime-query not found bin={rime_bin}")
+        log(f"rime-query not found bin={rime_bin} resolved={resolved}")
         sys.stderr.write(
-            f"rime.vim: rime-query not found (tried '{rime_bin}'); "
+            f"rime.vim: rime-query not found (tried '{resolved}'); "
             "build: cmake -S cpp -B cpp/build && cmake --build cpp/build\n"
         )
         return False
@@ -221,10 +223,10 @@ def ensure_daemon(socket_path: str, rime_bin: str, idle_ms: int,
         log(f"mkdir for socket dir failed: {e}")
 
     try:
-        log(f"spawning {rime_bin} --serve --socket {socket_path} "
+        log(f"spawning {resolved} --serve --socket {socket_path} "
             f"--idle-exit-ms {idle_ms}")
         subprocess.Popen(
-            [rime_bin, "--serve", "--socket", socket_path,
+            [resolved, "--serve", "--socket", socket_path,
              "--idle-exit-ms", str(idle_ms)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
