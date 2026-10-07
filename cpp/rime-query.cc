@@ -95,7 +95,7 @@ static volatile std::sig_atomic_t g_should_exit = 0;
 
 static std::string g_deploy_status;
 
-constexpr int kProtocolVersion = 1;
+constexpr int kProtocolVersion = 2;
 
 struct Client {
 #ifdef _WIN32
@@ -165,9 +165,7 @@ void rime_init(const char *shared_dir, const char *user_dir) {// {{{
   api->set_notification_handler(on_notification, nullptr);
 
   if (api->start_maintenance(false)) {
-    spdlog::info("deployment started, waiting for it to finish...");
-    api->join_maintenance_thread();
-    spdlog::info("deployment finished");
+    spdlog::info("deployment running in background...");
   }
 }// }}}
 
@@ -351,6 +349,7 @@ static json handle_request(Client &c, const json &req) {// {{{
     if (req.contains("app")) c.app_hint = req.value("app", std::string());
     resp["ok"] = true;
     resp["protocol"] = kProtocolVersion;
+    resp["maintenance"] = (bool)api->is_maintenance_mode();
     return resp;
   }
 
@@ -368,6 +367,12 @@ static json handle_request(Client &c, const json &req) {// {{{
     }
     resp["ok"] = true;
     g_should_exit = 1;
+    return resp;
+  }
+
+  if (api->is_maintenance_mode() && type != "deploy" && type != "sync") {
+    resp["ok"]    = false;
+    resp["error"] = "maintenance in progress";
     return resp;
   }
 

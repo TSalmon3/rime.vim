@@ -269,6 +269,7 @@ function! s:spawn_daemon(addr) abort"{{{
 endfunction"}}}
 
 function! s:handshake_and_setup(sock) abort"{{{
+  " 返回 1=就绪，0=失败，-1=部署维护中（完全静默，调用方继续轮询）。
   let resp = s:roundtrip({
         \ 'type': 'ping',
         \ 'app':  has('nvim') ? 'nvim' : 'vim',
@@ -280,18 +281,34 @@ function! s:handshake_and_setup(sock) abort"{{{
     call s:conn_close()
     return 0
   endif
+  if get(resp, 'protocol', 0) != 2
+    echohl WarningMsg
+    echom '[IM] protocol mismatch, please rebuild rime-query (need protocol=2): ' . a:sock
+    echohl None
+    call s:conn_close()
+    return 0
+  endif
+  if get(resp, 'maintenance', 0)
+    call s:conn_close()
+    return -1
+  endif
   call s:start_heartbeat()
   return 1
 endfunction"}}}
 
 function! s:ensure_backend() abort"{{{
   let state = im#state#get()
+  " 维护中（-1）说明 daemon 已在后台部署，只轮询不再重复 spawn。
+  let maintenance_pending = 0
   if s:conn_alive()
-    if s:handshake_and_setup(s:endpoint()[1])
+    let rc = s:handshake_and_setup(s:endpoint()[1])
+    if rc == 1
       let state.ready = 1
       call im#rime#warmup()
       silent! doautocmd User RimeIMReady
       return 1
+    elseif rc == -1
+      let maintenance_pending = 1
     endif
     let state.ready = 0
     call s:conn_close()
@@ -300,10 +317,13 @@ function! s:ensure_backend() abort"{{{
   let [transport, addr] = s:endpoint()
 
   if s:conn_open(addr, transport)
-    if s:handshake_and_setup(addr)
+    let rc = s:handshake_and_setup(addr)
+    if rc == 1
       let state.ready = 1
       silent! doautocmd User RimeIMReady
       return 1
+    elseif rc == -1
+      let maintenance_pending = 1
     endif
     let state.ready = 0
     call s:conn_close()
@@ -321,7 +341,9 @@ function! s:ensure_backend() abort"{{{
     silent! call mkdir(fnamemodify(addr, ':h'), 'p')
   endif
 
-  call s:spawn_daemon(addr)
+  if !maintenance_pending
+    call s:spawn_daemon(addr)
+  endif
   call s:start_connect_poll(addr, transport)
   return 0
 endfunction"}}}
@@ -349,14 +371,23 @@ function! s:connect_poll_tick(timer_id) abort"{{{
   endif
 
   if s:conn_open(s:connect_addr, s:connect_transport)
-    let state = im#state#get()
-    let s:connect_timer = -1
-    if s:handshake_and_setup(s:connect_addr)
+    " 维护中（-1）完全静默退避重试；真失败（0）单次判死，报错已在握手里刷过。
+    let rc = s:handshake_and_setup(s:connect_addr)
+    if rc == 1
+      let state = im#state#get()
+      let s:connect_timer = -1
       let state.ready = 1
       silent! doautocmd User RimeIMReady
-    else
+      return
+    elseif rc == -1
+      let state = im#state#get()
       let state.ready = 0
+      let s:connect_timer = timer_start(500, function('s:connect_poll_tick'))
+      return
     endif
+    let state = im#state#get()
+    let s:connect_timer = -1
+    let state.ready = 0
     return
   endif
 
