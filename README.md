@@ -511,6 +511,24 @@ export RIME_QUERY_DEBUG=1
 | `<c-a>`      | 光标移动到拼音开头 |
 | `<c-e>`      | 光标移动到拼音结尾 |
 
+如果你不喜欢内置的 `<esc>` 的行为，可以采用以下方式取消映射。
+
+```vim
+function RimeKeymapRemap()
+  lnoremap <silent><buffer> <esc> <esc>
+endfunction
+
+function RimeKeymapClear()
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimeKeymapClear call RimeKeymapClear()
+augroup END
+```
+
+
 ## 集成
 
 ### 事件
