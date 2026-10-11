@@ -51,7 +51,8 @@ let s:mapped_keys = {
       \ 'symbols' : ['`','-','+','=','!','$','@','#','%','&','^','*','_','(',')','[',']','{','}','<','>','\','/','~',';',':',',','.','?',"'",'"'],
       \ 'numbers': ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
       \ 'specials': ['<bs>', '<s-bs>', '<left>', '<right>', '<up>', '<down>','<c-a>', '<c-e>', '<space>', '<cr>', '<c-j>', '<c-k>', '<c-h>', '<c-l>',
-      \ '<tab>', '<s-tab>', '<c-w>', '<c-u>', '<c-n>', '<c-p>', '<pagedown>', '<pageup>', '<c-f>', '<c-b>', '<c-d>', '<esc>']
+      \ '<tab>', '<s-tab>', '<c-w>', '<c-u>', '<c-n>', '<c-p>', '<pagedown>', '<pageup>', '<c-f>', '<c-b>',
+      \ '<esc>', '<home>', '<end>', '<c-t>', '<c-d>']
       \ }
 
 function! im#keymap#setup() abort"{{{
@@ -80,8 +81,8 @@ function! im#keymap#setup() abort"{{{
   lnoremap <buffer><expr> <c-l>    im#keymap#special('right')
   lnoremap <buffer><expr> <c-k>     im#keymap#special('up')
   lnoremap <buffer><expr> <c-j>     im#keymap#special('down')
-  lnoremap <buffer><expr> <c-n>      im#keymap#special('up')
-  lnoremap <buffer><expr> <c-p>      im#keymap#special('down')
+  lnoremap <buffer><expr> <c-n>      im#keymap#special('down')
+  lnoremap <buffer><expr> <c-p>      im#keymap#special('up')
   lnoremap <buffer><expr> <c-a>      im#keymap#special('home')
   lnoremap <buffer><expr> <c-e>      im#keymap#special('end')
   lnoremap <buffer><expr> <space>    im#keymap#special('space')
@@ -93,6 +94,8 @@ function! im#keymap#setup() abort"{{{
   lnoremap <buffer><expr> <c-f>      im#keymap#special('pagedown')
   lnoremap <buffer><expr> <c-b>      im#keymap#special('pageup')
   lnoremap <buffer><expr> <esc>      im#keymap#special('escape')
+  lnoremap <buffer><expr> <home>      im#keymap#special('home')
+  lnoremap <buffer><expr> <end>      im#keymap#special('end')
 
   silent! doautocmd User RimeKeymapSetup
 endfunction"}}}

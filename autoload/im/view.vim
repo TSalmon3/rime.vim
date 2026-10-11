@@ -1,4 +1,4 @@
-highlight Preedit gui=underline cterm=underline
+highlight IMPreedit gui=underline cterm=underline
 
 let s:cache = {
       \ 'last_candidates' : [],
@@ -115,7 +115,7 @@ function! s:render_hl() abort"{{{
     return
   endif
   let lnum = line('.')
-  let s:hl.match_id = matchaddpos('Preedit',
+  let s:hl.match_id = matchaddpos('IMPreedit',
         \ [[lnum, state.boundary, state.preedit_len]])
 endfunction"}}}
 
