@@ -3,6 +3,16 @@ let s:last = {}
 let s:mark_id = -1
 let s:mark_timer = -1
 
+function! s:link_highlights() abort"{{{
+  highlight default link ImMotionShade Comment
+  highlight default link ImMotionTarget Search
+endfunction"}}}
+
+augroup ImMotionHighlight
+  autocmd!
+  autocmd ColorScheme * call s:link_highlights()
+augroup END
+
 let s:plugin_root = fnamemodify(resolve(expand('<sfile>:p')), ':h:h:h')
 
 let s:file_loaded = 0
@@ -74,11 +84,9 @@ function! s:read_key() abort"{{{
   let win = -1
   try
     if get(g:, 'im_motion_shade', 1)
-      if !hlexists('ImMotionShade')
-        highlight default link ImMotionShade Grey
-      endif
+      call s:link_highlights()
       let win = win_getid()
-      let mid = matchadd('ImMotionShade', '\%' . line('.') . 'l.*', 110)
+      let mid = matchadd('ImMotionShade', '\%' . line('.') . 'l.*', 999)
     endif
     redraw
     while 1
@@ -171,12 +179,17 @@ function! im#motion#T() abort"{{{
   return s:do(-1, 0)
 endfunction"}}}
 
+function! s:foldcase(key) abort"{{{
+  return ((get(g:, 'im_motion_smart_case', 0) && a:key =~# '\l')
+        \ || get(g:, 'im_motion_ignore_case', 0) ? '\c' : '\C')
+endfunction"}}}
+
 function! s:build(keys) abort"{{{
   let frag = s:class(a:keys)
   if frag ==# ''
     return ''
   endif
-  return '\C' . frag
+  return s:foldcase(a:keys) . frag
 endfunction"}}}
 
 function! s:open_fold() abort"{{{
@@ -192,7 +205,7 @@ function! s:target_pat(keys, lnum) abort"{{{
   if frag ==# ''
     return ''
   endif
-  return '\%' . a:lnum . 'l\C' . frag
+  return '\%' . a:lnum . 'l' . s:foldcase(a:keys) . frag
 endfunction"}}}
 
 function! im#motion#mark_clear(...) abort"{{{
@@ -220,10 +233,8 @@ function! s:mark(pat) abort"{{{
   if !get(g:, 'im_motion_mark', 1)
     return
   endif
-  if !hlexists('ImMotionTarget')
-    highlight default link ImMotionTarget Search
-  endif
-  let s:mark_id = matchadd('ImMotionTarget', a:pat, 110)
+  call s:link_highlights()
+  let s:mark_id = matchadd('ImMotionTarget', a:pat, 999)
   augroup ImMotionTargetGrp
     autocmd!
     autocmd CursorMoved * call im#motion#mark_maybe_clear()
