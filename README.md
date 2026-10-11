@@ -45,20 +45,19 @@
 
 **Changed**
 
-| 旧 API                         | 新 API                              |
-|--------------------------------|-------------------------------------|
-| `im#keymap#r()`                | `im#replace#r()`                    |
-| `im#key(keycode, mask, ...)`   | `im#engine#key(keycode, mask, ...)` |
+| 旧 API                       | 新 API                              |
+| ---------------------------- | ----------------------------------- |
+| `im#keymap#r()`              | `im#replace#r()`                    |
+| `im#key(keycode, mask, ...)` | `im#engine#key(keycode, mask, ...)` |
 
 | 移除                           |
-|--------------------------------|
+| ------------------------------ |
 | `g:im_toggle_traditional_key`  |
 | `g:im_toggle_emoji_key`        |
 | `g:im_status_simplified_text`  |
 | `g:im_status_traditional_text` |
 | `g:im_option_traditional`      |
 | `g:im_option_emoji`            |
-
 
 - 不再支持快捷键简繁体切换
 - 不再支持快捷键 emoji 切换
@@ -70,13 +69,13 @@
 
 **Changed**
 
-| 旧 API | 新 API |
-| --- | --- |
-| `g:im_surround_add_line_key` | `g:im_surround_add_linewise_key` |
+| 旧 API                           | 新 API                               |
+| -------------------------------- | ------------------------------------ |
+| `g:im_surround_add_line_key`     | `g:im_surround_add_linewise_key`     |
 | `g:im_surround_add_cur_line_key` | `g:im_surround_add_cur_linewise_key` |
-| `g:im_surround_change_line_key` | `g:im_surround_change_linewise_key` |
-| `g:im_surround_visual_line_key` | `g:im_surround_visual_linewise_key` |
-| `g:im_surround_insert_line_key` | `g:im_surround_insert_linewise_key` |
+| `g:im_surround_change_line_key`  | `g:im_surround_change_linewise_key`  |
+| `g:im_surround_visual_line_key`  | `g:im_surround_visual_linewise_key`  |
+| `g:im_surround_insert_line_key`  | `g:im_surround_insert_linewise_key`  |
 
 旧名无别名保留；默认按键不变。
 
@@ -84,8 +83,8 @@
 
 **Changed**
 
-| 旧 API | 新 API |
-| --- | --- |
+| 旧 API                     | 新 API                |
+| -------------------------- | --------------------- |
 | `im#pair#should_bs_pair()` | `im#pair#should_bs()` |
 
 旧名无别名保留。
@@ -110,11 +109,12 @@
 - [集成](#集成)
   - [事件](#事件)
 - [高级主题](#高级主题)
-  - [rime-ice 配置示例](#rime-ice-配置示例)
+  - [定制 Rime 方案](#定制-rime-方案)
   - [定制中英切换与方案选单](#定制中英切换与方案选单)
   - [定制状态栏](#定制状态栏)
   - [Replace Mode 替换模式](#replace-mode-替换模式)
   - [Motion 行内跳转](#motion-行内跳转)
+  - [Jump 全屏跳转](#jump-全屏跳转)
   - [Auto Pair 自动成对](#auto-pair-自动成对)
   - [Context 自动切换](#context-自动切换)
   - [Typeset 自动排版](#typeset-自动排版)
@@ -528,7 +528,6 @@ augroup RimeGroup
 augroup END
 ```
 
-
 ## 集成
 
 ### 事件
@@ -586,7 +585,15 @@ augroup END
 
 ## 高级主题
 
-### rime-ice 配置示例
+### 定制 Rime 方案
+
+推荐阅读：
+
+- [YAML 入门教程](https://www.runoob.com/w3cnote/yaml-intro.html)
+- [Rime 设计逻辑与配置思路](https://amzxyz.github.io/rime-wanxiang/doc/Rime%E8%AE%BE%E8%AE%A1%E9%80%BB%E8%BE%91%E4%B8%8E%E9%85%8D%E7%BD%AE%E5%93%B2%E5%AD%A6.html)
+- [Rime 配置：雾凇拼音](https://dvel.me/posts/rime-ice)
+
+#### 雾凇 rime-ice 配置示例
 
 **`default.custom.yaml`**
 
@@ -700,6 +707,8 @@ patch:
   # 1}}}
 ```
 
+---
+
 ### 定制中英切换与方案选单
 
 #### 方案选单
@@ -759,6 +768,8 @@ augroup RimeGroup
 augroup END
 ```
 
+---
+
 ### 定制状态栏
 
 最简单的方式是在你的 `'statusline'` 选项中加入 `%{IM_Status()}`。开启时显示
@@ -779,7 +790,6 @@ let g:im_option_names = ['ascii_mode', 'ascii_punct', 'traditionalization', 'emo
 上例即默认值（以 rime-ice 雾凇拼音为例）。换方案后若有新增开关（如 `chinese_english`），把它追加进名单即可。
 
 具体的 option 名以各自 `schema.yaml` 的 `switches:` 列表为准（注：`switches:` 有 `- name: X` 与 `- options: [a, b, …]` 两种形态，这里只支持前者）。
-
 
 ```vim
 function! IMToggleTraditional() abort
@@ -866,7 +876,7 @@ let &statusline ..= '%{IMCustomStatus()}'
 #### 事件
 
 | 事件             | 用途              |
-|------------------|-------------------|
+| ---------------- | ----------------- |
 | `RimeOptionInit` | 用于初始化 Option |
 
 ```vim
@@ -880,6 +890,8 @@ augroup RimeGroup
   autocmd User RimeOptionInit call IMOptionInit()
 augroup END
 ```
+
+---
 
 ### Replace Mode 替换模式
 
@@ -912,45 +924,64 @@ let g:im_replace_mode = 1
 nnoremap r <Cmd>call im#replace#r()<CR>
 ```
 
+---
+
 ### Motion 行内跳转
 
 替代原生 `f / F / t / T` 的行内跳转，支持 `normal / visual / operator-pending`，行为参考 [clever-f.vim](https://github.com/rhysd/clever-f.vim)：键入一个 ASCII 字符，即可跳到该字符、拼音以它开头的汉字或对应的全角符号上。
 
-| 按键                 | 说明                                                                 |
-| -------------------- | -------------------------------------------------------------------- |
-| `f{char}`            | 向右跳到 `{char}` 上                                                 |
-| `F{char}`            | 向左跳到 `{char}` 上                                                 |
-| `t{char}`            | 向右跳到 `{char}` 之前                                               |
+| 按键                     | 说明                                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `f{char}`                | 向右跳到 `{char}` 上                                                                                             |
+| `F{char}`                | 向左跳到 `{char}` 上                                                                                             |
+| `t{char}`                | 向右跳到 `{char}` 之前                                                                                           |
 | `T{char}`            | 向左跳到 `{char}` 之后                                               |
 | `[count]` 前缀       | 如 `2fa` 跳到第 2 个匹配（对 `;` / `,` 同样有效）                    |
 | 复按 `f / F / t / T` | 在落点原地再按，沿用上次的字符：`f / t` 向右、`F / T` 向左，无需重输 |
 | `;` / `,`            | 沿上次方向重复 / 反向重复                                            |
-| 与 operator 组合     | 如 `dfa` 删除至 `a`（含），`yta` 复制至 `a` 之前                     |
+| 与 operator 组合         | 如 `dfa` 删除至 `a`（含），`yta` 复制至 `a` 之前                                                                 |
 
-拼音匹配与限制：
+**拼音匹配与限制：**
 
-- 字母键同时匹配该字母本身与拼音以它开头的汉字，如 `fa` 可跳到 `a`、`啊`、`阿` 等；符号键同时匹配半角与全角，如 `f.` 可跳到 `.` 或 `。`。
-- `quanpin`（默认）：`c` 兼匹配 `ch` 开头汉字，`s` 兼匹配 `sh`，`z` 兼匹配 `zh`；`flypy`：按键与拼音严格一一对应。
-- 大小写敏感，只搜索当前行，找不到时光标不动。
-- 按 `Esc` / `<C-c>` 或输入非 ASCII 字符取消；跳转记忆与光标位置绑定，光标移动后即失效。
+- 字母键：同时匹配该字母本身与拼音以它开头的汉字。
+- 符号键：同时匹配半角与全角形式。
+- 拼音方案：
+  - `quanpin`（默认）：`c` 兼匹配 `ch` 开头的汉字，`s` 兼匹配 `sh`，`z` 兼匹配 `zh`。
+  - `flypy`：按键与拼音严格一一对应。
+- 区分大小写（可用 `g:im_motion_ignore_case` / `g:im_motion_smart_case` 放宽）。
+- 仅搜索当前行，不回绕；找不到匹配时光标不动
+
+**记忆规则：**
+
+- 记忆绑定模式: `normal`、`visual`、`operator-pending` 各自独立记忆；光标一旦移动，记忆即失效，下次重新读取按键。
+- `g:im_motion_timeout_ms > 0` 时，记忆会在超时后过期，此后复按将重新读键；设为 `0` 则永不过期。
+- 手动清除：`<leader><esc>`（即 `im#motion#reset`）可同时清除记忆与落点高亮。
 
 #### 配置
 
 ```vim
-" 等键时 shade 整行（0 关闭）
+" 等待按键时是否压暗（shade）整行，以突出目标字（1 开启，0 关闭）
 let g:im_motion_shade = 1
 
-" 跳转后高亮当行目标字（0 关闭）
+" 跳转后是否高亮当前行的目标字（1 开启，0 关闭）
 let g:im_motion_mark = 1
 
-" 标记高亮持续毫秒数（默认 0=只靠移动清除，>0 再加定时）
+" 高亮持续时间，单位毫秒（默认 0）
+" 0 表示不设定时，仅在光标移动后清除；大于 0 时，除移动清除外，到时也会自动清除
 let g:im_motion_mark_ms = 0
 
-" 记忆过期毫秒数（默认 0=不过期，过期后复按重新读键）
+" 重复跳转的记忆过期时间，单位毫秒（默认 0）
+" 0 表示永不过期；大于 0 时，超时后再按会重新读取按键
 let g:im_motion_timeout_ms = 0
 
-" 拼音模式：quanpin（默认，全拼）或 flypy（小鹤双拼）
+" 拼音模式：'quanpin'（默认，全拼）或 'flypy'（小鹤双拼）
 let g:im_motion_mode = 'quanpin'
+
+" 忽略大小写（默认 0，区分大小写；设为 1 后，fa 也可以跳转到 A）
+let g:im_motion_ignore_case = 0
+
+" 智能大小写（默认 0；设为 1 后，输入小写字母时忽略大小写，输入大写字母时精确匹配；可独立于 ignore_case 生效）
+let g:im_motion_smart_case = 0
 ```
 
 #### 快捷键
@@ -980,9 +1011,113 @@ onoremap <expr> T 'v<Cmd>call im#motion#T()<CR>'
 #### 高亮
 
 ```vim
-highlight link ImMotionShade Grey
+highlight link ImMotionShade Comment
 highlight link ImMotionTarget Search
 ```
+
+---
+
+### Jump 全屏跳转
+
+![demo5](https://github.com/user-attachments/assets/64188ef1-1c65-4130-9098-91bb005d0bd3)
+
+| 按键               | 说明                                                                         |
+| ------------------ | ---------------------------------------------------------------------------- |
+| `s{首字母}…{标签}` | 例如 `szja`：`s` 进入搜索，`zj` 将范围收窄到「计算」，`a` 是标签，按下即跳转 |
+| `<BS>`             | 删除最后输入的一个字母；输入为空时再按一次则退出                             |
+| `<CR>`             | 跳转到第一个候选                                                             |
+| `<Esc>` / `<C-c>`  | 取消，光标保持不动                                                           |
+| 配合操作符         | 例如 `ds{首字母}…{标签}`：删除从光标到目标位置的内容                         |
+
+#### 配置
+
+```vim
+" label 字符集（默认 52 个；候选超数时多出的不显示 label，继续打首字母收窄）
+let g:im_jump_labels = 'asdfghjklqwertyuiopzxcvbnmASDFGHJKLQWERTYUIOPZXCVBNM'
+
+" label 位置：'end'（默认，尾字母上）或 'start'（首字母上）或 'after'（尾字母后一字）；
+let g:im_jump_label_pos = 'end'
+
+" 单轮最多显示的候选数（默认 60，超出截断）
+let g:im_jump_max_matches = 60
+
+" 等待按键时是否压暗有效范围（1 开，0 关）
+let g:im_jump_shade = 1
+
+" 等待按键时是否在命令行回显 `> pattern (n)`（1 开，0 关）
+let g:im_jump_echo = 1
+
+" pattern 长度上限（默认 0；<=0 不限；超长后多按的键留给下一次操作）
+let g:im_jump_max_length = 0
+
+" 拼音模式：'quanpin'（默认）或 'flypy'（小鹤双拼）
+let g:im_jump_mode = 'quanpin'
+
+" 忽略大小写（默认 0，区分大小写）
+let g:im_jump_ignore_case = 0
+```
+
+#### 快捷键
+
+```vim
+call im#jump#s([{options}])
+```
+
+跳转成功时返回 1；用户取消或没有匹配时返回 0。可选参数 {options} 是一个字典，支持以下键：
+
+| 键             | 默认值                | 说明                                                                                                                |
+| -------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `wrap`         | `1`                   | `1`：在整个可见区域内搜索，并按到光标的距离排序；`0`：只向一个方向搜索，按位置顺序排序                              |
+| `forward`      | `1`                   | 仅 `wrap` 为 `0` 时有效：`1` 向后（光标之后），`0` 向前（光标之前）                                                 |
+| `multi_window` | `0`                   | 是否同时在当前标签页的其他窗口中搜索。只在普通模式且 `wrap` 为 `1` 时生效；预览窗口、浮动窗口、不可聚焦窗口会被忽略 |
+| `jump_pos`     | `'start'`             | 跳转后光标落点：`'start'` 匹配首字，`'end'` 匹配末字                                                                |
+| `inclusive`    | `1`                   | 在 operator-pending 模式下，`0` 表示光标落在目标前（朝光标原位置方向）一个字符，用于实现「到目标之前」的语义        |
+| `label_pos`    | `g:im_jump_label_pos` | 覆盖全局标签位置配置                                                                                                |
+
+```vim
+nnoremap ms <Cmd>call im#jump#s({'forward': 1, 'wrap': 1, 'multi_window': 1})<CR>
+xnoremap ms <Cmd>call im#jump#s({'forward': 1, 'wrap': 1, 'multi_window': 0})<CR>
+
+nnoremap m/ <Cmd>call im#jump#s({'forward': 1, 'wrap': 0, 'multi_window': 0})<CR>
+nnoremap m? <Cmd>call im#jump#s({'forward': 0, 'wrap': 0, 'multi_window': 0})<CR>
+xnoremap m/ <Cmd>call im#jump#s({'forward': 1, 'wrap': 0, 'multi_window': 0})<CR>
+xnoremap m? <Cmd>call im#jump#s({'forward': 0, 'wrap': 0, 'multi_window': 0})<CR>
+
+onoremap <expr> ms 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 1, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 1})<CR>'
+onoremap <expr> m/ 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 0, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 1})<CR>'
+onoremap <expr> m? 'v<Cmd>call im#jump#s({''forward'': 0, ''wrap'': 0, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 1})<CR>'
+onoremap <expr> mt 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 0, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 0})<CR>'
+onoremap <expr> me 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 1, ''multi_window'': 0, ''jump_pos'': ''end'', ''inclusive'': 1})<CR>'
+```
+
+或者
+
+```vim
+nnoremap s <Cmd>call im#jump#s({'forward': 1, 'wrap': 1, 'multi_window': 1})<CR>
+xnoremap s <Cmd>call im#jump#s({'forward': 1, 'wrap': 1, 'multi_window': 0})<CR>
+
+nnoremap / <Cmd>call im#jump#s({'forward': 1, 'wrap': 0, 'multi_window': 0})<CR>
+nnoremap ? <Cmd>call im#jump#s({'forward': 0, 'wrap': 0, 'multi_window': 0})<CR>
+xnoremap / <Cmd>call im#jump#s({'forward': 1, 'wrap': 0, 'multi_window': 0})<CR>
+xnoremap ? <Cmd>call im#jump#s({'forward': 0, 'wrap': 0, 'multi_window': 0})<CR>
+
+onoremap <expr> s 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 1, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 1})<CR>'
+onoremap <expr> / 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 0, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 1})<CR>'
+onoremap <expr> ? 'v<Cmd>call im#jump#s({''forward'': 0, ''wrap'': 0, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 1})<CR>'
+onoremap <expr> t 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 0, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 0})<CR>'
+onoremap <expr> e 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 1, ''multi_window'': 0, ''jump_pos'': ''end'', ''inclusive'': 1})<CR>'
+```
+
+#### 高亮
+
+```vim
+highlight link ImJumpShade Comment
+highlight link ImJumpMatch Search
+highlight link ImJumpLabel Substitute
+highlight link ImJumpPrompt Question
+```
+
+---
 
 ### Auto Pair 自动成对
 
@@ -1279,6 +1414,8 @@ function! IMPairVim() abort
 endfunction
 ```
 
+---
+
 ### Context 自动切换
 
 根据光标所在的高亮（语法作用域）自动切换【Rime 接管】与【原生直通】模式。
@@ -1366,6 +1503,8 @@ inoremap <silent> <c-;> <cmd>im#context#toggle()<cr>
 nnoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
 inoremap <silent> ;c <cmd>call im#context#auto_toggle()<cr>
 ```
+
+---
 
 ### Typeset 自动排版
 
@@ -1499,6 +1638,8 @@ augroup RimeGroup
 augroup END
 
 ```
+
+---
 
 ### Surround 包围编辑
 
@@ -1692,7 +1833,7 @@ let s:default_aliases = [
       \ ]
 ```
 
-所有 g:im_surround_\* 支持 b: 局部覆盖，优先级为 b: > g: > 默认值。surrounds 与 aliases 为整体替换语义，自定义后默认全被取代，需先取默认再拼接。
+所有 g:im*surround*\* 支持 b: 局部覆盖，优先级为 b: > g: > 默认值。surrounds 与 aliases 为整体替换语义，自定义后默认全被取代，需先取默认再拼接。
 
 #### 内置函数一览
 
@@ -1765,6 +1906,8 @@ function! IMSurroundMarkdown() abort
 endfunction
 ````
 
+---
+
 ### Tips 小技巧
 
 #### 快速插入列表
@@ -1828,10 +1971,14 @@ command! IMUserDataDirV execute 'vsplit | Oil ' . fnameescape(g:im_user_data_dir
 nnoremap ;d :IMUserDataDirV<cr>
 ```
 
+---
+
 ### 其他搭配插件
 
 - [jieba.vim](https://github.com/kkew3/jieba.vim) — jieba 的 Vim/Nvim 按词跳转插件
 - [pangu.vim](https://github.com/hotoo/pangu.vim) — 中文排版自动规范化的 Vim 插件
+
+---
 
 ### Tmux 弹窗输入
 
@@ -1943,6 +2090,9 @@ set-environment -g RIME_TMUX_LOG "$HOME/.local/state/log/tmux/rime.log"
 - [rime.nvim](https://github.com/rimeinn/rime.nvim) — ㄓ rime for neovim
 - [clever-f.vim](https://github.com/rhysd/clever-f.vim) - Extended f, F, t and T key mappings for Vim.
 - [vim-easymotion-zh](https://github.com/zzhirong/vim-easymotion-zh) — 基于小鹤双拼让 EasyMotion 识别中文
+- [vim-sneak](https://github.com/justinmk/vim-sneak) - The missing motion for Vim 👟
+- [hop.nvim](https://github.com/smoka7/hop.nvim) -Neovim motions on speed!
+- [flash.nvim](https://github.com/folke/flash.nvim) - Navigate your code with search labels, enhanced character motions and Treesitter integration
 - [nvim-autopair](https://github.com/windwp/nvim-autopairs) - autopairs for neovim written in lua
 - [delimitMate](https://github.com/Raimondi/delimitMate) - Vim plugin, provides insert mode auto-completion for quotes, parens, brackets, etc.
 - [nvim-surround](https://github.com/kylechui/nvim-surround) - Add/change/delete surrounding delimiter pairs with ease. Written with ❤️ in Lua.
