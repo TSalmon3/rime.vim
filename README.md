@@ -1107,8 +1107,8 @@ onoremap <silent><expr> me im#jump#omap({'forward': 1, 'wrap': 1, 'jump_pos': 'e
 ```vim
 nnoremap s <Cmd>call im#jump#s({'forward': 1, 'wrap': 1, 'multi_window': 1})<CR>
 xnoremap s <Cmd>call im#jump#s({'forward': 1, 'wrap': 1, 'multi_window': 0})<CR>
-nnoremap <leader>; <Cmd>call im#jump#repeat()<CR>
-xnoremap <leader>; <Cmd>call im#jump#repeat()<CR>
+nnoremap <leader>. <Cmd>call im#jump#repeat()<CR>
+xnoremap <leader>. <Cmd>call im#jump#repeat()<CR>
 
 nnoremap / <Cmd>call im#jump#s({'forward': 1, 'wrap': 0, 'multi_window': 0})<CR>
 nnoremap ? <Cmd>call im#jump#s({'forward': 0, 'wrap': 0, 'multi_window': 0})<CR>
