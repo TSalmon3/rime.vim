@@ -3,6 +3,7 @@ let s:popups = []
 let s:used = {}
 let s:ns_bufs = []
 let s:nvim_ns = -1
+let s:last = {}
 
 function! s:link_highlights() abort"{{{
   highlight default link ImJumpShade Comment
@@ -580,11 +581,7 @@ function! s:parse_cfg(o) abort"{{{
         \ 'jump_pos': get(a:o, 'jump_pos', 'start') ==# 'end' ? 'end' : 'start',
         \ 'inclusive': get(a:o, 'inclusive', 1) ? 1 : 0,
         \ 'label_pos': s:label_pos(get(a:o, 'label_pos', get(g:, 'im_jump_label_pos', 'end'))),
-        \ 'op': mode(1) =~# '^no',
         \ }
-  if cfg.op
-    let cfg.anchor = getpos('.')
-  endif
   if mode(1) !=# 'n'
     let cfg.multi_window = 0
   endif
@@ -654,9 +651,18 @@ function! s:shade_clear(shades) abort"{{{
   endfor
 endfunction"}}}
 
-function! s:loop(wins, cfg) abort"{{{
-  let pattern = ''
-  let matches = []
+function! s:remember(pattern, opts) abort"{{{
+  let s:last = {'pattern': a:pattern, 'opts': deepcopy(a:opts)}
+endfunction"}}}
+
+function! s:loop(wins, cfg, opts, ...) abort"{{{
+  let pattern = a:0 && type(a:1) == v:t_string ? a:1 : ''
+  let matches = pattern ==# '' ? [] : s:update(pattern, a:wins, a:cfg)
+  if pattern !=# ''
+    call s:render(matches, a:cfg)
+    redraw
+    call s:prompt(pattern, matches)
+  endif
   while 1
     let k = s:getkey()
     if k ==# "\<Esc>" || k ==# "\<C-c>"
@@ -668,6 +674,7 @@ function! s:loop(wins, cfg) abort"{{{
       let pattern = strcharpart(pattern, 0, strchars(pattern) - 1)
     elseif k ==# "\<CR>"
       if !empty(matches)
+        call s:remember(pattern, a:opts)
         call s:jump(matches[0], a:cfg)
         return 1
       endif
@@ -680,6 +687,7 @@ function! s:loop(wins, cfg) abort"{{{
       let new = pattern . k
       let hit = s:check(new, matches)
       if !empty(hit)
+        call s:remember(pattern, a:opts)
         call s:jump(hit, a:cfg)
         return 1
       endif
@@ -689,6 +697,7 @@ function! s:loop(wins, cfg) abort"{{{
           call feedkeys(k)
           return 0
         endif
+        call s:remember(pattern, a:opts)
         call s:jump(matches[0], a:cfg)
         call feedkeys(k)
         return 1
@@ -733,19 +742,20 @@ function! s:conceal_restore(saved) abort"{{{
   endfor
 endfunction"}}}
 
-function! im#jump#s(...) abort"{{{
-  let cfg = s:parse_cfg(a:0 && type(a:1) == v:t_dict ? a:1 : {})
-  let wins = s:windows(cfg.multi_window)
-  let shades = []
+function! s:session(wins, cfg, opts, initial) abort"{{{
+  if reg_executing() !=# ''
+    return 0
+  endif
   let concealed = {}
+  let shades = []
   try
-    let concealed = s:conceal_save(wins)
+    let concealed = s:conceal_save(a:wins)
     call s:link_highlights()
     let cur = getpos('.')
-    let shades = s:shade_add(wins, cur[1], cur[2], cfg)
+    let shades = s:shade_add(a:wins, cur[1], cur[2], a:cfg)
     redraw
-    call s:prompt('', [])
-    return s:loop(wins, cfg)
+    call s:prompt(a:initial, [])
+    return s:loop(a:wins, a:cfg, a:opts, a:initial)
   finally
     call s:conceal_restore(concealed)
     call s:clear_session(shades)
@@ -754,4 +764,62 @@ function! im#jump#s(...) abort"{{{
     endif
     redraw
   endtry
+endfunction"}}}
+
+function! s:pos_lt(a, b) abort"{{{
+  return a:a[1] < a:b[1] || (a:a[1] == a:b[1] && a:a[2] < a:b[2])
+endfunction"}}}
+
+function! im#jump#s(...) abort"{{{
+  let opts = a:0 && type(a:1) == v:t_dict ? a:1 : {}
+  let cfg = s:parse_cfg(opts)
+  let wins = s:windows(cfg.multi_window)
+  return s:session(wins, cfg, opts, '')
+endfunction"}}}
+
+function! im#jump#repeat() abort"{{{
+  if empty(s:last) || get(s:last, 'pattern', '') ==# ''
+    return 0
+  endif
+  let opts = deepcopy(get(s:last, 'opts', {}))
+  let cfg = s:parse_cfg(opts)
+  let wins = s:windows(cfg.multi_window)
+  return s:session(wins, cfg, opts, s:last.pattern)
+endfunction"}}}
+
+function! im#jump#reset() abort"{{{
+  let s:last = {}
+  return 1
+endfunction"}}}
+
+function! im#jump#omap(...) abort"{{{
+  let opts = a:0 && type(a:1) == v:t_dict ? a:1 : {}
+  return printf(":\<C-U>call im#jump#omap_jump(%s, %d)\<CR>", string(opts), max([v:count1, 1]))
+endfunction"}}}
+
+function! im#jump#omap_jump(opts, ...) abort"{{{
+  let opts = type(a:opts) == v:t_dict ? a:opts : {}
+  let anchor = getpos('.')
+  let cfg = s:parse_cfg(opts)
+  let cfg.op = 1
+  let cfg.anchor = anchor
+  let cfg.multi_window = 0
+  let wins = s:windows(0)
+  let ok = s:session(wins, cfg, opts, '')
+  if !ok
+    call setpos('.', anchor)
+    return 0
+  endif
+  let end = getpos('.')
+  call setpos('.', anchor)
+  let back = s:pos_lt(end, anchor)
+  if back && &selection !=# 'exclusive'
+    normal! h
+  endif
+  execute 'normal! v'
+  call cursor(end[1], end[2])
+  if &selection ==# 'exclusive' && !back
+    normal! l
+  endif
+  return 1
 endfunction"}}}

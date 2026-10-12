@@ -238,13 +238,13 @@ function! im#motion#omap_jump(dir, inclusive, char_nr, cnt, ...) abort"{{{
     return 0
   endif
   call setpos('.', anchor)
-  if a:dir < 0
+  if a:dir < 0 && &selection !=# 'exclusive'
     normal! h
   endif
   execute 'normal! v'
   call cursor(end[1], end[2])
-  if &selection ==# 'exclusive'
-    execute 'normal!' (a:dir > 0 ? 'l' : 'h')
+  if &selection ==# 'exclusive' && a:dir > 0
+    normal! l
   endif
   let s:rep = {'keys': keys, 'dir': a:dir, 'orig': orig, 'inclusive': a:inclusive,
         \ 'pos': [bufnr('%'), end[1], end[2]]}

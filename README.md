@@ -1065,10 +1065,15 @@ let g:im_jump_ignore_case = 0
 #### 快捷键
 
 ```vim
-call im#jump#s([{options}])
+call im#jump#s([{options}])                       " normal / visual 模式使用
+call im#jump#repeat()                             " normal / visual 模式下重放上一次的 pattern
+call im#jump#reset()                              " 清除重放记忆
+onoremap <expr> {lhs} im#jump#omap([{options}])   " operator-pending 模式使用
 ```
 
-跳转成功时返回 1；用户取消或没有匹配时返回 0。可选参数 {options} 是一个字典，支持以下键：
+跳转成功返回 1；用户取消或没有匹配项时返回 0。可选参数 `{options}` 为字典，支持以下键：
+
+> **注意：** 不支持 macro。录制包含 jump 的 macro 可以正常进行，但回放时会跳过 jump 步骤（空操作，光标不动）。
 
 | 键             | 默认值                | 说明                                                                                                                |
 | -------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -1082,17 +1087,19 @@ call im#jump#s([{options}])
 ```vim
 nnoremap ms <Cmd>call im#jump#s({'forward': 1, 'wrap': 1, 'multi_window': 1})<CR>
 xnoremap ms <Cmd>call im#jump#s({'forward': 1, 'wrap': 1, 'multi_window': 0})<CR>
+nnoremap <leader>. <Cmd>call im#jump#repeat()<CR>
+xnoremap <leader>. <Cmd>call im#jump#repeat()<CR>
 
 nnoremap m/ <Cmd>call im#jump#s({'forward': 1, 'wrap': 0, 'multi_window': 0})<CR>
 nnoremap m? <Cmd>call im#jump#s({'forward': 0, 'wrap': 0, 'multi_window': 0})<CR>
 xnoremap m/ <Cmd>call im#jump#s({'forward': 1, 'wrap': 0, 'multi_window': 0})<CR>
 xnoremap m? <Cmd>call im#jump#s({'forward': 0, 'wrap': 0, 'multi_window': 0})<CR>
 
-onoremap <expr> ms 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 1, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 1})<CR>'
-onoremap <expr> m/ 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 0, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 1})<CR>'
-onoremap <expr> m? 'v<Cmd>call im#jump#s({''forward'': 0, ''wrap'': 0, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 1})<CR>'
-onoremap <expr> mt 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 0, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 0})<CR>'
-onoremap <expr> me 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 1, ''multi_window'': 0, ''jump_pos'': ''end'', ''inclusive'': 1})<CR>'
+onoremap <silent><expr> ms im#jump#omap({'forward': 1, 'wrap': 1, 'jump_pos': 'start', 'inclusive': 1})
+onoremap <silent><expr> m/ im#jump#omap({'forward': 1, 'wrap': 0, 'jump_pos': 'start', 'inclusive': 1})
+onoremap <silent><expr> m? im#jump#omap({'forward': 0, 'wrap': 0, 'jump_pos': 'start', 'inclusive': 1})
+onoremap <silent><expr> mt im#jump#omap({'forward': 1, 'wrap': 0, 'jump_pos': 'start', 'inclusive': 0})
+onoremap <silent><expr> me im#jump#omap({'forward': 1, 'wrap': 1, 'jump_pos': 'end', 'inclusive': 1})
 ```
 
 或者
@@ -1100,17 +1107,19 @@ onoremap <expr> me 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 1, ''multi_w
 ```vim
 nnoremap s <Cmd>call im#jump#s({'forward': 1, 'wrap': 1, 'multi_window': 1})<CR>
 xnoremap s <Cmd>call im#jump#s({'forward': 1, 'wrap': 1, 'multi_window': 0})<CR>
+nnoremap <leader>; <Cmd>call im#jump#repeat()<CR>
+xnoremap <leader>; <Cmd>call im#jump#repeat()<CR>
 
 nnoremap / <Cmd>call im#jump#s({'forward': 1, 'wrap': 0, 'multi_window': 0})<CR>
 nnoremap ? <Cmd>call im#jump#s({'forward': 0, 'wrap': 0, 'multi_window': 0})<CR>
 xnoremap / <Cmd>call im#jump#s({'forward': 1, 'wrap': 0, 'multi_window': 0})<CR>
 xnoremap ? <Cmd>call im#jump#s({'forward': 0, 'wrap': 0, 'multi_window': 0})<CR>
 
-onoremap <expr> s 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 1, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 1})<CR>'
-onoremap <expr> / 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 0, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 1})<CR>'
-onoremap <expr> ? 'v<Cmd>call im#jump#s({''forward'': 0, ''wrap'': 0, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 1})<CR>'
-onoremap <expr> t 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 0, ''multi_window'': 0, ''jump_pos'': ''start'', ''inclusive'': 0})<CR>'
-onoremap <expr> e 'v<Cmd>call im#jump#s({''forward'': 1, ''wrap'': 1, ''multi_window'': 0, ''jump_pos'': ''end'', ''inclusive'': 1})<CR>'
+onoremap <silent><expr> s im#jump#omap({'forward': 1, 'wrap': 1, 'jump_pos': 'start', 'inclusive': 1})
+onoremap <silent><expr> / im#jump#omap({'forward': 1, 'wrap': 0, 'jump_pos': 'start', 'inclusive': 1})
+onoremap <silent><expr> ? im#jump#omap({'forward': 0, 'wrap': 0, 'jump_pos': 'start', 'inclusive': 1})
+onoremap <silent><expr> t im#jump#omap({'forward': 1, 'wrap': 0, 'jump_pos': 'start', 'inclusive': 0})
+onoremap <silent><expr> e im#jump#omap({'forward': 1, 'wrap': 1, 'jump_pos': 'end', 'inclusive': 1})
 ```
 
 #### 高亮
@@ -1914,56 +1923,6 @@ endfunction
 ---
 
 ### Tips 小技巧
-
-#### 快速插入列表
-
-依赖：
-
-- [bullets.vim](https://github.com/bullets-vim/bullets.vim)
-
-```vim
-function RimeKeymapRemap()
-  if &filetype ==# 'markdown'
-    lnoremap <buffer><silent><expr> <tab> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
-          \  bullet#is_bullet() ?
-          \ "\<C-o>\<Plug>(bullets-demote)\<C-o>$" :  "\<tab>"
-
-    lnoremap <buffer><silent><expr> <s-tab> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
-          \ ullet#is_bullet()?
-          \ "\<C-o>\<Plug>(bullets-promote)\<C-o>$" : "\<s-tab>"
-
-    lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>" :
-          \ "\<Plug>(bullets-newline)"
-  else
-    lnoremap <buffer><silent><expr> <tab> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, 0)\<CR>" :
-          \ "\<tab>"
-
-    lnoremap <buffer><silent><expr> <s-tab> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)\<CR>" :
-          \ "\<s-tab>"
-
-    lnoremap <buffer><silent><expr> <cr> im#state#composing() ?
-          \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<CR>" :
-          \ "\<cr>"
-  endif
-endfunction
-
-function RimeKeymapClear()
-
-endfunction
-
-augroup RimeGroup
-  autocmd!
-  autocmd User RimeKeymapSetup call RimeKeymapRemap()
-  autocmd User RimeKeymapClear call RimeKeymapClear()
-augroup END
-```
-
-![demo3](https://github.com/user-attachments/assets/093e5089-0b8c-4528-854f-5d4aee85328d)
 
 #### 打开用户数据目录
 
