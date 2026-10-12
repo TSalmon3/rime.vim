@@ -1,5 +1,6 @@
 
 let s:last = {}
+let s:rep = {}
 let s:mark_id = -1
 let s:mark_timer = -1
 
@@ -179,6 +180,77 @@ function! im#motion#T() abort"{{{
   return s:do(-1, 0)
 endfunction"}}}
 
+function! im#motion#omap_f() abort"{{{
+  return s:omap(1, 1)
+endfunction"}}}
+
+function! im#motion#omap_F() abort"{{{
+  return s:omap(-1, 1)
+endfunction"}}}
+
+function! im#motion#omap_t() abort"{{{
+  return s:omap(1, 0)
+endfunction"}}}
+
+function! im#motion#omap_T() abort"{{{
+  return s:omap(-1, 0)
+endfunction"}}}
+
+function! s:omap(dir, inclusive) abort"{{{
+  let cnt = v:count1 < 1 ? 1 : v:count1
+  let k = s:read_key()
+  if s:cancelled(k) || s:build(k) ==# ''
+    return "\<Esc>"
+  endif
+  return printf(":\<C-U>call im#motion#omap_jump(%d, %d, %d, %d, %d, %d)\<CR>",
+        \ a:dir, a:inclusive, char2nr(k), cnt, 0, a:dir)
+endfunction"}}}
+
+function! im#motion#omap_jump(dir, inclusive, char_nr, cnt, ...) abort"{{{
+  let keys = type(a:char_nr) == v:t_number ? nr2char(a:char_nr) : a:char_nr
+  if s:cancelled(keys)
+    return 0
+  endif
+  let cnt = max([a:cnt, 1])
+  let pat = s:build(keys)
+  if pat ==# ''
+    return 0
+  endif
+  let orig = get(a:000, 1, a:dir)
+  call s:open_fold()
+  let lnum = line('.')
+  let anchor = getpos('.')
+  if get(a:000, 0, 0) && !a:inclusive
+    call s:nudge(a:dir)
+  endif
+  for i in range(cnt)
+    if searchpos(pat, a:dir > 0 ? 'W' : 'bW', lnum) == [0, 0]
+      call setpos('.', anchor)
+      return 0
+    endif
+  endfor
+  if !a:inclusive
+    call s:nudge(-a:dir)
+  endif
+  let end = getpos('.')
+  if a:dir < 0 && end[2] == anchor[2]
+    call setpos('.', anchor)
+    return 0
+  endif
+  call setpos('.', anchor)
+  if a:dir < 0
+    normal! h
+  endif
+  execute 'normal! v'
+  call cursor(end[1], end[2])
+  if &selection ==# 'exclusive'
+    execute 'normal!' (a:dir > 0 ? 'l' : 'h')
+  endif
+  let s:rep = {'keys': keys, 'dir': a:dir, 'orig': orig, 'inclusive': a:inclusive,
+        \ 'pos': [bufnr('%'), end[1], end[2]]}
+  return 1
+endfunction"}}}
+
 function! s:foldcase(key) abort"{{{
   return ((get(g:, 'im_motion_smart_case', 0) && a:key =~# '\l')
         \ || get(g:, 'im_motion_ignore_case', 0) ? '\c' : '\C')
@@ -198,14 +270,6 @@ function! s:open_fold() abort"{{{
       foldopen
     endwhile
   endif
-endfunction"}}}
-
-function! s:target_pat(keys, lnum) abort"{{{
-  let frag = s:class(a:keys)
-  if frag ==# ''
-    return ''
-  endif
-  return '\%' . a:lnum . 'l' . s:foldcase(a:keys) . frag
 endfunction"}}}
 
 function! im#motion#mark_clear(...) abort"{{{
@@ -265,12 +329,10 @@ function! s:jump(dir, inclusive, keys, cnt, ...) abort"{{{
   if pat ==# ''
     return 0
   endif
-
-  let resume = get(a:000, 0, 0) && !a:inclusive
   call s:open_fold()
   let lnum = line('.')
   let save = getpos('.')
-  if resume
+  if get(a:000, 0, 0) && !a:inclusive
     call s:nudge(a:dir)
   endif
   for i in range(cnt)
@@ -283,42 +345,75 @@ function! s:jump(dir, inclusive, keys, cnt, ...) abort"{{{
     call s:nudge(-a:dir)
   endif
   if s:mode() !=# 'o'
-    let tp = s:target_pat(a:keys, lnum)
+    let tp = s:build(a:keys)
     if tp !=# ''
-      call s:mark(tp)
+      call s:mark('\%' . lnum . 'l' . tp)
     endif
   endif
   let cur = getpos('.')
   let s:last[s:mode()] = {'keys': a:keys, 'dir': a:dir, 'orig': a:dir, 'inclusive': a:inclusive,
         \ 'pos': [bufnr('%'), cur[1], cur[2]],
         \ 'stamp': reltimefloat(reltime())}
+  let s:rep = {'keys': a:keys, 'dir': a:dir, 'orig': a:dir, 'inclusive': a:inclusive,
+        \ 'pos': [bufnr('%'), cur[1], cur[2]]}
   return 1
 endfunction"}}}
 
 function! s:repeat(dir, cnt) abort"{{{
   let m = s:mode()
-  let last = get(s:last, m, {})
-  if empty(last) || s:expired(last)
-    return 0
-  endif
-  if [bufnr('%'), line('.'), col('.')] != last.pos
-    call remove(s:last, m)
+  let last = deepcopy(s:rep)
+  if empty(last)
     return 0
   endif
   let orig = get(last, 'orig', last.dir)
   let req = a:dir > 0 ? orig : -orig
   let continued = ((req > 0) == (last.dir > 0)) ? 1 : 0
+  if [bufnr('%'), line('.'), col('.')] != last.pos
+    let continued = 0
+  endif
   let r = s:jump(req, last.inclusive, last.keys, a:cnt, continued)
   if r
     let s:last[m].orig = orig
+    let s:rep.orig = orig
   endif
   return r
 endfunction"}}}
 
-function! im#motion#reset() abort"{{{
-  if has_key(s:last, s:mode())
-    call remove(s:last, s:mode())
+function! im#motion#omap_repeat(...) abort"{{{
+  let cnt = get(a:000, 0, v:count1) < 1 ? 1 : get(a:000, 0, v:count1)
+  let last = deepcopy(s:rep)
+  if empty(last)
+    return "\<Esc>"
   endif
+  let orig = get(last, 'orig', last.dir)
+  let req = orig
+  let continued = ((req > 0) == (last.dir > 0)) ? 1 : 0
+  if [bufnr('%'), line('.'), col('.')] != last.pos
+    let continued = 0
+  endif
+  return printf(":\<C-U>call im#motion#omap_jump(%d, %d, %d, %d, %d, %d)\<CR>",
+        \ req, last.inclusive, char2nr(last.keys), cnt, continued, orig)
+endfunction"}}}
+
+function! im#motion#omap_repeat_back(...) abort"{{{
+  let cnt = get(a:000, 0, v:count1) < 1 ? 1 : get(a:000, 0, v:count1)
+  let last = deepcopy(s:rep)
+  if empty(last)
+    return "\<Esc>"
+  endif
+  let orig = get(last, 'orig', last.dir)
+  let req = -orig
+  let continued = ((req > 0) == (last.dir > 0)) ? 1 : 0
+  if [bufnr('%'), line('.'), col('.')] != last.pos
+    let continued = 0
+  endif
+  return printf(":\<C-U>call im#motion#omap_jump(%d, %d, %d, %d, %d, %d)\<CR>",
+        \ req, last.inclusive, char2nr(last.keys), cnt, continued, orig)
+endfunction"}}}
+
+function! im#motion#reset() abort"{{{
+  let s:last = {}
+  let s:rep = {}
   call im#motion#mark_clear()
   return 1
 endfunction"}}}

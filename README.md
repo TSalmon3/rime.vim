@@ -930,16 +930,17 @@ nnoremap r <Cmd>call im#replace#r()<CR>
 
 替代原生 `f / F / t / T` 的行内跳转，支持 `normal / visual / operator-pending`，行为参考 [clever-f.vim](https://github.com/rhysd/clever-f.vim)：键入一个 ASCII 字符，即可跳到该字符、拼音以它开头的汉字或对应的全角符号上。
 
-| 按键                     | 说明                                                                                                             |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `f{char}`                | 向右跳到 `{char}` 上                                                                                             |
-| `F{char}`                | 向左跳到 `{char}` 上                                                                                             |
-| `t{char}`                | 向右跳到 `{char}` 之前                                                                                           |
-| `T{char}`            | 向左跳到 `{char}` 之后                                               |
-| `[count]` 前缀       | 如 `2fa` 跳到第 2 个匹配（对 `;` / `,` 同样有效）                    |
-| 复按 `f / F / t / T` | 在落点原地再按，沿用上次的字符：`f / t` 向右、`F / T` 向左，无需重输 |
-| `;` / `,`            | 沿上次方向重复 / 反向重复                                            |
-| 与 operator 组合         | 如 `dfa` 删除至 `a`（含），`yta` 复制至 `a` 之前                                                                 |
+| 按键                 | 说明                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------ |
+| `f{char}`            | 向右跳到 `{char}` 上                                                                 |
+| `F{char}`            | 向左跳到 `{char}` 上                                                                 |
+| `t{char}`            | 向右跳到 `{char}` 之前                                                               |
+| `T{char}`            | 向左跳到 `{char}` 之后                                                               |
+| `[count]` 前缀       | 如 `2fa` 跳到第 2 个匹配（对 `;` / `,` 同样有效）                                    |
+| 复按 `f / F / t / T` | 在落点原地再按一次，沿用上次的字符：`f / t` 向右，`F / T` 向左（仅 normal / visual） |
+| `;` / `,`            | 沿上次方向重复 / 反向重复（字符记忆跨模式共享）                                      |
+
+> 注：operator-pending 下 `f / F / t / T` 不支持复按，每次都会读取新键；需要连续重复请使用 `;` / `,`。
 
 **拼音匹配与限制：**
 
@@ -953,9 +954,10 @@ nnoremap r <Cmd>call im#replace#r()<CR>
 
 **记忆规则：**
 
-- 记忆绑定模式: `normal`、`visual`、`operator-pending` 各自独立记忆；光标一旦移动，记忆即失效，下次重新读取按键。
-- `g:im_motion_timeout_ms > 0` 时，记忆会在超时后过期，此后复按将重新读键；设为 `0` 则永不过期。
-- 手动清除：`<leader><esc>`（即 `im#motion#reset`）可同时清除记忆与落点高亮。
+- 位置记忆（`f / F / t / T` 复按，仅 normal/visual）：按模式隔离，与光标位置绑定，光标一旦移动即失效，下次重新读取按键；operator 下不复按，每次重新读键。
+- 字符记忆：全局跨模式共享；移动、超时都不失效；仅手动清除或下次执行 `f / F / t / T`（任意模式）时覆盖。
+- `g:im_motion_timeout_ms > 0` 时，位置记忆会在超时后过期；字符记忆不受超时限制；设为 `0` 则位置记忆永不过期。
+- 手动清除：`<leader><esc>`（即 `im#motion#reset`）可同时清除位置记忆、字符记忆。
 
 #### 配置
 
@@ -970,8 +972,8 @@ let g:im_motion_mark = 1
 " 0 表示不设定时，仅在光标移动后清除；大于 0 时，除移动清除外，到时也会自动清除
 let g:im_motion_mark_ms = 0
 
-" 重复跳转的记忆过期时间，单位毫秒（默认 0）
-" 0 表示永不过期；大于 0 时，超时后再按会重新读取按键
+" 复按 f / F / t / T 的位置记忆过期时间，单位为毫秒（默认 0）
+" 0 表示永不过期；大于 0 时，超时后复按会重新读取键
 let g:im_motion_timeout_ms = 0
 
 " 拼音模式：'quanpin'（默认，全拼）或 'flypy'（小鹤双拼）
@@ -993,19 +995,22 @@ nnoremap f <Cmd>call im#motion#f()<CR>
 nnoremap F <Cmd>call im#motion#F()<CR>
 nnoremap t <Cmd>call im#motion#t()<CR>
 nnoremap T <Cmd>call im#motion#T()<CR>
-nnoremap ; <Cmd>call im#motion#repeat()<CR>
-nnoremap , <Cmd>call im#motion#repeat_back()<CR>
+nnoremap <leader>; <Cmd>call im#motion#repeat()<CR>
+nnoremap <leader>, <Cmd>call im#motion#repeat_back()<CR>
+
 xnoremap f <Cmd>call im#motion#f()<CR>
 xnoremap F <Cmd>call im#motion#F()<CR>
 xnoremap t <Cmd>call im#motion#t()<CR>
 xnoremap T <Cmd>call im#motion#T()<CR>
-xnoremap ; <Cmd>call im#motion#repeat()<CR>
-xnoremap , <Cmd>call im#motion#repeat_back()<CR>
+xnoremap <leader>; <Cmd>call im#motion#repeat()<CR>
+xnoremap <leader>, <Cmd>call im#motion#repeat_back()<CR>
 
-onoremap <expr> f 'v<Cmd>call im#motion#f()<CR>'
-onoremap <expr> F 'v<Cmd>call im#motion#F()<CR>'
-onoremap <expr> t 'v<Cmd>call im#motion#t()<CR>'
-onoremap <expr> T 'v<Cmd>call im#motion#T()<CR>'
+onoremap <silent><expr> f im#motion#omap_f()
+onoremap <silent><expr> F im#motion#omap_F()
+onoremap <silent><expr> t im#motion#omap_t()
+onoremap <silent><expr> T im#motion#omap_T()
+onoremap <silent><expr> ; im#motion#omap_repeat()
+onoremap <silent><expr> , im#motion#omap_repeat_back()
 ```
 
 #### 高亮
