@@ -181,40 +181,39 @@ function! im#motion#T() abort"{{{
 endfunction"}}}
 
 function! im#motion#omap_f() abort"{{{
-  call s:omap(1, 1)
+  return s:omap(1, 1)
 endfunction"}}}
 
 function! im#motion#omap_F() abort"{{{
-  call s:omap(-1, 1)
+  return s:omap(-1, 1)
 endfunction"}}}
 
 function! im#motion#omap_t() abort"{{{
-  call s:omap(1, 0)
+  return s:omap(1, 0)
 endfunction"}}}
 
 function! im#motion#omap_T() abort"{{{
-  call s:omap(-1, 0)
+  return s:omap(-1, 0)
 endfunction"}}}
 
 function! s:omap(dir, inclusive) abort"{{{
   let cnt = v:count1 < 1 ? 1 : v:count1
   let k = s:read_key()
   if s:cancelled(k) || s:build(k) ==# ''
-    call feedkeys("\<Esc>", 'n')
-    return 0
+    return "\<Esc>"
   endif
-  return s:omap_jump(a:dir, a:inclusive, k, cnt)
+  return printf(":\<C-U>call im#motion#omap_jump(%d, %d, %d, %d, %d, %d)\<CR>",
+        \ a:dir, a:inclusive, char2nr(k), cnt, 0, a:dir)
 endfunction"}}}
 
-function! s:omap_jump(dir, inclusive, keys, cnt, ...) abort"{{{
-  if s:cancelled(a:keys)
-    call feedkeys("\<Esc>", 'n')
+function! im#motion#omap_jump(dir, inclusive, char_nr, cnt, ...) abort"{{{
+  let keys = type(a:char_nr) == v:t_number ? nr2char(a:char_nr) : a:char_nr
+  if s:cancelled(keys)
     return 0
   endif
   let cnt = max([a:cnt, 1])
-  let pat = s:build(a:keys)
+  let pat = s:build(keys)
   if pat ==# ''
-    call feedkeys("\<Esc>", 'n')
     return 0
   endif
   let orig = get(a:000, 1, a:dir)
@@ -227,7 +226,6 @@ function! s:omap_jump(dir, inclusive, keys, cnt, ...) abort"{{{
   for i in range(cnt)
     if searchpos(pat, a:dir > 0 ? 'W' : 'bW', lnum) == [0, 0]
       call setpos('.', anchor)
-      call feedkeys("\<Esc>", 'n')
       return 0
     endif
   endfor
@@ -237,7 +235,6 @@ function! s:omap_jump(dir, inclusive, keys, cnt, ...) abort"{{{
   let end = getpos('.')
   if a:dir < 0 && end[2] == anchor[2]
     call setpos('.', anchor)
-    call feedkeys("\<Esc>", 'n')
     return 0
   endif
   call setpos('.', anchor)
@@ -249,7 +246,7 @@ function! s:omap_jump(dir, inclusive, keys, cnt, ...) abort"{{{
   if &selection ==# 'exclusive'
     execute 'normal!' (a:dir > 0 ? 'l' : 'h')
   endif
-  let s:rep = {'keys': a:keys, 'dir': a:dir, 'orig': orig, 'inclusive': a:inclusive,
+  let s:rep = {'keys': keys, 'dir': a:dir, 'orig': orig, 'inclusive': a:inclusive,
         \ 'pos': [bufnr('%'), end[1], end[2]]}
   return 1
 endfunction"}}}
@@ -383,27 +380,35 @@ function! s:repeat(dir, cnt) abort"{{{
 endfunction"}}}
 
 function! im#motion#omap_repeat(...) abort"{{{
-  call s:omap_repeat(1, get(a:000, 0, v:count1))
-endfunction"}}}
-
-function! im#motion#omap_repeat_back(...) abort"{{{
-  call s:omap_repeat(-1, get(a:000, 0, v:count1))
-endfunction"}}}
-
-function! s:omap_repeat(dir, cnt) abort"{{{
-  let cnt = a:cnt < 1 ? 1 : a:cnt
+  let cnt = get(a:000, 0, v:count1) < 1 ? 1 : get(a:000, 0, v:count1)
   let last = deepcopy(s:rep)
   if empty(last)
-    call feedkeys("\<Esc>", 'n')
-    return 0
+    return "\<Esc>"
   endif
   let orig = get(last, 'orig', last.dir)
-  let req = a:dir > 0 ? orig : -orig
+  let req = orig
   let continued = ((req > 0) == (last.dir > 0)) ? 1 : 0
   if [bufnr('%'), line('.'), col('.')] != last.pos
     let continued = 0
   endif
-  return s:omap_jump(req, last.inclusive, last.keys, cnt, continued, orig)
+  return printf(":\<C-U>call im#motion#omap_jump(%d, %d, %d, %d, %d, %d)\<CR>",
+        \ req, last.inclusive, char2nr(last.keys), cnt, continued, orig)
+endfunction"}}}
+
+function! im#motion#omap_repeat_back(...) abort"{{{
+  let cnt = get(a:000, 0, v:count1) < 1 ? 1 : get(a:000, 0, v:count1)
+  let last = deepcopy(s:rep)
+  if empty(last)
+    return "\<Esc>"
+  endif
+  let orig = get(last, 'orig', last.dir)
+  let req = -orig
+  let continued = ((req > 0) == (last.dir > 0)) ? 1 : 0
+  if [bufnr('%'), line('.'), col('.')] != last.pos
+    let continued = 0
+  endif
+  return printf(":\<C-U>call im#motion#omap_jump(%d, %d, %d, %d, %d, %d)\<CR>",
+        \ req, last.inclusive, char2nr(last.keys), cnt, continued, orig)
 endfunction"}}}
 
 function! im#motion#reset() abort"{{{
