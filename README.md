@@ -1005,12 +1005,12 @@ xnoremap T <Cmd>call im#motion#T()<CR>
 xnoremap <leader>; <Cmd>call im#motion#repeat()<CR>
 xnoremap <leader>, <Cmd>call im#motion#repeat_back()<CR>
 
-onoremap <silent><expr> f im#motion#omap_f()
-onoremap <silent><expr> F im#motion#omap_F()
-onoremap <silent><expr> t im#motion#omap_t()
-onoremap <silent><expr> T im#motion#omap_T()
-onoremap <silent><expr> ; im#motion#omap_repeat()
-onoremap <silent><expr> , im#motion#omap_repeat_back()
+onoremap f <Cmd>call im#motion#omap_f()<CR>
+onoremap F <Cmd>call im#motion#omap_F()<CR>
+onoremap t <Cmd>call im#motion#omap_t()<CR>
+onoremap T <Cmd>call im#motion#omap_T()<CR>
+onoremap ; <Cmd>call im#motion#omap_repeat()<CR>
+onoremap , <Cmd>call im#motion#omap_repeat_back()<CR>
 ```
 
 #### 高亮
