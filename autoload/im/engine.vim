@@ -1,7 +1,7 @@
 function! im#engine#key(keycode, mask, ...) abort"{{{
   let state = im#state#get()
   let ctx = im#rime#key(a:keycode, a:mask)
-  let fallback = a:0 ? a:1 : im#keymap#fallback(a:keycode, a:mask)
+  let fallback = a:0 && !empty(a:1) ? a:1 : im#keysym#decode(a:keycode, a:mask)
 
   call im#state#emit(im#state#sync_notifications(ctx))
 
@@ -13,7 +13,9 @@ function! im#engine#key(keycode, mask, ...) abort"{{{
     call im#state#emit(im#state#reset_backend())
     let state.last_fallback = fallback
     silent! doautocmd User RimeIMCommit
-    call feedkeys(fallback, 'ni')
+    if !empty(fallback)
+      call feedkeys(fallback, 'ni')
+    endif
     return
   endif
   " 组词结束上屏
