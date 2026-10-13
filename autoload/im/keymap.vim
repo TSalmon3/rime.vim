@@ -96,7 +96,7 @@ function! im#keymap#special(name) abort"{{{
 endfunction"}}}
 
 function! im#keymap#ctrl_w() abort"{{{
-  let [code, mask] = s:keys["s-bs"]
+  let [code, mask, _] = s:keys["s-bs"]
   if !im#state#composing()
     if im#replace#can_restore()
       return "\<Cmd>call im#replace#ctrl_w()\<CR>"
@@ -107,7 +107,7 @@ function! im#keymap#ctrl_w() abort"{{{
 endfunction"}}}
 
 function! im#keymap#ctrl_u() abort"{{{
-  let [code, mask] = s:keys['esc']
+  let [code, mask, _] = s:keys['esc']
   if !im#state#composing()
     if im#replace#can_restore()
       return "\<Cmd>call im#replace#ctrl_u()\<CR>"
@@ -118,7 +118,7 @@ function! im#keymap#ctrl_u() abort"{{{
 endfunction"}}}
 
 function! im#keymap#bs() abort"{{{
-  let [code, mask] = s:keys['bs']
+  let [code, mask, _] = s:keys['bs']
   if !im#state#composing()
     if im#replace#can_restore()
       return "\<Cmd>call im#replace#bs()\<CR>"
@@ -132,7 +132,7 @@ function! im#keymap#bs() abort"{{{
 endfunction"}}}
 
 function! im#keymap#shift_bs() abort"{{{
-  let [code, mask] = s:keys["s-bs"]
+  let [code, mask, _] = s:keys["s-bs"]
   if !im#state#composing()
     if im#replace#can_restore()
       return "\<Cmd>call im#replace#bs()\<CR>"
@@ -146,7 +146,7 @@ function! im#keymap#shift_bs() abort"{{{
 endfunction"}}}
 
 function! im#keymap#toggle_scheme() abort"{{{
-  let [code, mask] = s:keys['c-`']
+  let [code, mask, _] = s:keys['c-`']
   if !im#state#composing()
     call im#state#start_composition()
   endif
