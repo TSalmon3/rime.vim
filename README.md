@@ -489,8 +489,8 @@ export RIME_QUERY_DEBUG=1
 | `<space>`    | 选择               |
 | `<left>`     | 光标左移           |
 | `<right>`    | 光标右移           |
-| `<c-h>`      | 光标左移           |
-| `<c-l>`      | 光标右移           |
+| `<c-b>`      | 光标左移           |
+| `<c-f>`      | 光标右移           |
 | `<up>`       | 上一个候选         |
 | `<down>`     | 下一个候选         |
 | `<c-k>`      | 上一个候选         |
@@ -503,12 +503,14 @@ export RIME_QUERY_DEBUG=1
 | `=`          | 下一页             |
 | `<bs>`       | 删除一个字符       |
 | `<s-bs>`     | 删除一个音节       |
+| `<c-h>`      | 删除左边字符       |
+| `<c-d>`      | 删除右边字符       |
 | `<tab>`      | 下一个音节结尾     |
 | `<s-tab>`    | 下一个音节开头     |
 | `<c-u>`      | 清空拼音           |
 | `<esc>`      | 清空拼音           |
 | `<c-w>`      | 删除一个音节       |
-| `<c-d>`      | 删除自造词         |
+| `<c-l>`      | 删除自造词         |
 | `<c-a>`      | 光标移动到拼音开头 |
 | `<c-e>`      | 光标移动到拼音结尾 |
 
@@ -763,6 +765,57 @@ augroup RimeGroup
 augroup END
 ```
 
+
+#### 自定义编辑键
+
+Emacs 风格
+
+```vim
+lnoremap <silent><buffer><expr> <c-a> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Home, 0)\<cr>" : "\<home>"
+lnoremap <silent><buffer><expr> <c-e> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.End, 0)\<cr>" : "\<end>"
+
+lnoremap <silent><buffer><expr> <c-k> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Up, 0)\<cr>" : "\<up>"
+lnoremap <silent><buffer><expr> <c-j> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Down, 0)\<cr>" : "\<down>"
+
+lnoremap <silent><buffer><expr> <c-b> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Left, 0)\<cr>" : "\<left>"
+lnoremap <silent><buffer><expr> <c-f> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Right, 0)\<cr>" : "\<right>"
+
+lnoremap <silent><buffer><expr> <c-h> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.BackSpace, 0)\<cr>" : "\<bs>"
+lnoremap <silent><buffer><expr> <c-d> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Delete, 0)\<cr>" : "\<del>"
+
+lnoremap <silent><buffer><expr> <c-l> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Delete, g:RIME_MASK.Shift)\<cr>" : "\<del>"
+```
+
+HJKL 风格
+
+```vim
+lnoremap <silent><buffer><expr> <c-h> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Left, 0)\<cr>" : "\<left>"
+lnoremap <silent><buffer><expr> <c-j> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Down, 0)\<cr>" : "\<down>"
+lnoremap <silent><buffer><expr> <c-k> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Up, 0)\<cr>" : "\<up>"
+lnoremap <silent><buffer><expr> <c-l> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Right, 0)\<cr>" : "\<right>"
+
+lnoremap <silent><buffer><expr> <c-a> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Home, 0)\<cr>" : "\<home>"
+lnoremap <silent><buffer><expr> <c-e> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.End, 0)\<cr>" : "\<end>"
+
+lnoremap <silent><buffer><expr> <c-d> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Delete, g:RIME_MASK.Shift)\<cr>" : "\<c-d>"
+```
+
 #### 自定义退出键
 
 上屏 `commit_code` 同时回到 `normal` 模式
@@ -795,7 +848,6 @@ lnoremap <silent><expr> <esc> im#state#composing() ?
 lnoremap <silent><expr> <esc> im#state#composing() ?
       \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Escape, 0)\<cr>\<esc>" : "\<esc>"
 ```
-
 
 #### 方案选单
 

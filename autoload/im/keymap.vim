@@ -1,4 +1,5 @@
 let s:keys = {
+      \ '<del>'       : [g:RIME_KEYCODE.Delete,    0],
       \ '<bs>'        : [g:RIME_KEYCODE.BackSpace, 0],
       \ '<s-bs>'      : [g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift],
       \ '<left>'      : [g:RIME_KEYCODE.Left,      0],
@@ -15,13 +16,13 @@ let s:keys = {
       \ '<esc>'       : [g:RIME_KEYCODE.Escape,    0],
       \ '<space>'     : [g:RIME_KEYCODE.space,     0],
       \ '<c-u>'       : [g:RIME_KEYCODE.Escape,    0],
-      \ '<c-d>'       : [g:RIME_KEYCODE.Delete,    g:RIME_MASK.Shift],
-      \ '<c-f>'       : [g:RIME_KEYCODE.Page_Down, 0],
-      \ '<c-b>'       : [g:RIME_KEYCODE.Page_Up,   0],
+      \ '<c-f>'       : [g:RIME_KEYCODE.Right,     0],
+      \ '<c-b>'       : [g:RIME_KEYCODE.Left,      0],
       \ '<c-`>'       : [g:RIME_KEYCODE.grave,     g:RIME_MASK.Control],
       \ '<f4>'        : [g:RIME_KEYCODE.F4,        0],
-      \ '<c-h>'       : [g:RIME_KEYCODE.Left,      0],
-      \ '<c-l>'       : [g:RIME_KEYCODE.Right,     0],
+      \ '<c-h>'       : [g:RIME_KEYCODE.BackSpace, 0],
+      \ '<c-d>'       : [g:RIME_KEYCODE.Delete,    0],
+      \ '<c-l>'       : [g:RIME_KEYCODE.Delete,    g:RIME_MASK.Shift],
       \ '<c-k>'       : [g:RIME_KEYCODE.Up,        0],
       \ '<c-j>'       : [g:RIME_KEYCODE.Down,      0],
       \ '<c-n>'       : [g:RIME_KEYCODE.Down,      0],
@@ -58,14 +59,15 @@ function! im#keymap#setup() abort"{{{
   lnoremap <buffer><expr> <c-u>      im#keymap#ctrl_u()
   lnoremap <buffer><expr> <c-w>      im#keymap#ctrl_w()
   lnoremap <buffer><expr> <c-h>      im#keymap#ctrl_h()
-  lnoremap <buffer><expr> <c-l>      im#keymap#ctrl_l()
+  lnoremap <buffer><expr> <c-d>      im#keymap#ctrl_d()
   lnoremap <buffer><expr> <c-j>      im#keymap#ctrl_j()
   lnoremap <buffer><expr> <c-k>      im#keymap#ctrl_k()
   lnoremap <buffer><expr> <c-a>      im#keymap#ctrl_a()
   lnoremap <buffer><expr> <c-e>      im#keymap#ctrl_e()
+
   for key in s:mapped_keys.specials
     if index(['<bs>', '<s-bs>', '<c-u>', '<c-w>',
-          \ '<c-a>', '<c-e>', '<c-h>', '<c-j>', '<c-k>', '<c-l>'], key) >= 0
+          \ '<c-a>', '<c-e>', '<c-h>', '<c-j>', '<c-k>', '<c-d>'], key) >= 0
       continue
     endif
     let name = substitute(key, '[<>]', '', 'g')
@@ -104,17 +106,17 @@ endfunction"}}}
 
 
 function! im#keymap#ctrl_h() abort"{{{
-  let [code, mask] = s:keys["<left>"]
+  let [code, mask] = s:keys["<bs>"]
   if !im#state#composing()
     return "\<left>"
   endif
   return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
-function! im#keymap#ctrl_l() abort"{{{
-  let [code, mask] = s:keys["<right>"]
+function! im#keymap#ctrl_d() abort"{{{
+  let [code, mask] = s:keys["<del>"]
   if !im#state#composing()
-    return "\<right>"
+    return "\<del>"
   endif
   return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
