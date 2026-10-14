@@ -109,19 +109,20 @@
 - [集成](#集成)
   - [事件](#事件)
 - [高级主题](#高级主题)
-  - [定制 Rime 方案](#定制-rime-方案)
-  - [定制中英切换与方案选单](#定制中英切换与方案选单)
+  - [定制方案](#定制方案)
+  - [定制快捷键](#定制快捷键)
   - [定制状态栏](#定制状态栏)
-  - [Replace Mode 替换模式](#replace-mode-替换模式)
+  - [Replace 替换模式](#replace-替换模式)
   - [Motion 行内跳转](#motion-行内跳转)
   - [Jump 全屏跳转](#jump-全屏跳转)
-  - [Auto Pair 自动成对](#auto-pair-自动成对)
+  - [AutoPair 自动成对](#autopair-自动成对)
   - [Context 自动切换](#context-自动切换)
   - [Typeset 自动排版](#typeset-自动排版)
   - [Surround 包围编辑](#surround-包围编辑)
   - [Tips 小技巧](#tips-小技巧)
   - [其他搭配插件](#其他搭配插件)
   - [Tmux 弹窗输入](#tmux-弹窗输入)
+- [附录](#附录)
 - [致谢](#致谢)
 - [License](#license)
 
@@ -585,7 +586,7 @@ augroup END
 
 ## 高级主题
 
-### 定制 Rime 方案
+### 定制方案
 
 推荐阅读：
 
@@ -709,7 +710,92 @@ patch:
 
 ---
 
-### 定制中英切换与方案选单
+### 定制快捷键
+
+定制映射主要用到两个 API:
+
+- `im#state#composing()`: 判断当前是否处于一次尚未上屏的组词过程中。在 `<expr>` 映射里可用它区分"组词中"和"空闲"两种状态，按需返回不同的行为。
+- `im#engine#key(keycode, mask[, fallback])`: 发送按键给 Rime：
+  - `keycode`：键码，取 `g:RIME_KEYCODE.*`；
+  - `mask`：修饰键掩码，取 `g:RIME_MASK.*`，无修饰键时填 `0`；
+  - `fallback`（可选）：Rime 拒收该键时的回退输入，缺省情况下内部会根据键码和修饰码进行反推。
+
+> [!Note]
+> `fallback` 基本只有**符号键**在半角情况下才会走这一分支，所以绝大多数情况下基本不会用到这个参数。
+
+```vim
+lnoremap <buffer><expr> <xxx> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Xxx, 0)\<cr>" : "\<xxx>"
+```
+
+键码与修饰键常量 `g:RIME_KEYCODE` / `g:RIME_MASK` 见[附录](#附录)。
+
+定制方式是在内置映射建立之后覆盖它。
+
+- `User RimeKeymapSetup`: 在内置映射建立后触发。在回调里用相同的 LHS 再次 `lnoremap` ，即可覆盖内置映射。
+- `User RimeKeymapClear`: 在映射清除后触发。在回调里用 `lunmap` 拆除自己添加的映射。
+
+通用骨架：
+
+```vim
+function RimeKeymapRemap()
+  lnoremap <silent><buffer><expr> <c-h> im#state#composing() ?
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Left, 0)\<cr>" : "\<left>"
+  lnoremap <silent><buffer><expr> <c-l> im#state#composing() ?
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Right, 0)\<cr>" : "\<right>"
+  lnoremap <silent><buffer><expr> <c-j> im#state#composing() ?
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Down, 0)\<cr>" : "\<down>"
+  lnoremap <silent><buffer><expr> <c-k> im#state#composing() ?
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Up, 0)\<cr>" : "\<up>"
+  ...
+  lnoremap <buffer><expr> <xxx> ...
+endfunction
+
+function RimeKeymapClear()
+  silent! lunmap <buffer> <xxx>
+  ...
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimeKeymapClear call RimeKeymapClear()
+augroup END
+```
+
+#### 自定义退出键
+
+上屏 `commit_code` 同时回到 `normal` 模式
+
+```vim
+function RimeKeymapRemap()
+  lnoremap <silent><buffer> <esc> <esc>
+endfunction
+
+function RimeKeymapClear()
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimeKeymapClear call RimeKeymapClear()
+augroup END
+```
+
+清空编辑区
+
+```vim
+lnoremap <silent><expr> <esc> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Escape, 0)\<cr>" : "\<esc>"
+```
+
+清空编辑区，并回到 `normal` 模式
+
+```vim
+lnoremap <silent><expr> <esc> im#state#composing() ?
+      \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Escape, 0)\<cr>\<esc>" : "\<esc>"
+```
+
 
 #### 方案选单
 
@@ -893,7 +979,7 @@ augroup END
 
 ---
 
-### Replace Mode 替换模式
+### Replace 替换模式
 
 > 以下功能还处于实验性阶段。
 
@@ -1133,7 +1219,7 @@ highlight link ImJumpPrompt Question
 
 ---
 
-### Auto Pair 自动成对
+### AutoPair 自动成对
 
 > [!Tip]
 > 替换模式下会自动关闭成对功能
@@ -1382,7 +1468,7 @@ endfunction
 
 function RimeKeymapRemap()
   lnoremap <buffer><silent><expr> <space> im#state#composing() ?
-        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Space, 0)\<CR>" : im#pair#space()
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.space, 0)\<CR>" : im#pair#space()
 endfunction
 
 augroup RimeGroup
@@ -2046,6 +2132,270 @@ set-environment -g RIME_SHARED_DATA_DIR "/usr/share/rime-data"
 set-environment -g RIME_LOG "$HOME/.local/state/log/vim/rime.log"
 set-environment -g RIME_TMUX_LOG "$HOME/.local/state/log/tmux/rime.log"
 ```
+
+## 附录
+
+`im#engine#key(keycode, mask)` 的取值对照，定义见 `plugin/im_nvim.vim` 的 `g:RIME_KEYCODE` / `g:RIME_MASK`：
+
+```vim
+call im#engine#key(g:RIME_KEYCODE.Return, 0)                  " 回车，无修饰
+call im#engine#key(g:RIME_KEYCODE.Tab, g:RIME_MASK.Shift)     " Shift+Tab
+call im#engine#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift) " Shift+BackSpace
+```
+
+### Mask 修饰键掩码（`g:RIME_MASK`）
+
+| 名称      | 十六进制     | 十进制     |
+| --------- | ------------ | ---------- |
+| `Shift`   | `0x00000001` | 1          |
+| `Lock`    | `0x00000002` | 2          |
+| `Control` | `0x00000004` | 4          |
+| `Alt`     | `0x00000008` | 8          |
+| `Mod2`    | `0x00000010` | 16         |
+| `Mod3`    | `0x00000020` | 32         |
+| `Mod4`    | `0x00000040` | 64         |
+| `Mod5`    | `0x00000080` | 128        |
+| `Button1` | `0x00000100` | 256        |
+| `Button2` | `0x00000200` | 512        |
+| `Button3` | `0x00000400` | 1024       |
+| `Button4` | `0x00000800` | 2048       |
+| `Button5` | `0x00001000` | 4096       |
+| `Handled` | `0x01000000` | 16777216   |
+| `Ignored` | `0x02000000` | 33554432   |
+| `Super`   | `0x04000000` | 67108864   |
+| `Hyper`   | `0x08000000` | 134217728  |
+| `Meta`    | `0x10000000` | 268435456  |
+| `Release` | `0x40000000` | 1073741824 |
+
+> 组合用按位或，如 Shift+Control = 1+4 = 5。
+
+### Keycode 键码（`g:RIME_KEYCODE`）
+
+#### ASCII 可打印字符 `0x20-0x7E`
+
+| 名称           | 字符/按键 | 十六进制 | 十进制 |
+| -------------- | --------- | -------- | ------ |
+| `space`        | Space     | `0x0020` | 32     |
+| `exclam`       | `!`       | `0x0021` | 33     |
+| `quotedbl`     | `"`       | `0x0022` | 34     |
+| `numbersign`   | `#`       | `0x0023` | 35     |
+| `dollar`       | `$`       | `0x0024` | 36     |
+| `percent`      | `%`       | `0x0025` | 37     |
+| `ampersand`    | `&`       | `0x0026` | 38     |
+| `apostrophe`   | `'`       | `0x0027` | 39     |
+| `parenleft`    | `(`       | `0x0028` | 40     |
+| `parenright`   | `)`       | `0x0029` | 41     |
+| `asterisk`     | `*`       | `0x002a` | 42     |
+| `plus`         | `+`       | `0x002b` | 43     |
+| `comma`        | `,`       | `0x002c` | 44     |
+| `minus`        | `-`       | `0x002d` | 45     |
+| `period`       | `.`       | `0x002e` | 46     |
+| `slash`        | `/`       | `0x002f` | 47     |
+| `0`            | `0`       | `0x0030` | 48     |
+| `1`            | `1`       | `0x0031` | 49     |
+| `2`            | `2`       | `0x0032` | 50     |
+| `3`            | `3`       | `0x0033` | 51     |
+| `4`            | `4`       | `0x0034` | 52     |
+| `5`            | `5`       | `0x0035` | 53     |
+| `6`            | `6`       | `0x0036` | 54     |
+| `7`            | `7`       | `0x0037` | 55     |
+| `8`            | `8`       | `0x0038` | 56     |
+| `9`            | `9`       | `0x0039` | 57     |
+| `colon`        | `:`       | `0x003a` | 58     |
+| `semicolon`    | `;`       | `0x003b` | 59     |
+| `less`         | `<`       | `0x003c` | 60     |
+| `equal`        | `=`       | `0x003d` | 61     |
+| `greater`      | `>`       | `0x003e` | 62     |
+| `question`     | `?`       | `0x003f` | 63     |
+| `at`           | `@`       | `0x0040` | 64     |
+| `A`            | `A`       | `0x0041` | 65     |
+| `B`            | `B`       | `0x0042` | 66     |
+| `C`            | `C`       | `0x0043` | 67     |
+| `D`            | `D`       | `0x0044` | 68     |
+| `E`            | `E`       | `0x0045` | 69     |
+| `F`            | `F`       | `0x0046` | 70     |
+| `G`            | `G`       | `0x0047` | 71     |
+| `H`            | `H`       | `0x0048` | 72     |
+| `I`            | `I`       | `0x0049` | 73     |
+| `J`            | `J`       | `0x004a` | 74     |
+| `K`            | `K`       | `0x004b` | 75     |
+| `L`            | `L`       | `0x004c` | 76     |
+| `M`            | `M`       | `0x004d` | 77     |
+| `N`            | `N`       | `0x004e` | 78     |
+| `O`            | `O`       | `0x004f` | 79     |
+| `P`            | `P`       | `0x0050` | 80     |
+| `Q`            | `Q`       | `0x0051` | 81     |
+| `R`            | `R`       | `0x0052` | 82     |
+| `S`            | `S`       | `0x0053` | 83     |
+| `T`            | `T`       | `0x0054` | 84     |
+| `U`            | `U`       | `0x0055` | 85     |
+| `V`            | `V`       | `0x0056` | 86     |
+| `W`            | `W`       | `0x0057` | 87     |
+| `X`            | `X`       | `0x0058` | 88     |
+| `Y`            | `Y`       | `0x0059` | 89     |
+| `Z`            | `Z`       | `0x005a` | 90     |
+| `bracketleft`  | `[`       | `0x005b` | 91     |
+| `backslash`    | (反斜杠)  | `0x005c` | 92     |
+| `bracketright` | `]`       | `0x005d` | 93     |
+| `asciicircum`  | `^`       | `0x005e` | 94     |
+| `underscore`   | `_`       | `0x005f` | 95     |
+| `grave`        | (反引号)  | `0x0060` | 96     |
+| `a`            | `a`       | `0x0061` | 97     |
+| `b`            | `b`       | `0x0062` | 98     |
+| `c`            | `c`       | `0x0063` | 99     |
+| `d`            | `d`       | `0x0064` | 100    |
+| `e`            | `e`       | `0x0065` | 101    |
+| `f`            | `f`       | `0x0066` | 102    |
+| `g`            | `g`       | `0x0067` | 103    |
+| `h`            | `h`       | `0x0068` | 104    |
+| `i`            | `i`       | `0x0069` | 105    |
+| `j`            | `j`       | `0x006a` | 106    |
+| `k`            | `k`       | `0x006b` | 107    |
+| `l`            | `l`       | `0x006c` | 108    |
+| `m`            | `m`       | `0x006d` | 109    |
+| `n`            | `n`       | `0x006e` | 110    |
+| `o`            | `o`       | `0x006f` | 111    |
+| `p`            | `p`       | `0x0070` | 112    |
+| `q`            | `q`       | `0x0071` | 113    |
+| `r`            | `r`       | `0x0072` | 114    |
+| `s`            | `s`       | `0x0073` | 115    |
+| `t`            | `t`       | `0x0074` | 116    |
+| `u`            | `u`       | `0x0075` | 117    |
+| `v`            | `v`       | `0x0076` | 118    |
+| `w`            | `w`       | `0x0077` | 119    |
+| `x`            | `x`       | `0x0078` | 120    |
+| `y`            | `y`       | `0x0079` | 121    |
+| `z`            | `z`       | `0x007a` | 122    |
+| `braceleft`    | `{`       | `0x007b` | 123    |
+| `bar`          | (竖线)    | `0x007c` | 124    |
+| `braceright`   | `}`       | `0x007d` | 125    |
+| `asciitilde`   | `~`       | `0x007e` | 126    |
+
+#### 功能键
+
+| 名称           | 字符/按键 | 十六进制 | 十进制 |
+| -------------- | --------- | -------- | ------ |
+| `ISO_Left_Tab` |           | `0xfe20` | 65056  |
+| `BackSpace`    |           | `0xff08` | 65288  |
+| `Tab`          |           | `0xff09` | 65289  |
+| `Linefeed`     |           | `0xff0a` | 65290  |
+| `Clear`        |           | `0xff0b` | 65291  |
+| `Return`       |           | `0xff0d` | 65293  |
+| `Pause`        |           | `0xff13` | 65299  |
+| `Scroll_Lock`  |           | `0xff14` | 65300  |
+| `Escape`       |           | `0xff1b` | 65307  |
+
+#### 导航键 `0xFF50-0xFF58`
+
+| 名称        | 字符/按键 | 十六进制 | 十进制 |
+| ----------- | --------- | -------- | ------ |
+| `Home`      |           | `0xff50` | 65360  |
+| `Left`      |           | `0xff51` | 65361  |
+| `Up`        |           | `0xff52` | 65362  |
+| `Right`     |           | `0xff53` | 65363  |
+| `Down`      |           | `0xff54` | 65364  |
+| `Page_Up`   |           | `0xff55` | 65365  |
+| `Page_Down` |           | `0xff56` | 65366  |
+| `End`       |           | `0xff57` | 65367  |
+| `Begin`     |           | `0xff58` | 65368  |
+
+#### 杂项 `0xFF60-0xFF7F`
+
+| 名称          | 字符/按键 | 十六进制 | 十进制 |
+| ------------- | --------- | -------- | ------ |
+| `Select`      |           | `0xff60` | 65376  |
+| `Print`       |           | `0xff61` | 65377  |
+| `Execute`     |           | `0xff62` | 65378  |
+| `Insert`      |           | `0xff63` | 65379  |
+| `Undo`        |           | `0xff65` | 65381  |
+| `Redo`        |           | `0xff66` | 65382  |
+| `Menu`        |           | `0xff67` | 65383  |
+| `Find`        |           | `0xff68` | 65384  |
+| `Cancel`      |           | `0xff69` | 65385  |
+| `Help`        |           | `0xff6a` | 65386  |
+| `Break`       |           | `0xff6b` | 65387  |
+| `Mode_switch` |           | `0xff7e` | 65406  |
+| `Num_Lock`    |           | `0xff7f` | 65407  |
+
+#### 小键盘 `0xFF80-0xFFBD`
+
+| 名称           | 字符/按键 | 十六进制 | 十进制 |
+| -------------- | --------- | -------- | ------ |
+| `KP_Space`     |           | `0xff80` | 65408  |
+| `KP_Tab`       |           | `0xff89` | 65417  |
+| `KP_Enter`     |           | `0xff8d` | 65421  |
+| `KP_F1`        |           | `0xff91` | 65425  |
+| `KP_F2`        |           | `0xff92` | 65426  |
+| `KP_F3`        |           | `0xff93` | 65427  |
+| `KP_F4`        |           | `0xff94` | 65428  |
+| `KP_Home`      |           | `0xff95` | 65429  |
+| `KP_Left`      |           | `0xff96` | 65430  |
+| `KP_Up`        |           | `0xff97` | 65431  |
+| `KP_Right`     |           | `0xff98` | 65432  |
+| `KP_Down`      |           | `0xff99` | 65433  |
+| `KP_Page_Up`   |           | `0xff9a` | 65434  |
+| `KP_Page_Down` |           | `0xff9b` | 65435  |
+| `KP_End`       |           | `0xff9c` | 65436  |
+| `KP_Begin`     |           | `0xff9d` | 65437  |
+| `KP_Insert`    |           | `0xff9e` | 65438  |
+| `KP_Delete`    |           | `0xff9f` | 65439  |
+| `KP_Multiply`  |           | `0xffaa` | 65450  |
+| `KP_Add`       |           | `0xffab` | 65451  |
+| `KP_Separator` |           | `0xffac` | 65452  |
+| `KP_Subtract`  |           | `0xffad` | 65453  |
+| `KP_Decimal`   |           | `0xffae` | 65454  |
+| `KP_Divide`    |           | `0xffaf` | 65455  |
+| `KP_0`         |           | `0xffb0` | 65456  |
+| `KP_1`         |           | `0xffb1` | 65457  |
+| `KP_2`         |           | `0xffb2` | 65458  |
+| `KP_3`         |           | `0xffb3` | 65459  |
+| `KP_4`         |           | `0xffb4` | 65460  |
+| `KP_5`         |           | `0xffb5` | 65461  |
+| `KP_6`         |           | `0xffb6` | 65462  |
+| `KP_7`         |           | `0xffb7` | 65463  |
+| `KP_8`         |           | `0xffb8` | 65464  |
+| `KP_9`         |           | `0xffb9` | 65465  |
+| `KP_Equal`     |           | `0xffbd` | 65469  |
+
+#### F1-F16 `0xFFBE-0xFFCD`
+
+| 名称  | 字符/按键 | 十六进制 | 十进制 |
+| ----- | --------- | -------- | ------ |
+| `F1`  |           | `0xffbe` | 65470  |
+| `F2`  |           | `0xffbf` | 65471  |
+| `F3`  |           | `0xffc0` | 65472  |
+| `F4`  |           | `0xffc1` | 65473  |
+| `F5`  |           | `0xffc2` | 65474  |
+| `F6`  |           | `0xffc3` | 65475  |
+| `F7`  |           | `0xffc4` | 65476  |
+| `F8`  |           | `0xffc5` | 65477  |
+| `F9`  |           | `0xffc6` | 65478  |
+| `F10` |           | `0xffc7` | 65479  |
+| `F11` |           | `0xffc8` | 65480  |
+| `F12` |           | `0xffc9` | 65481  |
+| `F13` |           | `0xffca` | 65482  |
+| `F14` |           | `0xffcb` | 65483  |
+| `F15` |           | `0xffcc` | 65484  |
+| `F16` |           | `0xffcd` | 65485  |
+
+#### 修饰键 / 删除 `0xFFE1-0xFFFF`
+
+| 名称        | 字符/按键 | 十六进制 | 十进制 |
+| ----------- | --------- | -------- | ------ |
+| `Shift_L`   |           | `0xffe1` | 65505  |
+| `Shift_R`   |           | `0xffe2` | 65506  |
+| `Control_L` |           | `0xffe3` | 65507  |
+| `Control_R` |           | `0xffe4` | 65508  |
+| `Caps_Lock` |           | `0xffe5` | 65509  |
+| `Meta_L`    |           | `0xffe7` | 65511  |
+| `Meta_R`    |           | `0xffe8` | 65512  |
+| `Alt_L`     |           | `0xffe9` | 65513  |
+| `Alt_R`     |           | `0xffea` | 65514  |
+| `Super_L`   |           | `0xffeb` | 65515  |
+| `Super_R`   |           | `0xffec` | 65516  |
+| `Hyper_L`   |           | `0xffed` | 65517  |
+| `Hyper_R`   |           | `0xffee` | 65518  |
+| `Delete`    |           | `0xffff` | 65535  |
 
 ## 致谢
 
