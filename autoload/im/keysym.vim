@@ -138,10 +138,11 @@ function! s:init() abort
     return
   endif
   let s:probed = 1
-  if !exists('g:RIME_KEYCODE')
-    return
+  let table = im#keycode#keycodes()
+  if exists('g:RIME_KEYCODE')
+    call extend(table, g:RIME_KEYCODE, 'force')
   endif
-  for [name, code] in items(g:RIME_KEYCODE)
+  for [name, code] in items(table)
     if !has_key(s:code2name, code)
       let s:code2name[code] = name
     endif
@@ -162,7 +163,8 @@ function! im#keysym#decode(keycode, mask) abort
   if empty(s:code2name)
     return ''
   endif
-  if exists('g:RIME_MASK') && and(a:mask, g:RIME_MASK.Release)
+  let MK = exists('g:RIME_MASK') ? g:RIME_MASK : im#keycode#mask()
+  if and(a:mask, MK.Release)
     return ''
   endif
   let xkb = get(s:code2name, a:keycode, '')
@@ -173,19 +175,17 @@ function! im#keysym#decode(keycode, mask) abort
     return nr2char(a:keycode)
   endif
   let mods = ''
-  if exists('g:RIME_MASK')
-    if and(a:mask, g:RIME_MASK.Control)
-      let mods .= 'c-'
-    endif
-    if and(a:mask, g:RIME_MASK.Alt) || and(a:mask, g:RIME_MASK.Meta)
-      let mods .= 'm-'
-    endif
-    if and(a:mask, g:RIME_MASK.Shift)
-      let mods .= 's-'
-    endif
-    if and(a:mask, g:RIME_MASK.Super) || and(a:mask, g:RIME_MASK.Hyper)
-      return ''
-    endif
+  if and(a:mask, MK.Control)
+    let mods .= 'c-'
+  endif
+  if and(a:mask, MK.Alt) || and(a:mask, MK.Meta)
+    let mods .= 'm-'
+  endif
+  if and(a:mask, MK.Shift)
+    let mods .= 's-'
+  endif
+  if and(a:mask, MK.Super) || and(a:mask, MK.Hyper)
+    return ''
   endif
   if len(xkb) == 1
     let key = xkb

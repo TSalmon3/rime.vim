@@ -1,35 +1,37 @@
+let s:KC = im#keycode#keycodes()
+let s:MK = im#keycode#mask()
 let s:keys = {
-      \ '<del>'       : [g:RIME_KEYCODE.Delete,    0],
-      \ '<bs>'        : [g:RIME_KEYCODE.BackSpace, 0],
-      \ '<s-bs>'      : [g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift],
-      \ '<left>'      : [g:RIME_KEYCODE.Left,      0],
-      \ '<right>'     : [g:RIME_KEYCODE.Right,     0],
-      \ '<up>'        : [g:RIME_KEYCODE.Up,        0],
-      \ '<down>'      : [g:RIME_KEYCODE.Down,      0],
-      \ '<home>'      : [g:RIME_KEYCODE.Home,      0],
-      \ '<end>'       : [g:RIME_KEYCODE.End,       0],
-      \ '<tab>'       : [g:RIME_KEYCODE.Right,     g:RIME_MASK.Shift],
-      \ '<s-tab>'     : [g:RIME_KEYCODE.Left,      g:RIME_MASK.Shift],
-      \ '<pagedown>'  : [g:RIME_KEYCODE.Page_Down, 0],
-      \ '<pageup>'    : [g:RIME_KEYCODE.Page_Up,   0],
-      \ '<cr>'        : [g:RIME_KEYCODE.Return,    0],
-      \ '<esc>'       : [g:RIME_KEYCODE.Escape,    0],
-      \ '<space>'     : [g:RIME_KEYCODE.space,     0],
-      \ '<c-u>'       : [g:RIME_KEYCODE.Escape,    0],
-      \ '<c-f>'       : [g:RIME_KEYCODE.Right,     0],
-      \ '<c-b>'       : [g:RIME_KEYCODE.Left,      0],
-      \ '<c-`>'       : [g:RIME_KEYCODE.grave,     g:RIME_MASK.Control],
-      \ '<f4>'        : [g:RIME_KEYCODE.F4,        0],
-      \ '<c-h>'       : [g:RIME_KEYCODE.BackSpace, 0],
-      \ '<c-d>'       : [g:RIME_KEYCODE.Delete,    0],
-      \ '<c-l>'       : [g:RIME_KEYCODE.Delete,    g:RIME_MASK.Shift],
-      \ '<c-k>'       : [g:RIME_KEYCODE.Up,        0],
-      \ '<c-j>'       : [g:RIME_KEYCODE.Down,      0],
-      \ '<c-n>'       : [g:RIME_KEYCODE.Down,      0],
-      \ '<c-p>'       : [g:RIME_KEYCODE.Up,        0],
-      \ '<c-a>'       : [g:RIME_KEYCODE.Home,      0],
-      \ '<c-e>'       : [g:RIME_KEYCODE.End,       0],
-      \ '<c-t>'       : [g:RIME_KEYCODE.t,         g:RIME_MASK.Control],
+      \ '<del>' :      [s:KC.Delete,    0],
+      \ '<bs>' :       [s:KC.BackSpace, 0],
+      \ '<s-bs>' :     [s:KC.BackSpace, s:MK.Shift],
+      \ '<left>' :     [s:KC.Left,      0],
+      \ '<right>' :    [s:KC.Right,     0],
+      \ '<up>' :       [s:KC.Up,        0],
+      \ '<down>' :     [s:KC.Down,      0],
+      \ '<home>' :     [s:KC.Home,      0],
+      \ '<end>' :      [s:KC.End,       0],
+      \ '<tab>' :      [s:KC.Right,     s:MK.Shift],
+      \ '<s-tab>' :    [s:KC.Left,      s:MK.Shift],
+      \ '<pagedown>' : [s:KC.Page_Down, 0],
+      \ '<pageup>' :   [s:KC.Page_Up,   0],
+      \ '<cr>' :       [s:KC.Return,    0],
+      \ '<esc>' :      [s:KC.Escape,    0],
+      \ '<space>' :    [s:KC.space,     0],
+      \ '<c-u>' :      [s:KC.Escape,    0],
+      \ '<c-f>' :      [s:KC.Right,     0],
+      \ '<c-b>' :      [s:KC.Left,      0],
+      \ '<c-`>' :      [s:KC.grave,     s:MK.Control],
+      \ '<f4>' :       [s:KC.F4,        0],
+      \ '<c-h>' :      [s:KC.BackSpace, 0],
+      \ '<c-d>' :      [s:KC.Delete,    0],
+      \ '<c-l>' :      [s:KC.Delete,    s:MK.Shift],
+      \ '<c-k>' :      [s:KC.Up,        0],
+      \ '<c-j>' :      [s:KC.Down,      0],
+      \ '<c-n>' :      [s:KC.Down,      0],
+      \ '<c-p>' :      [s:KC.Up,        0],
+      \ '<c-a>' :      [s:KC.Home,      0],
+      \ '<c-e>' :      [s:KC.End,       0],
+      \ '<c-t>' :      [s:KC.t,         s:MK.Control],
       \ }
 
 let s:mapped_keys = {
@@ -103,7 +105,6 @@ function! im#keymap#special(name) abort"{{{
   endif
   return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
-
 
 function! im#keymap#ctrl_h() abort"{{{
   let [code, mask] = s:keys["<bs>"]

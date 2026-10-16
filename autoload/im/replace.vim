@@ -51,7 +51,6 @@ function! im#replace#sync() abort"{{{
   let s:session.len  = 0
 endfunction"}}}
 
-" virtcol 补空格时同步加宽基础快照（原 state#start_composition 内联逻辑）。
 function! im#replace#pad(vpad) abort"{{{
   if a:vpad <= 0 || !im#replace#active()
     return

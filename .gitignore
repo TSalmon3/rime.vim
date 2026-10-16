@@ -1,9 +1,8 @@
 doc/architecture.md
 cpp/rime-query
 cpp/build
-t
 test/
 docs/node_modules
 docs/.vitepress/dist
 docs/.vitepress/cache
-
+run-tests
