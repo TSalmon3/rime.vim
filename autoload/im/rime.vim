@@ -61,7 +61,8 @@ function! s:conn_open_nvim(addr, transport) abort"{{{
           \ 'on_data': function('s:on_stdout_nvim'),
           \ 'on_exit': function('s:on_chan_exit_nvim'),
           \ })
-  catch
+  catch /^Vim(call):/
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     return 0
   endtry
   if type(chan) == v:t_number && chan > 0
@@ -74,7 +75,8 @@ endfunction"}}}
 function! s:conn_send_nvim(text) abort"{{{
   try
     return chansend(s:chan, a:text) >= 0
-  catch
+  catch /^Vim(call):/
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     return 0
   endtry
 endfunction"}}}
@@ -109,7 +111,8 @@ function! s:conn_open_vim(addr, transport) abort"{{{
           \ 'mode':     'nl',
           \ 'callback': function('s:out_cb_vim'),
           \ })
-  catch
+  catch /^Vim(call):/
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     return 0
   endtry
   if type(chan) == v:t_channel && ch_status(chan) ==# 'open'
@@ -123,17 +126,14 @@ function! s:conn_send_vim(text) abort"{{{
   try
     call ch_sendraw(s:chan, a:text)
     return 1
-  catch
+  catch /^Vim(call):/
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     return 0
   endtry
 endfunction"}}}
 
 function! s:conn_alive_vim() abort"{{{
-  try
-    return ch_status(s:chan) ==# 'open'
-  catch
-    return 0
-  endtry
+  return ch_status(s:chan) ==# 'open'
 endfunction"}}}
 
 function! s:conn_close_vim() abort"{{{
@@ -435,7 +435,9 @@ function! s:roundtrip(request, timeout_ms) abort"{{{
 
   let s:resp_ready = 0
   let s:resp_buf   = ''
-  call s:conn_send(json_encode(request) . "\n")
+  if !s:conn_send(json_encode(request) . "\n")
+    return v:null
+  endif
 
   let remaining = a:timeout_ms
   while !s:resp_ready && remaining > 0
@@ -452,9 +454,8 @@ function! s:roundtrip(request, timeout_ms) abort"{{{
     if get(resp, 'ok', 0)
       return resp
     endif
-  catch
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     echom '[im] malformed response: ' . string(s:resp_buf)
-    throw v:exception
   endtry
   return v:null
 endfunction"}}}

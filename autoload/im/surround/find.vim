@@ -342,7 +342,8 @@ function! im#surround#find#func_ts(ch) abort"{{{
   endif
   try
     let r = luaeval("require('im.surround').func_range()")
-  catch
+  catch /^Vim(call):/
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     return {}
   endtry
   if type(r) != v:t_dict || !has_key(r, 'first_pos') || !has_key(r, 'last_pos')
@@ -358,7 +359,8 @@ function! im#surround#find#tag_ts(ch) abort"{{{
   endif
   try
     let r = luaeval("require('im.surround').tag_range()")
-  catch
+  catch /^Vim(call):/
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     return {}
   endtry
   if type(r) != v:t_dict || !has_key(r, 'first_pos') || !has_key(r, 'last_pos')

@@ -29,7 +29,7 @@ function! s:ensure() abort"{{{
   endif
   try
     execute 'source ' . fnameescape(path)
-  catch
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     return 0
   endtry
   if type(get(g:, 'im_base_table', {})) != v:t_dict
@@ -156,7 +156,7 @@ function! s:recall(dir, inclusive, cnt) abort"{{{
 endfunction"}}}
 
 function! s:do(dir, inclusive) abort"{{{
-  let cnt = v:count1 < 1 ? 1 : v:count1
+  let cnt = v:count1
   let r = s:recall(a:dir, a:inclusive, cnt)
   if r >= 0
     return r
@@ -197,7 +197,7 @@ function! im#motion#omap_T() abort"{{{
 endfunction"}}}
 
 function! s:omap(dir, inclusive) abort"{{{
-  let cnt = v:count1 < 1 ? 1 : v:count1
+  let cnt = v:count1
   let k = s:read_key()
   if s:cancelled(k) || s:build(k) ==# ''
     return "\<Esc>"
@@ -345,10 +345,7 @@ function! s:jump(dir, inclusive, keys, cnt, ...) abort"{{{
     call s:nudge(-a:dir)
   endif
   if s:mode() !=# 'o'
-    let tp = s:build(a:keys)
-    if tp !=# ''
-      call s:mark('\%' . lnum . 'l' . tp)
-    endif
+    call s:mark('\%' . lnum . 'l' . pat)
   endif
   let cur = getpos('.')
   let s:last[s:mode()] = {'keys': a:keys, 'dir': a:dir, 'orig': a:dir, 'inclusive': a:inclusive,

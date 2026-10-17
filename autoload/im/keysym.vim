@@ -153,7 +153,7 @@ function! s:expand(vimname) abort
   try
     let expanded = eval('"' . '\' . a:vimname . '"')
     return expanded !=# a:vimname ? expanded : ''
-  catch
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     return ''
   endtry
 endfunction

@@ -273,7 +273,8 @@ function! s:ts_hit(pats) abort"{{{
   endif
   try
     return luaeval("require('im.pair').ts_blocked(_A)", a:pats) ? 1 : 0
-  catch
+  catch /^Vim(call):/
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     return 0
   endtry
 endfunction"}}}

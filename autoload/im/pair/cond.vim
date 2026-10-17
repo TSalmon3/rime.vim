@@ -45,7 +45,7 @@ function! s:match_before(before, pat) abort
   let eff = a:pat =~# '\$$' ? a:pat : a:pat . '$'
   try
     return match(a:before, eff) >= 0
-  catch
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     return s:endswith(a:before, a:pat)
   endtry
 endfunction
@@ -54,7 +54,7 @@ function! s:match_after(after, pat) abort
   let eff = a:pat =~# '^\^' ? a:pat : '^' . a:pat
   try
     return match(a:after, eff) >= 0
-  catch
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     return s:startswith(a:after, a:pat)
   endtry
 endfunction

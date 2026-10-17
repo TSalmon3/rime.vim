@@ -65,7 +65,8 @@ function! s:ts_map(bufnr, l1, l2, pats) abort"{{{
     let m = luaeval("require('im.typeset').protected_map(_A[1], _A[2], _A[3], _A[4])",
           \ [a:bufnr, a:l1, a:l2, a:pats])
     return type(m) == v:t_dict ? m : {}
-  catch
+  catch /^Vim(call):/
+  catch /^Vim\%((\a\+)\)\=:E\d\+:/
     return {}
   endtry
 endfunction"}}}
@@ -157,7 +158,7 @@ function! im#typeset#apply_chain(text, ctx, rules) abort"{{{
     endif
     try
       let s = F(a:ctx, s)
-    catch
+    catch /^Vim\%((\a\+)\)\=:E\d\+:/
     endtry
     if type(s) != v:t_string
       let s = a:text
