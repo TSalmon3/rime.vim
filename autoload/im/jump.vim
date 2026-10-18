@@ -511,7 +511,8 @@ function! s:getkey() abort"{{{
     catch /^Vim:Interrupt$/
       return "\<Esc>"
     endtry
-    if type(c) == v:t_string && c ==# "\x80\xfd`"
+    if type(c) == v:t_string
+          \ && c ==# (has('nvim') ? "\x80\xfd`" : "\<CursorHold>")
       continue
     endif
     return type(c) == v:t_number ? nr2char(c) : c
@@ -552,10 +553,8 @@ function! s:jump(m, cfg) abort"{{{
   else
     call searchpos(pat, 'sbW')
   endif
-  if &foldopen =~# '\<\%(all\|hor\)\>'
-    while foldclosed(lnum) >= 0
-      foldopen
-    endwhile
+  if &foldopen =~# '\vhor|all'
+    normal! zv
   endif
   call cursor(lnum, col)
   if get(a:cfg, 'op', 0) && !get(a:cfg, 'inclusive', 1)

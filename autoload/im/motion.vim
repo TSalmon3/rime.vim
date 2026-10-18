@@ -96,7 +96,8 @@ function! s:read_key() abort"{{{
       catch /^Vim:Interrupt$/
         return ''
       endtry
-      if type(c) == v:t_string && c ==# "\x80\xfd`"
+      if type(c) == v:t_string
+            \ && c ==# (has('nvim') ? "\x80\xfd`" : "\<CursorHold>")
         continue
       endif
       let k = type(c) == v:t_number ? nr2char(c) : c
@@ -252,8 +253,11 @@ function! im#motion#omap_jump(dir, inclusive, char_nr, cnt, ...) abort"{{{
 endfunction"}}}
 
 function! s:foldcase(key) abort"{{{
-  return ((get(g:, 'im_motion_smart_case', 0) && a:key =~# '\l')
-        \ || get(g:, 'im_motion_ignore_case', 0) ? '\c' : '\C')
+  if get(g:, 'im_motion_ignore_case', 0)
+        \ || (get(g:, 'im_motion_smart_case', 0) && a:key =~# '\l')
+    return '\c'
+  endif
+  return '\C'
 endfunction"}}}
 
 function! s:build(keys) abort"{{{
@@ -265,10 +269,8 @@ function! s:build(keys) abort"{{{
 endfunction"}}}
 
 function! s:open_fold() abort"{{{
-  if &foldopen =~# '\<\%(all\|hor\)\>'
-    while foldclosed(line('.')) >= 0
-      foldopen
-    endwhile
+  if &foldopen =~# '\vhor|all'
+    normal! zv
   endif
 endfunction"}}}
 

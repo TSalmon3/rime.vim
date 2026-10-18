@@ -19,7 +19,6 @@ let s:state = {
       \ 'last_fallback'   : '',
       \ }
 
-" 单次组合的前端快照默认值；init/reset_frontend 同源，避免三处重复。
 let s:frontend_defaults = {
       \ 'candidate_count' : 0,
       \ 'boundary'        : -1,
@@ -36,12 +35,10 @@ function! im#state#get() abort"{{{
   return s:state
 endfunction"}}}
 
-" 是否正处在一次未上屏的组合中间。
 function! im#state#composing() abort"{{{
   return s:state.boundary >= 0
 endfunction"}}}
 
-" (Re)initialize the full state dict to its default values.
 function! im#state#init() abort"{{{
   call im#state#reset_frontend()
   let s:state.enabled = 0
