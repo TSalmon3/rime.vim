@@ -1,14 +1,26 @@
 function! im#engine#key(keycode, mask, ...) abort"{{{
   let state = im#state#get()
+
   let ctx = im#rime#key(a:keycode, a:mask)
   let fallback = a:0 ? a:1 : im#keysym#decode(a:keycode, a:mask)
 
   call im#state#emit(im#state#sync_notifications(ctx))
 
+  let input = get(ctx, 'input', '')
+  let raw_ctx = im#snip#switch_inline_ascii(input)
+  if !empty(raw_ctx)
+    let ctx = raw_ctx
+    call im#state#emit(im#state#sync_notifications(ctx))
+  endif
+
+  if im#snip#takeover(input, ctx)
+    return
+  endif
+
   " librime reject 上屏
   if !ctx.accepted && !ctx.composing
     call im#view#commit_text(get(ctx, 'committed', ''))
-    call im#view#clear()
+    call im#view#clean_hl()
     call im#state#reset_frontend()
     call im#state#emit(im#state#reset_backend())
     let state.last_fallback = fallback
@@ -22,7 +34,7 @@ function! im#engine#key(keycode, mask, ...) abort"{{{
   let committed = get(ctx, 'committed', '')
   if !empty(committed) || !ctx.composing
     call im#view#commit_text(committed)
-    call im#view#clear()
+    call im#view#clean_hl()
     call im#state#reset_frontend()
     if ctx.composing
       call im#state#emit(im#state#reset_backend())
@@ -35,6 +47,9 @@ function! im#engine#key(keycode, mask, ...) abort"{{{
 endfunction"}}}
 
 function! im#engine#reset() abort"{{{
+  if im#snip#active()
+    call im#snip#deactivate()
+  endif
   if !im#state#composing()
     call im#replace#reset()
     return
@@ -42,7 +57,7 @@ function! im#engine#reset() abort"{{{
 
   if im#replace#active()
     " R/gR：丢弃 preedit 并还原被覆盖的原文（覆盖渲染，上屏会吃掉原文）
-    call im#view#clear()
+    call im#view#clean_hl()
     call im#replace#discard()
     call im#state#reset_frontend()
     call im#state#emit(im#state#reset_backend())
@@ -50,7 +65,7 @@ function! im#engine#reset() abort"{{{
     let ctx = im#rime#cancel()
     call im#state#emit(im#state#sync_notifications(ctx))
     call im#view#commit_text(get(ctx, 'input', ''))
-    call im#view#clear()
+    call im#view#clean_hl()
     call im#state#reset_frontend()
   endif
   call im#replace#reset()
@@ -61,7 +76,7 @@ function! im#engine#ascii_switch(style) abort"{{{
   call im#state#emit(im#state#sync_notifications(ctx))
   if !ctx.composing
     call im#view#commit_text(get(ctx, 'committed', ''))
-    call im#view#clear()
+    call im#view#clean_hl()
     call im#state#reset_frontend()
   else
     call im#view#render(ctx)

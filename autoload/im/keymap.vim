@@ -56,6 +56,11 @@ function! im#keymap#setup() abort"{{{
     execute 'lnoremap <buffer><expr> ' . key . ' im#keymap#char(' . string(key) . ')'
   endfor
 
+  lnoremap <buffer><expr> <pagedown> im#keymap#pagedown()
+  lnoremap <buffer><expr> <pageup>   im#keymap#pageup()
+  lnoremap <buffer><expr> <up>       im#keymap#up()
+  lnoremap <buffer><expr> <down>     im#keymap#down()
+  lnoremap <buffer><expr> <cr>       im#keymap#cr()
   lnoremap <buffer><expr> <bs>       im#keymap#bs()
   lnoremap <buffer><expr> <s-bs>     im#keymap#shift_bs()
   lnoremap <buffer><expr> <c-u>      im#keymap#ctrl_u()
@@ -64,11 +69,15 @@ function! im#keymap#setup() abort"{{{
   lnoremap <buffer><expr> <c-d>      im#keymap#ctrl_d()
   lnoremap <buffer><expr> <c-j>      im#keymap#ctrl_j()
   lnoremap <buffer><expr> <c-k>      im#keymap#ctrl_k()
+  lnoremap <buffer><expr> <c-n>      im#keymap#ctrl_n()
+  lnoremap <buffer><expr> <c-p>      im#keymap#ctrl_p()
   lnoremap <buffer><expr> <c-a>      im#keymap#ctrl_a()
   lnoremap <buffer><expr> <c-e>      im#keymap#ctrl_e()
 
   for key in s:mapped_keys.specials
-    if index(['<bs>', '<s-bs>', '<c-u>', '<c-w>',
+    if index(['<bs>', '<s-bs>', '<c-u>', '<c-w>', '<cr>',
+          \ '<pagedown>', '<pageup>', '<up>', '<down>',
+          \ '<c-n>', '<c-p>',
           \ '<c-a>', '<c-e>', '<c-h>', '<c-j>', '<c-k>', '<c-d>'], key) >= 0
       continue
     endif
@@ -127,12 +136,40 @@ function! im#keymap#ctrl_j() abort"{{{
   if !im#state#composing()
     return "\<down>"
   endif
+  if im#snip#active()
+    return "\<down>"
+  endif
   return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}
 
 function! im#keymap#ctrl_k() abort"{{{
   let [code, mask] = s:keys["<up>"]
   if !im#state#composing()
+    return "\<up>"
+  endif
+  if im#snip#active()
+    return "\<up>"
+  endif
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
+function! im#keymap#ctrl_n() abort"{{{
+  let [code, mask] = s:keys["<down>"]
+  if !im#state#composing()
+    return "\<c-n>"
+  endif
+  if im#snip#active()
+    return "\<down>"
+  endif
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
+function! im#keymap#ctrl_p() abort"{{{
+  let [code, mask] = s:keys["<up>"]
+  if !im#state#composing()
+    return "\<c-p>"
+  endif
+  if im#snip#active()
     return "\<up>"
   endif
   return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
@@ -172,6 +209,61 @@ function! im#keymap#ctrl_u() abort"{{{
       return "\<Cmd>call im#replace#ctrl_u()\<CR>"
     endif
     return "\<c-u>"
+  endif
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
+function! im#keymap#down() abort"{{{
+  let [code, mask] = s:keys["<down>"]
+  if !im#state#composing()
+    return "\<down>"
+  endif
+  if im#snip#active()
+    return "\<down>"
+  endif
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
+function! im#keymap#up() abort"{{{
+  let [code, mask] = s:keys["<up>"]
+  if !im#state#composing()
+    return "\<up>"
+  endif
+  if im#snip#active()
+    return "\<up>"
+  endif
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
+function! im#keymap#cr() abort"{{{
+  let [code, mask] = s:keys["<cr>"]
+  if !im#state#composing()
+    return "\<cr>"
+  endif
+  if im#snip#active()
+    return "\<Cmd>call im#snip#cr()\<CR>"
+  endif
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
+function! im#keymap#pagedown() abort"{{{
+  let [code, mask] = s:keys["<pagedown>"]
+  if !im#state#composing()
+    return "\<pagedown>"
+  endif
+  if im#snip#active()
+    return "\<pagedown>"
+  endif
+  return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
+endfunction"}}}
+
+function! im#keymap#pageup() abort"{{{
+  let [code, mask] = s:keys["<pageup>"]
+  if !im#state#composing()
+    return "\<pageup>"
+  endif
+  if im#snip#active()
+    return "\<pageup>"
   endif
   return "\<Cmd>call im#engine#key(" . code . ", " . mask . ")\<CR>"
 endfunction"}}}

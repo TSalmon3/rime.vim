@@ -1,27 +1,3 @@
-function! s:vimrc_save() abort"{{{
-  let s:save_completeopt = &completeopt
-  let s:save_pumheight   = &pumheight
-  let s:save_iminsert    = &iminsert
-  let s:save_imsearch    = &imsearch
-  let s:save_keymap      = &keymap
-endfunction"}}}
-
-function! s:vimrc_setup() abort"{{{
-  set completeopt=menuone,noinsert
-  let &pumheight = get(g:, 'im_pumheight', 9)
-  " set keymap=
-  " set iminsert=1
-  " set imsearch=0
-endfunction"}}}
-
-function! s:vimrc_restore() abort"{{{
-  let &completeopt = s:save_completeopt
-  let &pumheight   = s:save_pumheight
-  let &keymap = s:save_keymap
-  let &iminsert = s:save_iminsert
-  let &imsearch = s:save_imsearch
-endfunction"}}}
-
 function! s:setup_im_autocmd() abort"{{{
   augroup im_augroup
     autocmd!
@@ -84,8 +60,8 @@ function! im#on_ready() abort"{{{
   silent! doautocmd User RimeIMEnable
   call im#state#init()
   call s:setup_im_autocmd()
-  call s:vimrc_save()
-  call s:vimrc_setup()
+  call im#opt#save()
+  call im#opt#use_im()
 
   if mode() == "i"
     call im#enable()
@@ -112,6 +88,7 @@ function! im#stop() abort"{{{
     call s:clear_im_autocmd()
     call im#disable()
     call im#pair#on_leave()
+    call im#opt#restore()
   endif
   let state.started = 0
   silent! doautocmd User RimeIMDisable

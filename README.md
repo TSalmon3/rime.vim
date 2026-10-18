@@ -116,6 +116,7 @@
   - [Motion 行内跳转](#motion-行内跳转)
   - [Jump 全屏跳转](#jump-全屏跳转)
   - [AutoPair 自动成对](#autopair-自动成对)
+  - [Snippet 片段补全](#snippet-片段补全)
   - [Context 自动切换](#context-自动切换)
   - [Typeset 自动排版](#typeset-自动排版)
   - [Surround 包围编辑](#surround-包围编辑)
@@ -1564,6 +1565,87 @@ function! IMPairVim() abort
         \  'with_pair': im#pair#cond#not_vim_comment(), 'with_move': im#pair#cond#not_vim_comment()})
         \ ]
 endfunction
+```
+
+---
+
+### Snippet 片段补全
+
+ 在组词输入区以 `S` 开头输入字母串，即可触发 snippet 引擎（luasnip / UltiSnips）的片段补全。候选浮窗会实时列出 trigger 匹配的片段，选中后按 `<cr>` 即可展开为代码片段。
+
+#### 按键
+
+| 按键                            | 效果                                   |
+| ------------------------------- | -------------------------------------- |
+| `<up>` `<down>` `<c-k>` `<c-j>` | 移动选择                               |
+| `<pageup>` `<pagedown>`         | 翻页                                   |
+| `<cr>`                          | 展开选中的片段；未选中时将输入原样上屏 |
+| `<esc>`                         | 取消输入                               |
+
+#### 触发与匹配
+
+- **触发条件**：输入区内容以 `S`（由 `g:im_snip_prefix` 指定）开头。
+- **匹配方式**：按 trigger 前缀匹配，随输入逐字收窄。例如输入 `Scodeb` 会匹配 trigger 以 `codeb` 开头的片段（如 `codeblocks`）。
+- **无匹配时**：静默回退到普通输入流程。
+
+#### 配置
+
+```vim
+" 片段补全开关（默认 1）
+let g:im_snip_enabled = 1
+" 触发前缀（默认 'S'）
+let g:im_snip_prefix = 'S'
+" snippet 引擎：'luasnip' 或 'ultisnips'（默认 'luasnip'，其他值视为关闭）
+let g:im_snip_preset = 'luasnip'
+" 候选右列是否显示描述（默认 1）
+let g:im_snip_show_desc = 1
+" 候选右列（[S] 描述）的最大显示宽度（默认 24；CJK 字符占 2 格，超出部分截断为 …）
+let g:im_snip_desc_max_width = 24
+```
+
+
+#### 快捷键
+
+```vim
+im#snip#active()    " 处于 snip 候选状态时返回 1，可作为 <expr> 映射的判断条件
+call im#snip#cr()   " snip 候选状态下的回车：若有选中项则展开，否则将已输入内容原样上屏
+```
+
+```vim
+function RimeKeymapRemap()
+   lnoremap <silent><buffer><expr> <c-k> im#state#composing() ?
+         \ im#snip#active() ? "\<up>" :
+         \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Up, 0)\<cr>" : "\<up>"
+   lnoremap <silent><buffer><expr> <c-j> im#state#composing() ?
+         \ im#snip#active() ? "\<down>" :
+         \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Down, 0)\<cr>" : "\<down>"
+
+   lnoremap <silent><buffer><expr> <cr> im#state#composing() ?
+         \ im#snip#active() ? "\<cmd>call im#snip#cr()\<cr>"
+         \ : "\<cmd>call im#engine#key(g:RIME_KEYCODE.Return, 0)\<cr>"
+         \ : im#pair#should_cr() ? im#pair#cr() : "\<cr>"
+
+   lnoremap <silent><buffer><expr> <tab> im#state#composing() ?
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Right, g:RIME_MASK.Shift)\<CR>" :
+        \ luasnip#expandable() ?
+        \ "<cmd>lua require'luasnip'.expand()<Cr>" : luasnip#jumpable(1) ?
+        \ "<cmd>lua require'luasnip'.jump(1)<Cr>" : "\<tab>"
+
+  lnoremap <silent><buffer><expr> <s-tab> im#state#composing() ?
+        \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.Left, g:RIME_MASK.Shift)\<CR>" :
+        \ luasnip#jumpable(-1) ?
+        \ "<cmd>lua require'luasnip'.jump(-1)<Cr>" : "\<s-tab>"
+endfunction
+
+function RimeKeymapClear()
+
+endfunction
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeKeymapSetup call RimeKeymapRemap()
+  autocmd User RimeKeymapClear call RimeKeymapClear()
+augroup END
 ```
 
 ---

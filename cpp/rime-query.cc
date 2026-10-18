@@ -95,7 +95,7 @@ static volatile std::sig_atomic_t g_should_exit = 0;
 
 static std::string g_deploy_status;
 
-constexpr int kProtocolVersion = 2;
+constexpr int kProtocolVersion = 3;
 
 struct Client {
 #ifdef _WIN32
@@ -273,6 +273,11 @@ static std::string fetch_commit(Client &c) {// {{{
   return committed;
 }// }}}
 
+static std::string fetch_input(RimeApi *api, RimeSessionId sid) {// {{{
+  const char *raw = api->get_input(sid);
+  return raw ? raw : "";
+}// }}}
+
 static void fill_context(Client &c, json &resp) {// {{{
   RimeApi *api = rime_get_api();
   RimeSessionId sid = ensure_session(c);
@@ -403,6 +408,7 @@ static json handle_request(Client &c, const json &req) {// {{{
     resp["ok"]        = true;
     resp["accepted"]  = (bool)accepted;
     resp["committed"] = fetch_commit(c);
+    resp["input"]     = fetch_input(api, sid);
     fill_context(c, resp);
     finish_inline_ascii(c, resp);
     fill_notifications(c, resp);
@@ -413,9 +419,8 @@ static json handle_request(Client &c, const json &req) {// {{{
   if (type == "cancel") {
     clear_key_notifications(c);
     RimeSessionId sid = ensure_session(c);
-    const char *input = sid ? api->get_input(sid) : nullptr;
     resp["ok"]    = true;
-    resp["input"] = input ? input : "";
+    resp["input"] = fetch_input(api, sid);
     if (sid) api->clear_composition(sid);
     fill_context(c, resp);
     finish_inline_ascii(c, resp);
@@ -458,8 +463,7 @@ static json handle_request(Client &c, const json &req) {// {{{
         if (composing) {
             if (style == "commit_code" ||
                 (style == "commit_text" && num_candidates == 0)) {
-                const char *input = api->get_input(sid);
-                if (input) committed = input;
+                committed = fetch_input(api, sid);
                 api->clear_composition(sid);
             } else if (style == "commit_text") {
                 api->select_candidate_on_current_page(sid, (size_t)highlighted);

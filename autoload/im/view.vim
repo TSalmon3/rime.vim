@@ -84,6 +84,56 @@ function! im#view#render(ctx) abort"{{{
   call s:render_hl()
 endfunction"}}}
 
+function! s:show_snip_candidates(items) abort"{{{
+  let state = im#state#get()
+  let words = map(copy(a:items), 'v:val.word')
+  let show_desc = get(g:, 'im_snip_show_desc', 1)
+  let max_w = get(g:, 'im_snip_desc_max_width', 24)
+  let result = []
+  for item in a:items
+    let menu = '[S]'
+    if show_desc
+      let comment = get(item, 'menu', '')
+      if !empty(comment)
+        let label = '[S] ' . comment
+        if strdisplaywidth(label) > max_w
+          let label = strcharpart(label, 0, max_w - 1) . '…'
+          while strdisplaywidth(label) > max_w && strchars(label) > 1
+            let label = strcharpart(label, 0, strchars(label) - 2) . '…'
+          endwhile
+        endif
+        let menu = label
+      endif
+    endif
+    call add(result, {
+          \ 'word'  : item.word,
+          \ 'abbr'  : item.word,
+          \ 'menu'  : menu,
+          \ 'dup'   : 1,
+          \ 'empty' : 1,
+          \ })
+  endfor
+  call complete(state.boundary, result)
+  let s:cache.last_candidates = words
+  let s:cache.last_preedit = state.preedit
+  let s:cache.last_hl = 0
+endfunction"}}}
+
+function! im#view#render_snip(input, items, ctx) abort"{{{
+  let state = im#state#get()
+  call s:put(a:input)
+  let state.preedit = a:input
+  let state.preedit_len = strlen(a:input)
+  let state.cursor_pos = get(a:ctx, 'cursor_pos', strlen(a:input))
+  let state.sel_start = get(a:ctx, 'sel_start', 0)
+  let state.sel_end = get(a:ctx, 'sel_end', 0)
+  let state.candidate_count = len(a:items)
+  let state.has_more = v:false
+  call cursor(line('.'), state.boundary + state.cursor_pos)
+  call s:show_snip_candidates(a:items)
+  call s:render_hl()
+endfunction"}}}
+
 function! im#view#commit_text(committed) abort"{{{
   let state = im#state#get()
   if im#replace#active()
@@ -98,19 +148,12 @@ function! im#view#commit_text(committed) abort"{{{
   let state.last_commit = a:committed
 endfunction"}}}
 
-function! im#view#clear() abort"{{{
-  call s:clean_hl()
-endfunction"}}}
-
 function! s:render_hl() abort"{{{
   if exists('g:im_underline_disable') && g:im_underline_disable
     return
   endif
+  call im#view#clean_hl()
   let state = im#state#get()
-  if s:hl.match_id != 0
-    silent! call matchdelete(s:hl.match_id)
-    let s:hl.match_id = 0
-  endif
   if state.boundary < 0 || state.preedit_len <= 0
     return
   endif
@@ -119,7 +162,7 @@ function! s:render_hl() abort"{{{
         \ [[lnum, state.boundary, state.preedit_len]])
 endfunction"}}}
 
-function! s:clean_hl() abort"{{{
+function! im#view#clean_hl() abort"{{{
   if exists('g:im_underline_disable') && g:im_underline_disable
     return
   endif

@@ -281,9 +281,9 @@ function! s:handshake_and_setup(sock) abort"{{{
     call s:conn_close()
     return 0
   endif
-  if get(resp, 'protocol', 0) != 2
+  if get(resp, 'protocol', 0) != 3
     echohl WarningMsg
-    echom '[IM] protocol mismatch, please rebuild rime-query (need protocol=2): ' . a:sock
+    echom '[IM] protocol mismatch, please rebuild rime-query (need protocol=3): ' . a:sock
     echohl None
     call s:conn_close()
     return 0
