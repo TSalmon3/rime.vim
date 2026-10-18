@@ -4,11 +4,23 @@ endif
 
 let g:loaded_im_nvim = 1
 
-if !exists('g:RIME_MASK')
+let g:RIME_MASK = im#keycode#mask()
+let g:RIME_KEYCODE = im#keycode#keycodes()
+
+function! s:pin_keycodes() abort
   let g:RIME_MASK = im#keycode#mask()
-endif
-if !exists('g:RIME_KEYCODE')
   let g:RIME_KEYCODE = im#keycode#keycodes()
+  lockvar! g:RIME_MASK
+  lockvar! g:RIME_KEYCODE
+endfunction
+
+if has('vim_starting')
+  augroup im_nvim_pin_keycodes
+    autocmd!
+    autocmd VimEnter * call s:pin_keycodes()
+  augroup END
+else
+  call s:pin_keycodes()
 endif
 
 if !has('nvim') && !has('patch-8.2.1978')
