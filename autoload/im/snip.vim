@@ -10,7 +10,7 @@ function! s:prefix() abort"{{{
 endfunction"}}}
 
 function! s:enabled() abort"{{{
-  return get(g:, 'im_snip_enabled', 1)
+  return get(g:, 'im_snip_enabled', 0)
 endfunction"}}}
 
 function! s:preset() abort"{{{

@@ -766,7 +766,6 @@ augroup RimeGroup
 augroup END
 ```
 
-
 #### 自定义编辑键
 
 Emacs 风格
@@ -1571,7 +1570,7 @@ endfunction
 
 ### Snippet 片段补全
 
- 在组词输入区以 `S` 开头输入字母串，即可触发 snippet 引擎（luasnip / UltiSnips）的片段补全。候选浮窗会实时列出 trigger 匹配的片段，选中后按 `<cr>` 即可展开为代码片段。
+在组词输入区以 `S` 开头输入字母串，即可触发 snippet 引擎（luasnip / UltiSnips）的片段补全。候选浮窗会实时列出 trigger 匹配的片段，选中后按 `<cr>` 即可展开为代码片段。
 
 #### 按键
 
@@ -1591,8 +1590,8 @@ endfunction
 #### 配置
 
 ```vim
-" 片段补全开关（默认 1）
-let g:im_snip_enabled = 1
+" 片段补全开关（默认 0）
+let g:im_snip_enabled = 0
 " 触发前缀（默认 'S'）
 let g:im_snip_prefix = 'S'
 " snippet 引擎：'luasnip' 或 'ultisnips'（默认 'luasnip'，其他值视为关闭）
@@ -1602,7 +1601,6 @@ let g:im_snip_show_desc = 1
 " 候选右列（[S] 描述）的最大显示宽度（默认 24；CJK 字符占 2 格，超出部分截断为 …）
 let g:im_snip_desc_max_width = 24
 ```
-
 
 #### 快捷键
 
