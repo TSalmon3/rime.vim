@@ -1594,13 +1594,28 @@ endfunction
 let g:im_snip_enabled = 0
 " 触发前缀（默认 'S'）
 let g:im_snip_prefix = 'S'
-" snippet 引擎：'luasnip' 或 'ultisnips'（默认 'luasnip'，其他值视为关闭）
-let g:im_snip_preset = 'luasnip'
+" snippet 引擎：内置 'luasnip' / 'ultisnips'（默认 'luasnip'），或已注册的自定义名称
+let g:im_snip_engine = 'luasnip'
 " 候选右列是否显示描述（默认 1）
 let g:im_snip_show_desc = 1
 " 候选右列（[S] 描述）的最大显示宽度（默认 24；CJK 字符占 2 格，超出部分截断为 …）
 let g:im_snip_desc_max_width = 24
 ```
+
+#### 自定义引擎
+
+内置引擎为 `luasnip` 与 `ultisnips`。也可以通过 `im#snip#register_engine()` 注册其他引擎，再将 `g:im_snip_engine` 设为该名称：
+
+```vim
+call im#snip#register_engine('mysnip', {
+      \ 'query': function('my#snip#query'),
+      \ 'expand': function('my#snip#expand')})
+let g:im_snip_engine = 'mysnip'
+```
+
+- `query(keyword)`：返回候选列表，元素为 `{'word': trigger, 'menu': 描述}`，`menu` 可省略。
+- `expand()`：在当前光标处展开片段。
+- 未注册的名称视为关闭；同名重复注册会覆盖旧实现。
 
 #### 快捷键
 

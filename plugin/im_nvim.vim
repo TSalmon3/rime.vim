@@ -90,7 +90,7 @@ augroup im_lifecycle
   autocmd User RimeIMDisable call im#surround#disable()
   autocmd User RimeIMEnable  call im#pair#imap_enable()
   autocmd User RimeIMDisable call im#pair#imap_disable()
-  autocmd User RimeIMEnable  call im#snip#register_backends()
+  autocmd User RimeIMEnable  call im#snip#register_builtin_engines()
   autocmd User RimeIMCommit call im#pair#complete()
   autocmd InsertLeave * call im#typeset#on_insert_leave()
 augroup END

@@ -1,5 +1,5 @@
-let s:snip = {'active': 0, 'preset': '', 'input': '', 'keyword': '', 'items': []}
-let s:backends = {}
+let s:snip = {'active': 0, 'engine': '', 'input': '', 'keyword': '', 'items': []}
+let s:engines = {}
 
 function! s:prefix() abort"{{{
   let p = get(g:, 'im_snip_prefix', 'S')
@@ -13,12 +13,12 @@ function! s:enabled() abort"{{{
   return get(g:, 'im_snip_enabled', 0)
 endfunction"}}}
 
-function! s:preset() abort"{{{
-  let p = get(g:, 'im_snip_preset', 'luasnip')
+function! s:engine_name() abort"{{{
+  let p = get(g:, 'im_snip_engine', 'luasnip')
   if type(p) != v:t_string
     return ''
   endif
-  if index(['luasnip', 'ultisnips'], p) < 0
+  if !has_key(s:engines, p)
     return ''
   endif
   return p
@@ -31,51 +31,67 @@ endfunction"}}}
 function! im#snip#activate(found, input, keyword) abort"{{{
   call im#opt#use_snip()
   let s:snip.active = 1
-  let s:snip.preset = get(a:found, 'preset', '')
+  let s:snip.engine = get(a:found, 'engine', '')
   let s:snip.input = a:input
   let s:snip.keyword = a:keyword
   let s:snip.items = copy(a:found.items)
 endfunction"}}}
 
 function! im#snip#deactivate() abort"{{{
-  let s:snip = {'active': 0, 'preset': '', 'input': '', 'keyword': '', 'items': []}
+  let s:snip = {'active': 0, 'engine': '', 'input': '', 'keyword': '', 'items': []}
   call im#opt#use_im()
 endfunction"}}}
 
-function! im#snip#register_backends() abort"{{{
-  let s:backends.luasnip = {'query': function('im#snip#luasnip#query'),
-        \                   'expand': function('im#snip#luasnip#expand')}
-  let s:backends.ultisnips = {'query': function('im#snip#ultisnips#query'),
-        \                     'expand': function('im#snip#ultisnips#expand')}
+function! im#snip#register_engine(name, impl) abort"{{{
+  if type(a:name) != v:t_string || empty(a:name)
+    return 0
+  endif
+  if type(a:impl) != v:t_dict
+        \ || type(get(a:impl, 'query', 0)) != v:t_func
+        \ || type(get(a:impl, 'expand', 0)) != v:t_func
+    return 0
+  endif
+  let s:engines[a:name] = {'query': a:impl.query,
+        \                  'expand': a:impl.expand}
+  return 1
+endfunction"}}}
+
+function! im#snip#register_builtin_engines() abort"{{{
+  call im#snip#register_engine('luasnip',
+        \ {'query': function('im#snip#luasnip#query'),
+        \  'expand': function('im#snip#luasnip#expand')})
+  call im#snip#register_engine('ultisnips',
+        \ {'query': function('im#snip#ultisnips#query'),
+        \  'expand': function('im#snip#ultisnips#expand')})
 endfunction"}}}
 
 function! s:query(keyword) abort"{{{
-  let name = s:preset()
+  let name = s:engine_name()
   if empty(name)
-    return {'items': [], 'preset': ''}
+    return {'items': [], 'engine': ''}
   endif
-  let backend = get(s:backends, name, {})
-  if empty(backend)
-    return {'items': [], 'preset': ''}
+  let impl = get(s:engines, name, {})
+  if empty(impl)
+    return {'items': [], 'engine': ''}
   endif
   try
-    let items = backend.query(a:keyword)
+    let items = impl.query(a:keyword)
   catch /^Vim(let):\|^Vim\%((\a\+)\)\=:E\d\+:/
     let items = []
   endtry
   if empty(items)
-    return {'items': [], 'preset': ''}
+    return {'items': [], 'engine': ''}
   endif
-  return {'items': items, 'preset': name}
+  return {'items': items, 'engine': name}
 endfunction"}}}
 
-function! s:expand(item, preset) abort"{{{
+function! s:expand(item, engine_name) abort"{{{
   call im#view#commit_text('')
   call im#view#clean_hl()
   call im#state#reset_frontend()
   call im#state#emit(im#state#reset_backend())
   " silent! doautocmd User RimeIMCommit
-  let backend = get(s:backends, a:preset, {})
+  let impl = get(s:engines, a:engine_name, {})
   let word = get(a:item, 'word', '')
   if !empty(word)
     let lnum = line('.')
@@ -84,7 +100,7 @@ function! s:expand(item, preset) abort"{{{
     call setline(lnum, strpart(cur, 0, col - 1) . word . strpart(cur, col - 1))
     call cursor(lnum, col + strlen(word))
   endif
-  call backend.expand()
+  call impl.expand()
   call im#snip#deactivate()
 endfunction"}}}
 
@@ -102,9 +118,9 @@ function! s:accept(idx) abort"{{{
     return 0
   endif
   let item = s:snip.items[a:idx]
-  let preset = s:snip.preset
+  let engine_name = s:snip.engine
   call im#snip#deactivate()
-  call s:expand(item, preset)
+  call s:expand(item, engine_name)
   return 1
 endfunction"}}}
 
@@ -118,7 +134,7 @@ function! im#snip#cr() abort"{{{
 endfunction"}}}
 
 function! s:parse(input) abort"{{{
-  if !s:enabled() || empty(s:preset())
+  if !s:enabled() || empty(s:engine_name())
     return v:null
   endif
   let p = s:prefix()
@@ -152,7 +168,7 @@ function! im#snip#takeover(input, ctx) abort"{{{
     return 0
   endif
   let found = s:query(kw)
-  if !empty(found.items) && !empty(found.preset)
+  if !empty(found.items) && !empty(found.engine)
     call im#snip#activate(found, a:input, kw)
     call im#view#render_snip(a:input, found.items, a:ctx)
     return 1
