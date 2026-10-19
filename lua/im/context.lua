@@ -16,9 +16,6 @@ function M.hit(pats)
   local col = cursor[2]
   local line = vim.fn.getline(row + 1)
   local len = vim.fn.strlen(line)
-  if len == 0 then
-    return false
-  end
   if col >= len then
     col = len - 1
   end
