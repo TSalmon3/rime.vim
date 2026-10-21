@@ -21,7 +21,6 @@
   <a href="https://github.com/TSalmon3/rime.vim/blob/master/README.en.md">英文说明</a>
 </p>
 
-
 ---
 
 <details>
@@ -120,6 +119,7 @@
   - [Snippet 片段补全](#snippet-片段补全)
   - [Context 自动切换](#context-自动切换)
   - [Typeset 自动排版](#typeset-自动排版)
+  - [TextObj 文本对象](#textobj-文本对象)
   - [Surround 包围编辑](#surround-包围编辑)
   - [Tips 小技巧](#tips-小技巧)
   - [其他搭配插件](#其他搭配插件)
@@ -1888,7 +1888,167 @@ augroup END
 
 ---
 
+### TextObj 文本对象
 
+在 Rime 中文标点模式下，键入 `(`、`,`、`"` 通常会直接上屏为 `（`、`，`、`“`，原生 `i(` / `a"` 等文本对象无法命中。TextObj 在 `operator-pending` / `visual` 模式下接管 `i` / `a` 前缀，按 Rime 的标点转换结果选中成对分隔符、引号或分隔符之间的内容，并额外提供 `I` / `A` 两个去空白变体。
+
+TextObj 默认**不创建任何按键映射**，只提供 `<Plug>`；需在 `RimeTextObjSetup` / `RimeTextObjRestore` 事件中自行挂载和拆除：
+
+```vim
+let g:im_textobj_enable = 1
+
+augroup RimeGroup
+  autocmd!
+  autocmd User RimeTextObjSetup   call IMTextobjMap()
+  autocmd User RimeTextObjRestore call IMTextobjUnmap()
+augroup END
+
+function! IMTextobjMap() abort
+  for [mode, cmd] in [['o', 'onoremap'], ['x', 'xnoremap']]
+    for modifier in ['i', 'a', 'I', 'A']
+      execute printf('%s <silent> %s <Plug>(im-textobj-%s-%s)',
+            \ cmd, modifier, mode, modifier)
+    endfor
+  endfor
+
+  " 等价于
+  " xnoremap <silent> i <Plug>(im-textobj-x-i)
+  " onoremap <silent> a <Plug>(im-textobj-o-a)
+  " xnoremap <silent> a <Plug>(im-textobj-x-a)
+  " onoremap <silent> I <Plug>(im-textobj-o-I)
+  " xnoremap <silent> I <Plug>(im-textobj-x-I)
+  " onoremap <silent> A <Plug>(im-textobj-o-A)
+  " xnoremap <silent> A <Plug>(im-textobj-x-A)
+endfunction
+
+function! IMTextobjUnmap() abort
+  for cmd in ['ounmap', 'xunmap']
+    for key in ['i', 'a', 'I', 'A']
+      silent! execute cmd . ' ' . key
+    endfor
+  endfor
+endfunction
+```
+
+
+假设按上面的方式映射，支持：
+
+对成对符号 / 引号：
+
+| 按键             | 模式                    | 说明                                               |
+| ---------------- | ----------------------- | -------------------------------------------------- |
+| `[count]i{char}` | operator-pending/visual | 选中两侧符号之间的内容                             |
+| `[count]a{char}` | operator-pending/visual | 选中两侧符号及其中的内容                           |
+| `I{char}`        | operator-pending        | 同 `i`，但选中内容不含两端空白                     |
+| `A{char}`        | operator-pending        | 同 `a`，再包含同一行外侧的空白：优先右侧，其次左侧 |
+
+分隔符（按键模式与上表相同，但范围不同）：
+
+| 按键             | 说明                                                                                                  |
+| ---------------- | ----------------------------------------------------------------------------------------------------- |
+| `[count]i{char}` | 选中相邻两个分隔符之间的内容                                                                          |
+| `[count]a{char}` | 选中左侧分隔符及其后的内容，**不含**右侧分隔符                                                        |
+| `I{char}`        | 同 `i`，但选中内容不含两端空白                                                                        |
+| `A{char}`        | 选中两侧分隔符及其中的内容；左分隔符前是「非空白 + 空白」且右分隔符后有空白时，再包含右分隔符后的空白 |
+
+`{char}` 为目标字符或别名，可与 `d` / `c` / `y` 等 operator 组合，也可在 visual 模式下直接使用。对未配置为目标的原生对象（如 `w`），`i` / `a` 会回退到原生行为，因此 `diw` / `daw` / `viw` 不受影响；`I` / `A` 没有原生回退。
+
+常见用法（`*` 为光标位置）：
+
+| 旧文本          | 按键   | Rime 标点模式 | 新文本     | 说明                                   |
+| :-------------- | :----- | :------------ | :--------- | :------------------------------------- |
+| `a(b(c*)d)e`    | `di(`  | 半角标点      | `a(b()d)e` | 删内层内容                             |
+| `a(b(c*)d)e`    | `da(`  | 半角标点      | `a(bd)e`   | 删内层含括号                           |
+| `a(b(c*)d)e`    | `d2i(` | 半角标点      | `a()e`     | 删外层内容                             |
+| `a（b*）c`      | `di(`  | 中文标点      | `a（）c`   | 删内层内容                             |
+| `x "a*b" y`     | `di"`  | 半角标点      | `x "" y`   | 删引号内内容                           |
+| `a, b*, c`      | `di,`  | 半角标点      | `a,, c`    | 删两个分隔符之间                       |
+| `a,b*,c,d`      | `d2i,` | 半角标点      | `a,,d`     | 删到右侧第 2 个分隔符前                |
+| `x（ 甲*乙 ）y` | `dI(`  | 中文标点      | `x（  ）y` | 仅删内部内容，保留两端空白             |
+| `x（甲*乙） y`  | `dA(`  | 中文标点      | `xy`       | 含括号及内容，并包含右侧空白           |
+| `x （甲*乙）y`  | `dA(`  | 中文标点      | `xy`       | 含括号及内容；右侧无空白时包含左侧空白 |
+| `a(b*)c`        | `dib`  | 任意          | `a()c`     | 别名 `b` → `)`                         |
+| `a "b*" c`      | `diq`  | 任意          | `a "" c`   | 别名 `q` → `"` / `'`                   |
+
+> 表中「Rime 标点模式」指 `ascii_punct` 的状态：`半角标点` 为 `ascii_punct=1`（或后端未转换该符号），`中文标点` 为 `ascii_punct=0`（键入的半角符号会被 Rime 转为全角），`任意` 用于 `b` / `q` 等不经过标点转换的字母别名。默认可用 `;a` 切换中英文标点。
+
+> 别名目标按配置字符匹配，不随 Rime 标点转换：默认 `b` 只匹配 ASCII `)`，`q` 只匹配 ASCII `"` / `'`。默认 `b` / `B` 别名还会覆盖原生 `ib` / `iB`，`dib` / `diB` 不会回退；需要原生行为时从 `g:im_textobj_aliases` 中删除对应键。
+
+**计数**：`pair` 的计数表示向外第 N 层，如嵌套括号内 `d2i(` 删外层内容；`separator` 的计数扩展至右侧第 N 个分隔符；`quote` 忽略计数。光标不在目标内时，会在后续和前一个目标中选择最近的一个（`pair` 仅在计数为 1 时向后查找）。
+
+**点重复**：operator-pending 下 `.` 可重复上一次 TextObj 操作，并复用当时的计数；`[count].` 会用新计数覆盖，例如 `d2i(` 后按 `3.`。visual 模式不支持 `.`。
+
+**标点转换**：输入字符会先交给 Rime 转换，上表已标出各示例所需的标点状态；后端拒绝时使用原字符。若转换成功但结果未配置为目标，则直接取消，不会用原字符回退。
+
+**搜索范围**：引号与分隔符默认在当前行上下各 50 行内查找，可用 `g:im_textobj_search_lines` 调整（`-1` 表示整个缓冲区）；成对符号跨行匹配。引号按行内顺序两两配对，转义引号不参与。
+
+#### 配置
+
+```vim
+" 功能开关（默认 0，随 Rime 启用 / 关闭）
+let g:im_textobj_enable = 1
+
+" 引号 / 分隔符的搜索范围（行，默认 50；-1 表示整个缓冲区）
+let g:im_textobj_search_lines = 50
+
+" 成对分隔符（默认值，仅支持单字符）
+let g:im_textobj_pairs = [
+      \ {'open': '(',  'close': ')'},
+      \ {'open': '[',  'close': ']'},
+      \ {'open': '{',  'close': '}'},
+      \ {'open': '<',  'close': '>'},
+      \ {'open': '（', 'close': '）'},
+      \ {'open': '【', 'close': '】'},
+      \ {'open': '「', 'close': '」'},
+      \ {'open': '『', 'close': '』'},
+      \ {'open': '《', 'close': '》'},
+      \ {'open': '＜', 'close': '＞'},
+      \ {'open': '‘', 'close': '’'},
+      \ {'open': '“', 'close': '”'},
+      \ {'open': '〈', 'close': '〉'},
+      \ {'open': '〔', 'close': '〕'},
+      \ {'open': '〖', 'close': '〗'},
+      \ {'open': '［', 'close': '］'},
+      \ {'open': '｛', 'close': '｝'},
+      \ ]
+
+" 引号（默认值）
+let g:im_textobj_quotes = ['"', "'", '`']
+
+" 分隔符（默认值）
+let g:im_textobj_separators = [
+      \ ',', '.', ';', ':', '!', '?',
+      \ '-', '/', '|', '*', '_',
+      \ '，', '。', '；', '：', '！', '？', '、',
+      \ ]
+
+" 别名（默认值）
+let g:im_textobj_aliases = {
+      \ 'b': [')'],
+      \ 'B': ['}'],
+      \ 'r': [']'],
+      \ 'q': ['"', "'"],
+      \ }
+```
+
+`pairs` / `quotes` / `separators` / `aliases` 均支持 `b:` 局部覆盖，优先级为 `b:` > `g:` > 默认值；自定义为**整体替换**，推荐在默认值的基础上修改。
+
+约束如下：
+
+- 所有参与匹配的字符（配对项的左右字符、引号、分隔符、别名键）都必须是单个字符；多字符或空值会被忽略。
+- 字符冲突按配置顺序处理：先 `pairs`，再 `quotes`，最后 `separators`；某项只要有任一字符已被占用，整项丢弃。
+- 别名命中时只在该别名的目标列表（`targets`）中查找；如果还想匹配别名键本身，需要把该键也加入 `targets`。
+
+#### 事件
+
+| 事件                 | 触发时机                                    |
+| -------------------- | ------------------------------------------- |
+| `RimeTextObjSetup`   | `<Plug>` 已注册、功能启用后触发，用于装映射 |
+| `RimeTextObjRestore` | 功能关闭后触发，用于拆除映射                |
+
+TextObj 与输入法同开同关：`RimeIMEnable` / `RimeIMDisable` 时会自动调用 `im#textobj#enable()` / `im#textobj#disable()`，因此需保证 `g:im_textobj_enable` 在 Rime 就绪前已设置。
+
+---
 
 ### Surround 包围编辑
 
