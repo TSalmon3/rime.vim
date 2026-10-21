@@ -88,6 +88,8 @@ augroup im_lifecycle
   autocmd User RimeContextEnglish call im#hooks#restore_completion()
   autocmd User RimeIMEnable  call im#surround#enable()
   autocmd User RimeIMDisable call im#surround#disable()
+  autocmd User RimeIMEnable  call im#textobj#enable()
+  autocmd User RimeIMDisable call im#textobj#disable()
   autocmd User RimeIMEnable  call im#pair#imap_enable()
   autocmd User RimeIMDisable call im#pair#imap_disable()
   autocmd User RimeIMEnable  call im#snip#register_builtin_engines()

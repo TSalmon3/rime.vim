@@ -1,5 +1,5 @@
 > [!WARNING]
-> **v2.0.0** 含后端协议变更与 API breaking。**rime-query** 需重新编译。API 变更见 **CHANGELOG**。回退稳定版本 Tag 为 **v1.24.0**
+> **v2.0.0** 含后端协议变更与 API breaking。 **rime-query** 需重新编译。API 变更见 **CHANGELOG**。回退稳定版本 Tag 为 **v1.24.0**
 
 <p align="center">
   <img alt="Logo" src="./icon.png" height="200" />
@@ -20,6 +20,7 @@
   ·
   <a href="https://github.com/TSalmon3/rime.vim/blob/master/README.en.md">英文说明</a>
 </p>
+
 
 ---
 
@@ -1457,7 +1458,6 @@ function RimeKeymapRemap()
         \ "\<cmd>call im#engine#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift)\<CR>" :
         \ im#replace#can_restore() ? "\<cmd>call im#replace#bs()\<cr>" :
         \ im#pair#should_bs() ? "\<bs>" : "\<s-bs>"
-
 endfunction
 
 augroup RimeGroup
@@ -1887,6 +1887,8 @@ augroup END
 ```
 
 ---
+
+
 
 ### Surround 包围编辑
 
@@ -2559,6 +2561,7 @@ call im#engine#key(g:RIME_KEYCODE.BackSpace, g:RIME_MASK.Shift) " Shift+BackSpac
 - [nvim-surround](https://github.com/kylechui/nvim-surround) - Add/change/delete surrounding delimiter pairs with ease. Written with ❤️ in Lua.
 - [vim-surround](https://github.com/tpope/vim-surround) - surround.vim: Delete/change/add parentheses/quotes/XML-tags/much more with ease
 - [vim-sandwich](https://github.com/machakann/vim-sandwich) - Set of operators and textobjects to search/select/edit sandwiched texts.
+- [targets.vim](https://github.com/wellle/targets.vim) - Vim plugin that provides additional text objects
 - [pangu.vim](https://github.com/hotoo/pangu.vim) — 中文排版自动规范化的 Vim 插件
 - [autocorrect](https://github.com/huacnlee/autocorrect) - A linter and formatter to help you to improve copywriting, correct spaces, words, and punctuations between CJK (Chinese, Japanese, Korean).
 - [tmux-rime](https://github.com/rimeinn/tmux-rime) - ㄓ rime for tmux
